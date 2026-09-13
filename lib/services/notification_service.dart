@@ -1,4 +1,5 @@
-﻿import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -73,13 +74,37 @@ class NotificationService {
       fullScreenIntent: true,
       ongoing: true,
       autoCancel: false,
+      actions: <AndroidNotificationAction>[
+        AndroidNotificationAction('safe_id', "I'm safe", titleColor: Color(0xFF4CAF50)),
+        AndroidNotificationAction('delay_id', '+15 min', titleColor: Color(0xFF9E9E9E)),
+        AndroidNotificationAction('sos_id', 'Need help', titleColor: Color(0xFFF44336)),
+      ],
     );
     const NotificationDetails notificationDetails = NotificationDetails(android: androidNotificationDetails);
     
     await _flutterLocalNotificationsPlugin.show(
       id: 999,
-      title: 'Arrival Check',
-      body: 'Did you arrive safely at $destination?',
+      title: 'Did you arrive safely at $destination?',
+      body: 'Confirm your safety within 90 seconds or your trusted contacts will automatically receive emergency SMS alerts with your live location.',
+      notificationDetails: notificationDetails,
+    );
+  }
+
+  Future<void> showEmergencySentNotification(List<String> dispatchedTo) async {
+    const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+      'lisko_alarm_channel',
+      'LisKo Arrival Alerts',
+      channelDescription: 'High priority alerts for safety checks.',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const NotificationDetails notificationDetails = NotificationDetails(android: androidNotificationDetails);
+    
+    final names = dispatchedTo.isNotEmpty ? dispatchedTo.join(', ') : 'trusted contacts';
+    await _flutterLocalNotificationsPlugin.show(
+      id: 1000,
+      title: 'EMERGENCY SMS SENT',
+      body: 'No response detected. Emergency SMS with live location broadcasted to $names.',
       notificationDetails: notificationDetails,
     );
   }

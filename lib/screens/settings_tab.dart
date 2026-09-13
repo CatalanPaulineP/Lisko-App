@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // LisKo Mobile Safety Application - Settings & Preferences Tab
 // File: lib/screens/settings_tab.dart
 //
@@ -47,10 +47,12 @@ class _SettingsTabState extends State<SettingsTab> {
 
   Future<void> _loadSettings() async {
     final homeCoords = await _storage.readHomeCoordinates();
+    final alertMode = await _storage.readAlertMode();
     if (mounted) {
       setState(() {
         _homeLat = homeCoords['latitude'];
         _homeLng = homeCoords['longitude'];
+        _alertMode = alertMode;
       });
     }
   }
@@ -82,7 +84,7 @@ class _SettingsTabState extends State<SettingsTab> {
       builder: (ctx) => AlertDialog(
         title: const Text('Campus Geofence'),
         content: const Text(
-            'PUP Santa Maria Campus coordinates are fixed at 14.8697Â° N, 120.9991Â° E.\n\n'
+            'PUP Santa Maria Campus coordinates are fixed at 14.8697° N, 120.9991° E.\n\n'
             'The arrival perimeter is set to 150 meters. When your device enters this radius, '
             'the arrival timer triggers automatically.'),
         actions: [
@@ -155,7 +157,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconColor: AppColors.primary,
                           title: 'Home Location Pin',
                           subtitle: _homeLat != null
-                              ? '${_homeLat!.toStringAsFixed(4)}Â° N, ${_homeLng!.toStringAsFixed(4)}Â° E'
+                              ? '${_homeLat!.toStringAsFixed(4)}° N, ${_homeLng!.toStringAsFixed(4)}° E'
                               : 'Tap to set home coordinates',
                           onTap: _openHomeGeofenceModal,
                         ),
@@ -166,7 +168,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconBg: AppColors.canvas,
                           iconColor: AppColors.body,
                           title: 'PUP Santa Maria Campus',
-                          subtitle: '14.8697Â° N, 120.9991Â° E â€¢ 150m',
+                          subtitle: '14.8697° N, 120.9991° E • 150m',
                           onTap: _openCampusGeofenceModal,
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
@@ -201,7 +203,12 @@ class _SettingsTabState extends State<SettingsTab> {
                           title: 'Timer Expiry Alert Mode',
                           value: _alertMode,
                           items: const ['Vibrate Only', 'Sound & Vibrate', 'Silent'],
-                          onChanged: (val) => setState(() => _alertMode = val!),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _alertMode = val);
+                              _storage.saveAlertMode(val);
+                            }
+                          },
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildInfoRow(
@@ -251,7 +258,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     child: Column(
                       children: [
                         Text(
-                          'LisKo v1.0.0 â€¢ PUP Santa Maria Campus',
+                          'LisKo v1.0.0 • PUP Santa Maria Campus',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -260,7 +267,7 @@ class _SettingsTabState extends State<SettingsTab> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Zero-Surveillance Architecture â€¢ Offline-First',
+                          'Zero-Surveillance Architecture • Offline-First',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,

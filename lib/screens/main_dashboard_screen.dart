@@ -30,6 +30,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
+import '../services/local_storage_service.dart';
+import '../services/notification_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/geofence_service.dart';
@@ -115,16 +119,18 @@ class HomeScreenState extends State<HomeScreen> {
       final currentTime = DateTime.now();
       if (expectedArrivalAt != null && currentTime.isAfter(expectedArrivalAt!)) {
         tripTimer?.cancel();
-        // Travel timer expired: prompt safety verification
         _handleArrivalDetected(destination);
       } else if (expectedArrivalAt != null) {
         setState(() => remaining = expectedArrivalAt!.difference(currentTime));
+        final mm = remaining.inMinutes.toString().padLeft(2, '0');
+        final ss = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+        NotificationService().showPersistentTripNotification(destination, '$mm:$ss');
       }
     });
   }
 
   /// Triggers arrival state and begins 90-second escalation countdown.
-  void _handleArrivalDetected(String destinationName) {
+  void _handleArrivalDetected(String destinationName) async {
     if (isArrived) return;
     tripTimer?.cancel();
     final now = DateTime.now();
@@ -136,6 +142,23 @@ class HomeScreenState extends State<HomeScreen> {
       selectedTab = 0;
     });
 
+    final storage = const LocalStorageService();
+    final alertMode = await storage.readAlertMode();
+    
+    if (alertMode != 'Silent') {
+      try {
+        final hasVibrator = await Vibration.hasVibrator();
+        if (hasVibrator == true) {
+          await Vibration.vibrate(pattern: [0, 20000, 10000, 20000, 10000, 20000, 10000]);
+        } else {
+          HapticFeedback.heavyImpact();
+        }
+      } catch (_) {}
+    }
+
+    NotificationService().cancelPersistentTripNotification();
+    NotificationService().showArrivalAlarm(destinationName);
+
     // Start 90-second safety escalation countdown
     _arrivalTimer?.cancel();
     _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -144,6 +167,7 @@ class HomeScreenState extends State<HomeScreen> {
       
       if (safetyCheckDeadline != null && currentTime.isAfter(safetyCheckDeadline!)) {
         _arrivalTimer?.cancel();
+        Vibration.cancel();
         setState(() => arrivalCountdown = 0);
         _escalateEmergencyAlert();
       } else if (safetyCheckDeadline != null) {
@@ -178,6 +202,8 @@ class HomeScreenState extends State<HomeScreen> {
       latitude: lat,
       longitude: lng,
     );
+
+    NotificationService().showEmergencySentNotification(sentList);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -234,6 +260,9 @@ class HomeScreenState extends State<HomeScreen> {
         _handleArrivalDetected(destination);
       } else if (expectedArrivalAt != null) {
         setState(() => remaining = expectedArrivalAt!.difference(nowTime));
+        final mm = remaining.inMinutes.toString().padLeft(2, '0');
+        final ss = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+        NotificationService().showPersistentTripNotification(destination, '$mm:$ss');
       }
     });
   }

@@ -148,8 +148,112 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  void _removeContact(int index) {
-    if (index >= 0 && index < _contacts.length) {
+  Future<void> _removeContact(int index) async {
+    if (index < 0 || index >= _contacts.length) return;
+    
+    final contact = _contacts[index];
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: AppIcon.card(
+                    AppIcons.deleteOutline,
+                    color: AppColors.primary,
+                    semanticIcon: Icons.delete_outline_rounded,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Remove Contact',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.header,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Are you sure you want to remove ${contact.name} from your trusted contacts?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: AppColors.body,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.header,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Remove',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (confirmed == true && mounted) {
       final updated = List<ContactPerson>.from(_contacts)..removeAt(index);
       _updateContacts(updated);
     }

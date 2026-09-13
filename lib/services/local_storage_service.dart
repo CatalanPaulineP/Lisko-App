@@ -48,6 +48,31 @@ class LocalStorageService {
   static const double defaultHomeLng = 120.9610;
   static const double defaultHomeRadius = 150.0;
 
+  /// Key storing the user's preferred Timer Expiry Alert Mode.
+  static const _alertModeKey = 'timer_alert_mode';
+
+  /// Reads the Timer Expiry Alert Mode. Defaults to 'Sound & Vibrate'.
+  Future<String> readAlertMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_alertModeKey) ?? 'Sound & Vibrate';
+    } catch (e) {
+      developer.log('LocalStorageService: Failed to read alert mode, defaulting to Sound & Vibrate. Error: $e');
+      return 'Sound & Vibrate';
+    }
+  }
+
+  /// Saves the Timer Expiry Alert Mode.
+  Future<void> saveAlertMode(String mode) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_alertModeKey, mode);
+      developer.log('LocalStorageService: Saved alert mode ($mode).');
+    } catch (e) {
+      developer.log('LocalStorageService: Failed to save alert mode: $e');
+    }
+  }
+
   /// Default baseline contacts loaded upon fresh install if no contacts exist.
   /// Pre-configured with Pauline as the primary emergency contact to ensure
   /// immediate emergency SMS readiness.

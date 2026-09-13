@@ -1,4 +1,4 @@
-﻿import 'dart:developer' as developer;
+import 'dart:developer' as developer;
 import 'package:background_sms/background_sms.dart';
 
 import 'package:flutter/services.dart';
@@ -50,7 +50,7 @@ class SmsAlertService {
     }
 
     final coordText = (latitude != null && longitude != null)
-        ? ' Near coordinates: ${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}.'
+        ? ' Live location: https://maps.google.com/?q=$latitude,$longitude'
         : '';
 
     final alertMessage = customMessage ??

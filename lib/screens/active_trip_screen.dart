@@ -130,7 +130,7 @@ class ActiveTripTab extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           PrimaryButton(
-            label: '🚨 Need Help / SOS',
+            label: 'Need Help / SOS',
             onPressed: onSos,
           ),
         ],
@@ -185,7 +185,7 @@ class ActiveTripTab extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: const Text(
-                  '● Arrived',
+                  'Arrived',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -314,7 +314,7 @@ class ActiveTripTab extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: PrimaryButton(
-                  label: '🚨 Need Help',
+                  label: 'Need Help / SOS',
                   onPressed: onSos,
                 ),
               ),
@@ -338,13 +338,20 @@ class ActiveBadge extends StatelessWidget {
         color: AppColors.success.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: const Text(
-        '● Active',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          color: AppColors.successText,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.directions_run_rounded, size: 14, color: AppColors.successText),
+          SizedBox(width: 4),
+          Text(
+            'Active',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppColors.successText,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // LisKo Mobile Safety Application - Safety Onboarding Wizard
 // File: lib/screens/onboarding_flow.dart
 //
@@ -205,16 +205,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   final List<ContactPerson> savedContacts = [];
 
   Future<void> _openContactsImport() async {
-    final hasPerm = await PermissionService().checkContactsPermission();
-    if (!hasPerm) {
-      final allowed = await showDialog<bool>(
-        context: context,
-        builder: (_) => const ContactsPermissionModal(),
-      );
-      if (!mounted || allowed != true) return;
-      final granted = await PermissionService().requestContactsPermission();
-      if (!granted) return;
-    }
+    // Show custom modal to inform user what's happening (no system permission required for ACTION_PICK)
+    final allowed = await showDialog<bool>(
+      context: context,
+      builder: (_) => const ContactsPermissionModal(),
+    );
+    if (!mounted || allowed != true) return;
 
     try {
       final FlutterNativeContactPicker contactPicker = FlutterNativeContactPicker();
@@ -242,6 +238,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
             ? result
             : newContact.copyWith(relationship: 'Mother');
         setState(() => savedContacts.add(finalContact));
+        
+        // Save to local storage immediately
+        final storage = const LocalStorageService();
+        final currentSaved = await storage.readContacts();
+        currentSaved.add(finalContact);
+        await storage.saveContacts(currentSaved);
       }
     } catch (e) {
       debugPrint('Failed to pick contact: $e');
@@ -249,35 +251,15 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   }
 
   Future<void> _confirmDeleteContact(ContactPerson contact) async {
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x180F172A),
-              blurRadius: 20,
-              offset: Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.borderSubtle,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(height: 20),
               Container(
                 width: 52,
                 height: 52,
@@ -353,10 +335,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                           ),
                         ),
                         child: const Text(
-                          'Delete',
+                          'Remove',
                           style: TextStyle(
-                            fontSize: 15,
                             fontWeight: FontWeight.w700,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -366,11 +348,11 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
               ),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
 
-    if (mounted && confirmed == true) {
+    if (confirmed == true && mounted) {
       setState(() => savedContacts.remove(contact));
     }
   }
@@ -838,7 +820,7 @@ class MockNotificationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'LISKO  Ã¢â‚¬Â¢  now',
+                  'LISKO  •  now',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -2008,6 +1990,13 @@ class SelectRelationshipBottomSheet extends StatefulWidget {
 class _SelectRelationshipBottomSheetState
     extends State<SelectRelationshipBottomSheet> {
   String relationship = 'Mother';
+  final TextEditingController _customRelationshipController = TextEditingController();
+
+  @override
+  void dispose() {
+    _customRelationshipController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2121,7 +2110,7 @@ class _SelectRelationshipBottomSheetState
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
-                      'Ã¢Å“â€œ Imported',
+                      '✓ Imported',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
@@ -2137,12 +2126,53 @@ class _SelectRelationshipBottomSheetState
               selected: relationship,
               onChanged: (value) => setState(() => relationship = value),
             ),
+            if (relationship == 'Other') ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Specify Relationship',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.header,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _customRelationshipController,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Aunt, Uncle, Sibling',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.primary),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             PrimaryButton(
               label: 'Confirm & Save Contact',
               iconifyIcon: AppIcons.check,
               icon: Icons.check_rounded,
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                final finalRel = relationship == 'Other'
+                    ? _customRelationshipController.text.trim()
+                    : relationship;
+                Navigator.pop(
+                  context,
+                  widget.contact.copyWith(
+                    relationship: finalRel.isEmpty ? 'Other' : finalRel,
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 4),
             SecondaryButton(
@@ -2290,7 +2320,7 @@ class _SmsIllustrationState extends State<SmsIllustration>
                   child: SlideTransition(
                     position: _bubble2Slide,
                     child: const MessageBubble(
-                      text: 'SMS sent Ã¢Å“â€œ',
+                      text: 'SMS sent ✓',
                       success: true,
                       isSender: true,
                     ),
