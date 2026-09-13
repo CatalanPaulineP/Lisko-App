@@ -151,14 +151,23 @@ class DashboardCard extends StatelessWidget {
 
 /// SOS Emergency shortcut banner with clear instructional cues.
 class SosWarningBox extends StatelessWidget {
-  const SosWarningBox({super.key, this.onTap});
+  const SosWarningBox({
+    super.key,
+    this.onTap,
+    this.onLongPress,
+    this.onDoubleTap,
+  });
 
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onDoubleTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
+      onDoubleTap: onDoubleTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,

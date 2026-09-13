@@ -46,6 +46,7 @@ import 'contacts_tab.dart';
 import 'home_tab.dart';
 import 'settings_tab.dart';
 import 'trips_tab.dart';
+import 'emergency_alert_screen.dart';
 
 /// Main container screen hosting the bottom navigation bar and active trip state.
 class HomeScreen extends StatefulWidget {
@@ -169,7 +170,7 @@ class HomeScreenState extends State<HomeScreen> {
         _arrivalTimer?.cancel();
         Vibration.cancel();
         setState(() => arrivalCountdown = 0);
-        _escalateEmergencyAlert();
+        _triggerEmergencyFlow();
       } else if (safetyCheckDeadline != null) {
         setState(() => arrivalCountdown = safetyCheckDeadline!.difference(currentTime).inSeconds);
       }
@@ -267,45 +268,32 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  bool _dialogOpen = false;
+  bool _alertScreenOpen = false;
   bool _sheetOpen = false;
 
-  Future<void> _showSosConfirmation() async {
-    if (_dialogOpen) return;
-    _dialogOpen = true;
-    try {
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Need help?'),
-          content: const Text(
-            'Your trusted contacts will be notified that you may need assistance.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('SOS alert prepared for your trusted contacts.'),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Confirm SOS'),
-            ),
-          ],
+  void _triggerEmergencyFlow() {
+    if (_alertScreenOpen) return;
+    _alertScreenOpen = true;
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        fullscreenDialog: true,
+        pageBuilder: (context, _, __) => EmergencyAlertScreen(
+          onExecute: _escalateEmergencyAlert,
+          onCancel: () {
+            // Cancel any arrival timers if we were in arrival state
+            if (isArrived && arrivalCountdown == 0) {
+                // If it was triggered by the timer, we might want to reset or cancel the trip.
+                _endTrip();
+            }
+          },
         ),
-      );
-    } finally {
-      if (mounted) _dialogOpen = false;
-    }
+      ),
+    ).whenComplete(() {
+      if (mounted) _alertScreenOpen = false;
+    });
   }
 
   void _openTripScheduler() {
@@ -326,21 +314,12 @@ class HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: null,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 120),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        layoutBuilder: (currentChild, previousChildren) {
-          return Stack(
-            alignment: Alignment.topCenter,
-            children: <Widget>[
-              ...previousChildren,
-              if (currentChild != null) currentChild,
-            ],
-          );
-        },
-        child: selectedTab == 0
-            ? (tripActive
+      body: IndexedStack(
+        index: selectedTab,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: tripActive
                 ? ActiveTripTab(
                     key: const ValueKey('active-trip'),
                     destination: destination,
@@ -348,19 +327,20 @@ class HomeScreenState extends State<HomeScreen> {
                     totalDuration: totalDuration,
                     onSafe: _endTrip,
                     onExtend: _extendTrip,
-                    onSos: _showSosConfirmation,
+                    onSos: _triggerEmergencyFlow,
                     isArrived: isArrived,
                     arrivalRemainingSeconds: arrivalCountdown,
                   )
                 : HomeDashboardTab(
                     key: const ValueKey('home-dashboard'),
                     onStartTrip: _openTripScheduler,
-                  ))
-            : selectedTab == 1
-                ? const TripsTab(key: ValueKey('trips'))
-                : selectedTab == 2
-                    ? const ContactsTab(key: ValueKey('contacts'))
-                    : const SettingsTab(key: ValueKey('settings')),
+                    onSos: _triggerEmergencyFlow,
+                  ),
+          ),
+          const TripsTab(key: ValueKey('trips')),
+          const ContactsTab(key: ValueKey('contacts')),
+          const SettingsTab(key: ValueKey('settings')),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: selectedTab,

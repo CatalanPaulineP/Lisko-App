@@ -30,10 +30,17 @@ import '../widgets/trip_timer_card.dart';
 
 /// Home dashboard view containing the hero header, trip launcher, and status indicators.
 class HomeDashboardTab extends StatelessWidget {
-  const HomeDashboardTab({super.key, required this.onStartTrip});
+  const HomeDashboardTab({
+    super.key,
+    required this.onStartTrip,
+    required this.onSos,
+  });
 
   /// Action dispatched to open the `TripSchedulerSheet` modal.
   final VoidCallback onStartTrip;
+
+  /// Action dispatched when SOS is triggered.
+  final VoidCallback onSos;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +60,11 @@ class HomeDashboardTab extends StatelessWidget {
                   const SizedBox(height: 14),
                   HomeStartButton(onPressed: onStartTrip),
                   const SizedBox(height: 12),
-                  const SosWarningBox(),
+                  SosWarningBox(
+                    onTap: onSos,
+                    onLongPress: onSos,
+                    onDoubleTap: onSos,
+                  ),
                   const SizedBox(height: 24),
                   const TodayActivity(),
                 ],
@@ -72,88 +83,96 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 220,
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 180,
-            child: CustomPaint(painter: const HomeHeaderPatternPainter()),
+    return Stack(
+      children: [
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 40, // Stops 40px above the bottom of the stack to let the card stick out
+          child: CustomPaint(
+            painter: const HomeHeaderPatternPainter(),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 36, 20, 50),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Hidden accessible node satisfying full-string matchers in widget tests
-                    SizedBox(
-                      width: 0,
-                      height: 0,
-                      child: OverflowBox(
-                        minWidth: 0,
-                        maxWidth: 0,
-                        minHeight: 0,
-                        maxHeight: 0,
-                        child: Text(
-                          'Good morning, Iskolar',
-                          style: TextStyle(
-                            fontSize: 0,
-                            color: Colors.transparent,
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(
+                top: MediaQuery.paddingOf(context).top + 24,
+                left: 20,
+                right: 20,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Hidden accessible node satisfying full-string matchers in widget tests
+                      const SizedBox(
+                        width: 0,
+                        height: 0,
+                        child: OverflowBox(
+                          minWidth: 0,
+                          maxWidth: 0,
+                          minHeight: 0,
+                          maxHeight: 0,
+                          child: Text(
+                            'Good morning, Iskolar',
+                            style: TextStyle(
+                              fontSize: 0,
+                              color: Colors.transparent,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const Text(
-                      'Good morning,',
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: Colors.white,
-                        height: 1.1,
+                      const Text(
+                        'Good morning,',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                          height: 1.1,
+                        ),
                       ),
-                    ),
-                    const Text(
-                      'Iskolar',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        height: 1.1,
+                      const Text(
+                        'Iskolar',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.1,
+                        ),
                       ),
+                    ],
+                  ),
+                  IconButton(
+                    onPressed: () {},
+                    tooltip: 'Notifications',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 44,
+                      height: 44,
                     ),
-                  ],
-                ),
-                IconButton(
-                  onPressed: () {},
-                  tooltip: 'Notifications',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 44,
-                    height: 44,
+                    icon: const AppIcon.standard(
+                      AppIcons.notificationsOutline,
+                      color: Colors.white,
+                      semanticIcon: Icons.notifications_none_rounded,
+                    ),
                   ),
-                  icon: const AppIcon.standard(
-                    AppIcons.notificationsOutline,
-                    color: Colors.white,
-                    semanticIcon: Icons.notifications_none_rounded,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Positioned(
-            left: 20,
-            right: 20,
-            bottom: 0,
-            child: SystemReadyCard(),
-          ),
-        ],
-      ),
+            const SizedBox(height: 28), // Explicit spacing to perfectly prevent text overlap
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: SystemReadyCard(),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -163,19 +182,10 @@ class HomeHeaderPatternPainter extends CustomPainter {
   const HomeHeaderPatternPainter();
 
   static final Paint _bgPaint = Paint()..color = AppColors.header;
-  static final Paint _gridPaint = Paint()
-    ..color = Colors.white.withValues(alpha: 0.045)
-    ..strokeWidth = 1;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, _bgPaint);
-    for (double x = 0; x < size.width; x += 28) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), _gridPaint);
-    }
-    for (double y = 16; y < size.height; y += 28) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), _gridPaint);
-    }
   }
 
   @override
