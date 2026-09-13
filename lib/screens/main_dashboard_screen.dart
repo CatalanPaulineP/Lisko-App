@@ -28,6 +28,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
@@ -158,10 +159,24 @@ class HomeScreenState extends State<HomeScreen> {
 
   /// Dispatches offline SMS emergency alerts when 90-second timer expires.
   Future<void> _escalateEmergencyAlert() async {
+    double? lat = _geofenceService.activeTarget?.latitude;
+    double? lng = _geofenceService.activeTarget?.longitude;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 5),
+      );
+      lat = position.latitude;
+      lng = position.longitude;
+    } catch (e) {
+      debugPrint('Failed to fetch live GPS for emergency escalation: $e');
+    }
+
     final sentList = await _smsAlertService.dispatchEmergencyAlert(
       destination: destination,
-      latitude: _geofenceService.activeTarget?.latitude,
-      longitude: _geofenceService.activeTarget?.longitude,
+      latitude: lat,
+      longitude: lng,
     );
 
     if (mounted) {

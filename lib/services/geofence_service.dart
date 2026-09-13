@@ -113,6 +113,13 @@ class GeofenceService {
       longitude: 120.96163959792787,
       radiusMeters: 150.0,
     ),
+    GeofenceTarget(
+      id: 'divine_mercy',
+      name: 'Divine Mercy Parking Lot',
+      latitude: 14.825227768565744,
+      longitude: 120.97022830836544,
+      radiusMeters: 150.0,
+    ),
   ];
 
   StreamSubscription<Position>? _positionSubscription;

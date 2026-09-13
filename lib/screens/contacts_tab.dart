@@ -30,6 +30,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
+import 'package:flutter_native_contact_picker/model/contact.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
@@ -92,22 +94,44 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  void _openImportModal() {
-    showModalBottomSheet<ContactPerson>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => ImportContactsBottomSheet(
-        onImported: (imported) {
-          final updated = List<ContactPerson>.from(_contacts);
-          // Check if already in list to avoid exact duplicates
-          if (!updated.any((c) => c.phone == imported.phone)) {
-            updated.add(imported);
-            _updateContacts(updated);
+  final FlutterNativeContactPicker _contactPicker = FlutterNativeContactPicker();
+
+  Future<void> _openImportModal() async {
+    try {
+      final Contact? contact = await _contactPicker.selectContact();
+      if (contact != null && contact.phoneNumbers != null && contact.phoneNumbers!.isNotEmpty) {
+        final String name = contact.fullName ?? 'Unknown';
+        final String phone = contact.phoneNumbers!.first;
+        final String initials = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+        final imported = ContactPerson(
+          name: name,
+          phone: phone,
+          initials: initials,
+          relationship: 'Other',
+        );
+
+        final updated = List<ContactPerson>.from(_contacts);
+        if (!updated.any((c) => c.phone == imported.phone)) {
+          updated.add(imported);
+          _updateContacts(updated);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Imported $name successfully')),
+            );
           }
-        },
-      ),
-    );
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Contact already exists in your trusted list')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to pick contact: $e');
+    }
   }
 
   void _openAddContactModal() {
@@ -883,193 +907,6 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Import from Contacts Bottom Sheet matching image_6c39c8.png
-class ImportContactsBottomSheet extends StatelessWidget {
-  const ImportContactsBottomSheet({super.key, required this.onImported});
-
-  final ValueChanged<ContactPerson> onImported;
-
-  static const List<Map<String, String>> mockContacts = [
-    {'name': 'Dianne', 'phone': '+63 915 234 5678', 'initials': 'D'},
-    {'name': 'Elly', 'phone': '+63 927 345 6789', 'initials': 'E'},
-    {'name': 'ash', 'phone': '+63 908 456 7890', 'initials': 'A'},
-    {'name': 'Rothen', 'phone': '+63 919 567 8901', 'initials': 'R'},
-    {'name': 'Rainn', 'phone': '+63 920 678 9012', 'initials': 'R'},
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Phone Contacts',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.header,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Select a contact to import',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.body,
-                      ),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  tooltip: 'Close',
-                  padding: EdgeInsets.zero,
-                  constraints:
-                      const BoxConstraints.tightFor(width: 32, height: 32),
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: AppColors.body,
-                    size: 22,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...mockContacts.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Material(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
-                    onTap: () {
-                      onImported(
-                        ContactPerson(
-                          name: item['name']!,
-                          phone: item['phone']!,
-                          initials: item['initials']!,
-                          relationship: 'Other',
-                        ),
-                      );
-                      Navigator.pop(context);
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFFDAD8),
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              item['initials']!,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item['name']!,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.header,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  item['phone']!,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12.5,
-                                    color: AppColors.body,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            color: AppColors.body,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  backgroundColor: AppColors.canvas,
-                  foregroundColor: AppColors.body,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: AppColors.border),
-                  ),
-                  textStyle: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                child: const Text('Cancel'),
-              ),
-            ),
-          ],
         ),
       ),
     );
