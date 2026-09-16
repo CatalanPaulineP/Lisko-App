@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
@@ -11,11 +12,13 @@ class TimesUpScreen extends StatefulWidget {
     required this.onSafe,
     required this.onExtend,
     required this.onHelp,
+    required this.onTimeout,
   });
 
   final VoidCallback onSafe;
   final VoidCallback onExtend;
   final VoidCallback onHelp;
+  final VoidCallback onTimeout;
 
   @override
   State<TimesUpScreen> createState() => _TimesUpScreenState();
@@ -31,7 +34,14 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() {
-        if (_secondsLeft > 0) _secondsLeft--;
+        if (_secondsLeft > 1) {
+          _secondsLeft--;
+        } else {
+          _secondsLeft = 0;
+          _timer.cancel();
+          widget.onTimeout();
+          SystemNavigator.pop();
+        }
       });
     });
   }
@@ -81,7 +91,7 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         widget.onSafe();
-                        Navigator.pop(context);
+                        SystemNavigator.pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.success,
@@ -106,7 +116,7 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         widget.onExtend();
-                        Navigator.pop(context);
+                        SystemNavigator.pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFD97706),
@@ -131,7 +141,7 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         widget.onHelp();
-                        Navigator.pop(context);
+                        SystemNavigator.pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
