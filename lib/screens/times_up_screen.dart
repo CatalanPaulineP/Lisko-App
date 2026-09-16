@@ -18,7 +18,7 @@ class TimesUpScreen extends StatefulWidget {
   final VoidCallback onSafe;
   final VoidCallback onExtend;
   final VoidCallback onHelp;
-  final VoidCallback onTimeout;
+  final Future<void> Function() onTimeout;
 
   @override
   State<TimesUpScreen> createState() => _TimesUpScreenState();
@@ -31,18 +31,18 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (!mounted) return;
-      setState(() {
-        if (_secondsLeft > 1) {
+      if (_secondsLeft > 0) {
+        setState(() {
           _secondsLeft--;
-        } else {
-          _secondsLeft = 0;
-          _timer.cancel();
-          widget.onTimeout();
-          SystemNavigator.pop();
-        }
-      });
+        });
+      } else {
+        _timer.cancel();
+        setState(() { _secondsLeft = 0; });
+        await widget.onTimeout();
+        SystemNavigator.pop();
+      }
     });
   }
 

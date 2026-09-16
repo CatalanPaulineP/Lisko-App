@@ -414,11 +414,11 @@ class HomeScreenState extends State<HomeScreen> {
               NotificationService().cancelArrivalAlarm();
               _triggerEmergencyFlow(immediate: true);
             },
-            onTimeout: () {
+            onTimeout: () async {
               _alarmActive = false;
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
-              _escalateEmergencyAlert(isManualSos: false);
+              await _escalateEmergencyAlert(isManualSos: false);
             },
           ),
         ),
