@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Trip History & Metrics
 // File: lib/screens/trips_tab.dart
 //
@@ -606,26 +606,6 @@ class RecentTripsList extends StatelessWidget {
                         color: AppColors.body,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    if (onStartNewTrip != null)
-                      ElevatedButton.icon(
-                        onPressed: onStartNewTrip,
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Start a New Trip'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
