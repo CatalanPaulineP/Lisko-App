@@ -152,7 +152,7 @@ class NotificationService {
     );
     await _flutterLocalNotificationsPlugin.show(
       id: 888,
-      title: 'Lisko: 🚶 Travel Timer',
+      title: 'Lisko: Active Travel Timer',
       body: '$destination - $remainingTime remaining',
       notificationDetails: const NotificationDetails(android: details),
     );

@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Main Dashboard & Tab Coordinator
 // File: lib/screens/main_dashboard_screen.dart
 //
@@ -319,7 +319,7 @@ class HomeScreenState extends State<HomeScreen> {
     // 3. Stationary Detection & Inactivity Geofence Algorithm
     // Capture the student's GPS position at trip start as the anchor coordinate.
     // After 10 minutes, re-sample and compare via Haversine. If the student
-    // hasn't moved ≥ 20m, trigger the safety heads-up banner.
+    // hasn't moved < 20m, trigger the safety heads-up banner.
     Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
       timeLimit: const Duration(seconds: 10),
@@ -647,7 +647,7 @@ class HomeScreenState extends State<HomeScreen> {
           SnackBar(
             backgroundColor: permissionDenied || sentList.isEmpty ? AppColors.body : AppColors.primary,
             duration: const Duration(seconds: 5),
-            content: Text('🚨 $statusMessage'),
+            content: Text(statusMessage),
           ),
         );
       }

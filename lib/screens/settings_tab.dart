@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Settings & Preferences Tab
 // File: lib/screens/settings_tab.dart
 //
@@ -170,7 +170,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconBg: AppColors.canvas,
                           iconColor: AppColors.body,
                           title: 'PUP Santa Maria Campus',
-                          subtitle: '14.8697� N, 120.9991� E � 150m',
+                          subtitle: '14.8697° N, 120.9991° E • 150m',
                           onTap: _openCampusGeofenceModal,
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
@@ -264,7 +264,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     child: Column(
                       children: [
                         Text(
-                          'Lisko v1.0.0 � PUP Santa Maria Campus',
+                          'Lisko v1.0.0 • PUP Santa Maria Campus',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,

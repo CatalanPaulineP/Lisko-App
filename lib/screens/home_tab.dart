@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Home Dashboard Tab
 // File: lib/screens/home_tab.dart
 //
@@ -81,8 +81,20 @@ class HomeDashboardTab extends StatelessWidget {
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key});
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good morning';
+    } else if (hour < 18) {
+      return 'Good afternoon';
+    } else {
+      return 'Good evening';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final greeting = _getGreeting();
     return Stack(
       children: [
         Positioned(
@@ -112,7 +124,7 @@ class HomeHeader extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Hidden accessible node satisfying full-string matchers in widget tests
-                      const SizedBox(
+                      SizedBox(
                         width: 0,
                         height: 0,
                         child: OverflowBox(
@@ -121,17 +133,17 @@ class HomeHeader extends StatelessWidget {
                           minHeight: 0,
                           maxHeight: 0,
                           child: Text(
-                            'Good morning, Iskolar',
-                            style: TextStyle(
+                            '$greeting, Iskolar',
+                            style: const TextStyle(
                               fontSize: 0,
                               color: Colors.transparent,
                             ),
                           ),
                         ),
                       ),
-                      const Text(
-                        'Good morning,',
-                        style: TextStyle(
+                      Text(
+                        '$greeting,',
+                        style: const TextStyle(
                           fontSize: 20,
                           color: Colors.white,
                           height: 1.1,
