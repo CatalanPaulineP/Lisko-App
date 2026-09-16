@@ -144,17 +144,24 @@ class _PrimaryButtonState extends State<PrimaryButton> {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: ElevatedButton(
-        onPressed: isEnabled ? _handlePressed : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isEnabled ? AppColors.primary : AppColors.border,
-          foregroundColor: isEnabled ? Colors.white : AppColors.body,
-          disabledBackgroundColor: AppColors.border,
-          disabledForegroundColor: AppColors.body,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: isEnabled ? AppColors.primaryGradient : null,
+          color: isEnabled ? null : AppColors.border,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ElevatedButton(
+          onPressed: isEnabled ? _handlePressed : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: isEnabled ? Colors.white : AppColors.body,
+            disabledBackgroundColor: Colors.transparent,
+            disabledForegroundColor: AppColors.body,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           textStyle: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w800,
@@ -176,6 +183,66 @@ class _PrimaryButtonState extends State<PrimaryButton> {
             ],
             Text(widget.label),
           ],
+        ),
+      ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GradientButton — lightweight stateless gradient CTA for use in bottom sheets,
+// modals, and dialogs where PrimaryButton's debounce is not required.
+//
+// Renders the app's `AppColors.primaryGradient` (red top → darker red bottom)
+// wrapped inside an InkWell for native ripple feedback, ensuring visual
+// consistency with PrimaryButton throughout the entire LisKo surface.
+// ---------------------------------------------------------------------------
+class GradientButton extends StatelessWidget {
+  const GradientButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.height = 50.0,
+    this.fontSize = 15.0,
+    this.enabled = true,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final double height;
+  final double fontSize;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: height,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: enabled ? AppColors.primaryGradient : null,
+            color: enabled ? null : AppColors.border,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: InkWell(
+            onTap: enabled ? onPressed : null,
+            borderRadius: BorderRadius.circular(12),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w800,
+                  color: enabled ? Colors.white : AppColors.body,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -32,6 +32,18 @@ abstract final class AppColors {
   /// primary CTA actions, and alert states).
   static const primary = Color(0xFFDB2B38);
 
+  static const primaryGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+  );
+
+  static const timerGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFA7F3D0), Color(0xFF10B981)],
+  );
+
   /// Deep Navy header & high-contrast typography: `#1E293B` (Slate 800).
   /// Used for top app bars, primary titles, and high-emphasis textual content.
   static const header = Color(0xFF1E293B);

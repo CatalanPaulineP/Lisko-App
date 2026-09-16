@@ -1,25 +1,30 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:vibration/vibration.dart';
 import '../constants/app_colors.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
-  const EmergencyAlertScreen({super.key, required this.onExecute, required this.onCancel});
+  const EmergencyAlertScreen({super.key, required this.onExecute, required this.onCancel, this.isManualSos = true, this.onExtend, this.immediateExecute = false});
 
   final Future<void> Function() onExecute;
   final VoidCallback onCancel;
+  final bool isManualSos;
+  final VoidCallback? onExtend;
+  final bool immediateExecute;
 
   @override
   State<EmergencyAlertScreen> createState() => _EmergencyAlertScreenState();
 }
 
 class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
-  int countdown = 5;
+  late int countdown;
   Timer? _timer;
   bool _executing = false;
   bool _done = false;
 
   @override
   void initState() {
+    countdown = widget.immediateExecute ? 0 : (widget.isManualSos ? 5 : 90);
     super.initState();
     _startCountdown();
   }
@@ -31,6 +36,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         setState(() => countdown--);
       } else {
         _timer?.cancel();
+        Vibration.cancel();
         _executeAlert();
       }
     });
@@ -58,6 +64,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
 
   void _cancel() {
     _timer?.cancel();
+    Vibration.cancel();
     widget.onCancel();
     Navigator.pop(context);
   }
@@ -65,6 +72,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    Vibration.cancel();
     super.dispose();
   }
 
@@ -93,8 +101,8 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Emergency!',
+              Text(
+                widget.isManualSos ? 'Manual SOS Triggered' : 'Inactivity Safety Alert',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
@@ -140,28 +148,76 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                 const CircularProgressIndicator(color: Colors.white),
               const Spacer(),
               if (!_done && !_executing)
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _cancel,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.primary,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                if (widget.isManualSos)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _cancel,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.primary,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
+                      child: const Text('Cancel', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                     ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                  )
+                else
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _cancel, // I'm Safe
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const FittedBox(child: Text("I'm Safe", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold))),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                widget.onExtend?.call();
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white24,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const FittedBox(child: Text("+15 mins", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold))),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _timer?.cancel();
+                            Vibration.cancel();
+                            _executeAlert();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text("Need Help / SOS", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
             ],
           ),
         ),

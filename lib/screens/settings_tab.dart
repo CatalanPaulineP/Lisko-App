@@ -1,4 +1,4 @@
-// ==============================================================================
+﻿// ==============================================================================
 // LisKo Mobile Safety Application - Settings & Preferences Tab
 // File: lib/screens/settings_tab.dart
 //
@@ -48,11 +48,13 @@ class _SettingsTabState extends State<SettingsTab> {
   Future<void> _loadSettings() async {
     final homeCoords = await _storage.readHomeCoordinates();
     final alertMode = await _storage.readAlertMode();
+    final defaultMins = await _storage.readDefaultTravelDuration();
     if (mounted) {
       setState(() {
         _homeLat = homeCoords['latitude'];
         _homeLng = homeCoords['longitude'];
         _alertMode = alertMode;
+        _defaultDuration = '$defaultMins mins';
       });
     }
   }
@@ -180,7 +182,11 @@ class _SettingsTabState extends State<SettingsTab> {
                           title: 'Default Travel Duration',
                           value: _defaultDuration,
                           items: const ['15 mins', '30 mins', '45 mins', '60 mins'],
-                          onChanged: (val) => setState(() => _defaultDuration = val!),
+                          onChanged: (val) {
+                              setState(() => _defaultDuration = val!);
+                              final mins = int.tryParse(val!.replaceAll(' mins', '')) ?? 45;
+                              _storage.saveDefaultTravelDuration(mins);
+                            },
                         ),
                         // End of Commute Presets
                       ],

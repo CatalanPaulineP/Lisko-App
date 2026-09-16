@@ -6,35 +6,26 @@
 // Application bootstrapper and root widget coordinator. Initializes binary
 // messenger bindings and connects Firebase services via FlutterFire CLI options.
 // Configures the Material 3 application instance (`LisKoApp`), sets the light theme,
-// and delegates to `_LaunchGate` for splash screen timing and conditional persistent routing.
+// and delegates to `_LaunchGate` for splash screen timing and conditional routing.
 //
-// Firebase Initialization & Zero-Surveillance Architecture:
-// - Initializes `Firebase.initializeApp` with `DefaultFirebaseOptions.currentPlatform`.
-// - User privacy is guaranteed: LisKo adheres to a zero-surveillance design where
-//   all geofencing, trip history, and emergency contacts remain strictly on-device
-//   in local storage (`SharedPreferences`).
-//
-// SharedPreferences Boot Check & Onboarding Lockout:
-// `_LaunchGate` inspects `LocalStorageService.readSetupCompleted()`:
-// - Fresh Boot (`false`): Directs the user to `SplashScreen` -> `WelcomeScreen` ->
-//   5-step onboarding wizard.
-// - Returning User (`true`): Permanently locks out onboarding, launching directly
-//   into `HomeScreen` (Dashboard) for immediate commute safety readiness.
+// Notification Background Response Handler:
+// `notificationBackgroundResponseHandler` is a top-level @pragma function that
+// runs in a separate Dart isolate when the user taps a notification action button
+// while the app is fully terminated. It persists the action ID to SharedPreferences
+// so `_LaunchGate` can dispatch it to HomeScreenState on the next boot.
 //
 // ISO/IEC 25010 Software Quality Standards Alignment:
-// - Reliability (Fault-Tolerant Launch): If `Firebase` or `SharedPreferences`
-//   encounters an initialization exception during boot, the app safely defaults
-//   to `WelcomeScreen` without crashing.
-// - Reliability (Resource Leak Prevention): Splash navigation timers are tracked
-//   via `Timer` and cleanly canceled on `dispose()`.
-// - Usability (Visual Continuity): Employs a fade transition (`RouteTransition.fade`)
-//   to eliminate jarring white flashes between splash and subsequent screens.
+// - Reliability (Fault-Tolerant Launch): Firebase / SharedPreferences errors
+//   safely default to WelcomeScreen without crashing.
+// - Reliability (Resource Leak Prevention): Splash timers are cancelled in dispose().
+// - Usability (Visual Continuity): Fade transition eliminates jarring flashes.
 // ==============================================================================
 
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'constants/app_colors.dart';
 import 'constants/app_theme.dart';
@@ -53,18 +44,6 @@ export 'services/local_storage_service.dart';
 export 'widgets/widgets.dart';
 
 /// Main application entry point invoked by the Flutter engine.
-///
-/// Converts [main] into an asynchronous bootstrapper that:
-/// 1. Ensures Flutter widget bindings and binary messengers are initialized before
-///    native platform channel communication ([WidgetsFlutterBinding.ensureInitialized]).
-/// 2. Asynchronously initializes Firebase services with platform-specific options
-///    ([Firebase.initializeApp]) configured in [DefaultFirebaseOptions.currentPlatform].
-/// 3. Safely proceeds to execute [runApp] with [LisKoApp].
-///
-/// Zero-Surveillance Architecture Note:
-/// While Firebase is connected for foundational infrastructure, LisKo preserves
-/// strict zero-surveillance privacy by keeping all user trips, geofences, and trusted
-/// contacts entirely within local device storage ([SharedPreferences]).
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService().initialize();
@@ -86,14 +65,14 @@ const bodyColor = AppColors.body;
 const primaryContainerColor = AppColors.primaryContainer;
 const successColor = AppColors.success;
 
-/// Helper detecting whether the app is executing within a Flutter widget test environment.
+/// Helper detecting whether the app is executing within a Flutter test environment.
 bool get _isTestMode {
   final binding = WidgetsBinding.instance.runtimeType.toString();
   return binding.contains('TestWidgetsFlutterBinding') ||
       binding.contains('AutomatedTestWidgetsFlutterBinding');
 }
 
-/// Controls testing mode startup behavior. When true, always routes to WelcomeScreen on fresh boot.
+/// Controls testing mode startup behavior. When true, always routes to WelcomeScreen.
 bool forceFreshStartupForTesting = true;
 
 /// Application root widget configuring Material 3 theme and initial launch gate.
@@ -111,7 +90,8 @@ class LisKoApp extends StatelessWidget {
   }
 }
 
-/// Initial gate handling splash delay, persistent state check, and route dispatching.
+/// Initial gate handling splash delay, onboarding state check, and route dispatching.
+/// Also picks up any pending notification action stored by the background handler.
 class _LaunchGate extends StatefulWidget {
   const _LaunchGate();
 
@@ -126,9 +106,7 @@ class _LaunchGateState extends State<_LaunchGate> {
   @override
   void initState() {
     super.initState();
-    // CRITICAL: Trigger the navigation countdown ONLY after the first frame has rendered.
-    // Starting the timer in initState before the engine attaches to the screen causes
-    // the timer to expire during device startup, making the splash screen invisible.
+    // Trigger navigation ONLY after the first frame has rendered.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _scheduleNavigation();
@@ -157,6 +135,12 @@ class _LaunchGateState extends State<_LaunchGate> {
             transition: RouteTransition.fade,
           ),
         );
+
+        // After routing to HomeScreen, dispatch any pending notification action
+        // that was stored by the killed-app background handler.
+        if (setupCompleted) {
+          _dispatchPendingNotificationAction();
+        }
       } catch (_) {
         if (!mounted) return;
         Navigator.pushReplacement(
@@ -165,6 +149,20 @@ class _LaunchGateState extends State<_LaunchGate> {
         );
       }
     });
+  }
+
+  /// Reads and clears any notification action ID stored while the app was killed,
+  /// then routes it to HomeScreenState via [NotificationService.onActionReceived].
+  Future<void> _dispatchPendingNotificationAction() async {
+    final prefs = await SharedPreferences.getInstance();
+    final pendingAction = prefs.getString('pending_notification_action');
+    if (pendingAction != null && pendingAction.isNotEmpty) {
+      await prefs.remove('pending_notification_action');
+      // Small delay to ensure HomeScreenState has mounted and registered its callback.
+      await Future.delayed(const Duration(milliseconds: 600));
+      debugPrint('[LaunchGate] Dispatching pending notification action: "$pendingAction"');
+      NotificationService.onActionReceived?.call(pendingAction);
+    }
   }
 
   @override

@@ -28,7 +28,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../widgets/heads_up_alarm_banner.dart';
+import 'times_up_screen.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:flutter/services.dart';
@@ -388,36 +388,34 @@ class HomeScreenState extends State<HomeScreen> {
     NotificationService().cancelPersistentTripNotification();
     NotificationService().showArrivalAlarm(destinationName);
 
-    // Show the top heads-up floating banner.
+    // Show full-screen intent when the app is brought to foreground (e.g. by native notification)
     if (mounted) {
-      showGeneralDialog(
-        context: context,
-        barrierDismissible: false,
-        barrierColor: Colors.black.withValues(alpha: 0.6),
-        transitionDuration: Duration.zero, // Banner handles its own slide animation
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return HeadsUpAlarmBanner(
-            deadline: safetyCheckDeadline!,
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          opaque: false,
+          fullscreenDialog: true,
+          pageBuilder: (context, _, __) => TimesUpScreen(
             onSafe: () {
-              _alarmActive = false;   // Stop loop before Vibration.cancel().
+              _alarmActive = false;
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
               _endTrip(safe: true);
             },
             onExtend: () {
-              _alarmActive = false;   // Stop loop before Vibration.cancel().
+              _alarmActive = false;
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
               _extendTrip();
             },
             onHelp: () {
-              _alarmActive = false;   // Stop loop before Vibration.cancel().
+              _alarmActive = false;
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
               _triggerEmergencyFlow(immediate: true);
             },
-          );
-        },
+          ),
+        ),
       );
     }
   }
@@ -772,7 +770,15 @@ class HomeScreenState extends State<HomeScreen> {
                     onSos: () => _triggerEmergencyFlow(immediate: true),
                   ),
           ),
-          const TripsTab(key: ValueKey('trips')),
+            TripsTab(
+              key: const ValueKey('trips'),
+              onStartNewTrip: () {
+                setState(() {
+                  selectedTab = 0;
+                  _homeKey = UniqueKey();
+                });
+              },
+            ),
           const ContactsTab(key: ValueKey('contacts')),
           const SettingsTab(key: ValueKey('settings')),
         ],

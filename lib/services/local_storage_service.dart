@@ -29,7 +29,72 @@ import '../widgets/action_buttons.dart';
 ///
 /// Implemented with a `const` constructor for dependency-injection readiness and
 /// zero-overhead instantiation across UI state controllers.
-class LocalStorageService {
+class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
+
+  Future<List<TripRecord>> readTripHistory() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final raw = preferences.getString(_tripHistoryKey);
+      if (raw == null || raw.isEmpty) {
+        return [];
+      }
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded
+          .map((item) => TripRecord.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e, st) {
+      developer.log('Failed to read trip history', error: e, stackTrace: st);
+      return [];
+    }
+  }
+
+  Future<bool> saveTripHistory(List<TripRecord> trips) async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(trips.map((t) => t.toJson()).toList());
+      return await preferences.setString(_tripHistoryKey, encoded);
+    } catch (e, st) {
+      developer.log('Failed to save trip history', error: e, stackTrace: st);
+      return false;
+    }
+  }
+
+  static const _activeTripKey = 'active_trip_state_json';
+
+  Future<void> saveActiveTrip({
+    required bool isActive,
+    String? destination,
+    int? totalDurationSeconds,
+    int? expectedArrivalAtMs,
+    bool? isArrived,
+    int? safetyCheckDeadlineMs,
+    String? tripId,
+    int? startedAtMs,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!isActive) {
+      await prefs.remove(_activeTripKey);
+      return;
+    }
+    final data = {
+      'destination': destination,
+      'totalDurationSeconds': totalDurationSeconds,
+      'expectedArrivalAtMs': expectedArrivalAtMs,
+      'isArrived': isArrived,
+      'safetyCheckDeadlineMs': safetyCheckDeadlineMs,
+      'tripId': tripId,
+      'startedAtMs': startedAtMs,
+    };
+    await prefs.setString(_activeTripKey, jsonEncode(data));
+  }
+
+  Future<Map<String, dynamic>?> readActiveTrip() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_activeTripKey);
+    if (raw == null) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
   const LocalStorageService();
 
   /// Key identifying whether the user has successfully finished initial onboarding.
@@ -50,6 +115,29 @@ class LocalStorageService {
 
   /// Key storing the user's preferred Timer Expiry Alert Mode.
   static const _alertModeKey = 'timer_alert_mode';
+  static const _defaultDurationKey = 'default_travel_duration_minutes';
+  
+  /// Reads the Default Travel Duration (in minutes). Defaults to 45 mins.
+  Future<int> readDefaultTravelDuration() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt(_defaultDurationKey) ?? 45;
+    } catch (e) {
+      developer.log('LocalStorageService: Failed to read default travel duration. Error: $e');
+      return 45;
+    }
+  }
+
+  /// Saves the Default Travel Duration (in minutes).
+  Future<void> saveDefaultTravelDuration(int minutes) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_defaultDurationKey, minutes);
+      developer.log('LocalStorageService: Saved default travel duration ($minutes mins).');
+    } catch (e) {
+      developer.log('LocalStorageService: Failed to save default travel duration: $e');
+    }
+  }
 
   /// Reads the Timer Expiry Alert Mode. Defaults to 'Sound & Vibrate'.
   Future<String> readAlertMode() async {
@@ -234,3 +322,34 @@ class LocalStorageService {
   }
 }
 
+class TripRecord {
+  const TripRecord({
+    required this.id,
+    required this.destination,
+    required this.durationMinutes,
+    required this.status, // 'Completed' or 'Alert'
+    required this.timestamp,
+  });
+
+  final String id;
+  final String destination;
+  final int durationMinutes;
+  final String status;
+  final DateTime timestamp;
+
+  factory TripRecord.fromJson(Map<String, dynamic> json) => TripRecord(
+        id: json['id'] as String,
+        destination: json['destination'] as String,
+        durationMinutes: json['durationMinutes'] as int,
+        status: json['status'] as String,
+        timestamp: DateTime.parse(json['timestamp'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'destination': destination,
+        'durationMinutes': durationMinutes,
+        'status': status,
+        'timestamp': timestamp.toIso8601String(),
+      };
+}

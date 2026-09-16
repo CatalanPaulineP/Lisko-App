@@ -37,7 +37,9 @@ import 'home_tab.dart';
 
 /// Tab displaying the user's trip history, metrics summary, and past trip log.
 class TripsTab extends StatefulWidget {
-  const TripsTab({super.key});
+  const TripsTab({super.key, this.onStartNewTrip});
+
+  final VoidCallback? onStartNewTrip;
 
   @override
   State<TripsTab> createState() => _TripsTabState();
@@ -45,6 +47,7 @@ class TripsTab extends StatefulWidget {
 
 class _TripsTabState extends State<TripsTab> {
   String _selectedFilter = 'Completed';
+  String _selectedTimeFilter = 'All';
 
   void _showSortBottomSheet() {
     showModalBottomSheet<void>(
@@ -124,12 +127,22 @@ class _TripsTabState extends State<TripsTab> {
         }
 
         final trips = snapshot.data ?? [];
+        final now = DateTime.now();
 
-        final safeCount = trips.where((t) => t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived').length;
-        final extendedCount = trips.where((t) => t.status.toLowerCase() == 'extended').length;
-        final alertsCount = trips.where((t) => t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested').length;
+        final timeFilteredTrips = trips.where((t) {
+          if (_selectedTimeFilter == 'This Week') {
+            return now.difference(t.timestamp).inDays <= 7;
+          } else if (_selectedTimeFilter == 'This Month') {
+            return now.difference(t.timestamp).inDays <= 30;
+          }
+          return true;
+        }).toList();
 
-        final filteredTrips = trips.where((t) {
+        final safeCount = timeFilteredTrips.where((t) => t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived').length;
+        final extendedCount = timeFilteredTrips.where((t) => t.status.toLowerCase() == 'extended').length;
+        final alertsCount = timeFilteredTrips.where((t) => t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested').length;
+
+        final filteredTrips = timeFilteredTrips.where((t) {
           if (_selectedFilter == 'Completed') return t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived';
           if (_selectedFilter == 'Extended') return t.status.toLowerCase() == 'extended';
           if (_selectedFilter == 'Alert') return t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested';
@@ -153,9 +166,9 @@ class _TripsTabState extends State<TripsTab> {
                   children: [
                     const SizedBox(height: 14),
                     TripFilterChips(
-                      selectedFilter: _selectedFilter,
+                      selectedFilter: _selectedTimeFilter,
                       onFilterSelected: (filter) =>
-                          setState(() => _selectedFilter = filter),
+                          setState(() => _selectedTimeFilter = filter),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
@@ -170,6 +183,7 @@ class _TripsTabState extends State<TripsTab> {
                         filter: _selectedFilter,
                         trips: filteredTrips,
                         isLoading: snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData,
+                        onStartNewTrip: widget.onStartNewTrip,
                       ),
                     ],
                   ),
@@ -196,16 +210,7 @@ class TripFilterChips extends StatelessWidget {
   final String selectedFilter;
   final ValueChanged<String> onFilterSelected;
 
-  static const List<String> filters = ['Completed', 'Extended', 'Alert'];
-
-  String _getDisplayText(String filter) {
-    switch (filter) {
-      case 'Completed': return 'Safe / Completed Only';
-      case 'Extended': return 'Extended Only';
-      case 'Alert': return 'Alerts Triggered Only';
-      default: return filter;
-    }
-  }
+  static const List<String> filters = ['All', 'This Week', 'This Month'];
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +243,7 @@ class TripFilterChips extends StatelessWidget {
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    _getDisplayText(filter),
+                    filter,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: isSelected
@@ -543,37 +548,13 @@ class RecentTripsList extends StatelessWidget {
     this.filter = 'All',
     required this.trips,
     required this.isLoading,
+    this.onStartNewTrip,
   });
 
   final String filter;
   final List<TripRecord> trips;
   final bool isLoading;
-
-  List<TripRecord> _getFilteredTrips() {
-    if (trips.isEmpty) return trips;
-    final now = DateTime.now();
-    switch (filter) {
-      case 'This Week':
-        return trips.where((t) {
-          final diff = now.difference(t.timestamp).inDays;
-          return diff <= 7;
-        }).toList();
-      case 'This Month':
-        return trips.where((t) {
-          return t.timestamp.month == now.month && t.timestamp.year == now.year;
-        }).toList();
-      case 'All':
-        return trips;
-      case 'Completed':
-        return trips.where((t) => t.status == 'Completed').toList();
-      case 'Extended':
-        return trips.where((t) => t.status == 'Extended').toList();
-      case 'Alert':
-        return trips.where((t) => t.status == 'Alert').toList();
-      default:
-        return trips;
-    }
-  }
+  final VoidCallback? onStartNewTrip;
 
   @override
   Widget build(BuildContext context) {
@@ -589,8 +570,6 @@ class RecentTripsList extends StatelessWidget {
       );
     }
 
-    final filteredTrips = _getFilteredTrips();
-
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -604,7 +583,7 @@ class RecentTripsList extends StatelessWidget {
           ),
         ],
       ),
-      child: filteredTrips.isEmpty
+      child: trips.isEmpty
           ? Padding(
               padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
               child: Center(
@@ -616,25 +595,45 @@ class RecentTripsList extends StatelessWidget {
                       size: 28,
                       color: AppColors.body,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
                       'No trips found',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: AppColors.body,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    if (onStartNewTrip != null)
+                      ElevatedButton.icon(
+                        onPressed: onStartNewTrip,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Start a New Trip'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
             )
           : Column(
               children: [
-                for (int i = 0; i < filteredTrips.length; i++) ...[
+                for (int i = 0; i < trips.length; i++) ...[
                   Builder(
                     builder: (context) {
-                      final trip = filteredTrips[i];
+                      final trip = trips[i];
                       // Dynamic styling based on status
                       String iconStr;
                       IconData semIcon;
@@ -696,7 +695,7 @@ class RecentTripsList extends StatelessWidget {
                       );
                     },
                   ),
-                  if (i < filteredTrips.length - 1)
+                  if (i < trips.length - 1)
                     const Divider(
                       height: 1,
                       thickness: 1,
