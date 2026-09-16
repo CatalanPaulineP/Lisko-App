@@ -82,14 +82,15 @@ class SmsAlertService {
     for (final contact in contacts) {
       if (!_isTestEnvironment) {
         try {
+          final cleanPhone = contact.phone.replaceAll(RegExp(r'[^\d+]'), '');
           final result = await BackgroundSms.sendMessage(
-            phoneNumber: contact.phone,
+            phoneNumber: cleanPhone,
             message: alertMessage,
           );
           if (result == SmsStatus.sent) {
-            dispatchedTo.add('${contact.name} (${contact.phone})');
+            dispatchedTo.add('${contact.name} ($cleanPhone)');
           } else {
-            developer.log('SmsAlertService: Failed to send SMS to ${contact.phone} - Status: $result');
+            developer.log('SmsAlertService: Failed to send SMS to $cleanPhone - Status: $result');
           }
         } catch (e) {
           developer.log('SmsAlertService: Exception while sending SMS to ${contact.phone}: $e');

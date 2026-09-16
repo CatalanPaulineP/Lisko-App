@@ -218,11 +218,10 @@ class NotificationService {
       return;
     }
 
-    final names = dispatchedTo.join(', ');
     await _flutterLocalNotificationsPlugin.show(
       id: 1000,
       title: 'EMERGENCY SMS SENT',
-      body: 'No response detected. Emergency SMS with live location broadcasted to $names.',
+      body: 'EMERGENCY SMS SENT - No response detected. Emergency SMS with live location broadcasted to trusted contacts.',
       notificationDetails: const NotificationDetails(android: details),
     );
   }
