@@ -427,16 +427,15 @@ class HomeScreenState extends State<HomeScreen> {
     _handleArrivalDetected(destination);
   }
 
-  /// Drives a pulsing vibration alarm: [cycles] outer rounds × (20s pulse window + 10s silent).
-  /// Total for 3 cycles = 90 seconds — matching the safety-check countdown.
+  /// Drives a pulsing vibration alarm: [cycles] outer rounds (20s pulse window + 10s silent).
+  /// Total for 3 cycles = 90 seconds - matching the safety-check countdown.
   ///
   /// Each 20-second "active" window is NOT a solid buzz. Instead it fires a rapid
-  /// zz-zz-zz pulse: 500ms vibrate → 500ms pause → repeat 20 times = 20 seconds.
-  /// This feels like a real alarm clock rather than a stuck motor.
+  /// pulse: 1000ms vibrate + 1000ms pause + repeat 10 times = 20 seconds.
   ///
   /// The `_alarmActive` flag is checked before EVERY await. Any action button sets
   /// `_alarmActive = false` then calls `Vibration.cancel()`, which causes this loop
-  /// to detect the flag and return immediately — eliminating ghost vibrations.
+  /// to detect the flag and return immediately - eliminating ghost vibrations.
   ///
   /// This method is fire-and-forget (no await at the call site).
   void _runVibrateLoop({int cycles = 3}) async {
@@ -449,34 +448,44 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     for (int outer = 0; outer < cycles; outer++) {
-      // ── 20-second pulsing window: 20 × (500ms ON + 500ms OFF) ─────────────
-      for (int pulse = 0; pulse < 20; pulse++) {
-        if (!_alarmActive) return;  // Abort: action button was tapped.
+      // -- 20-second pulsing window: 10 x (1000ms ON + 1000ms OFF) --
+      for (int pulse = 0; pulse < 10; pulse++) {
+        if (!_alarmActive) {
+          Vibration.cancel();
+          return;
+        }
 
-        // Short vibration burst (500 ms).
+        // Short vibration burst (1000 ms = 1 second).
         try {
-          await Vibration.vibrate(duration: 500);
+          await Vibration.vibrate(duration: 1000);
         } catch (_) {}
 
-        if (!_alarmActive) return;  // Abort during or after vibration.
+        if (!_alarmActive) {
+          Vibration.cancel();
+          return;
+        }
 
-        // 500 ms silent gap — gives the characteristic zz-zz-zz rhythm.
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-
-      // ── 10-second silent inter-cycle gap (omit after last cycle) ───────────
-      if (outer < cycles - 1) {
-        // Check the flag every second of the silent gap so a button tap during
-        // the silence aborts within ≤1 second rather than waiting the full 10s.
-        for (int s = 0; s < 10; s++) {
-          if (!_alarmActive) return;
-          await Future.delayed(const Duration(seconds: 1));
+        // 1000 ms silent gap.
+        // Checked in 100ms increments to instantly abort if a button is tapped mid-pause.
+        for (int i = 0; i < 10; i++) {
+          if (!_alarmActive) {
+            Vibration.cancel();
+            return;
+          }
+          await Future.delayed(const Duration(milliseconds: 100));
         }
       }
-    }
 
-    // Loop completed naturally (all 90 seconds elapsed without a tap).
-    // Escalation is handled by the arrival countdown timer in _handleArrivalDetected.
+      // -- 10-second silent inter-cycle gap --
+      // Applied to EVERY cycle, including the final 3rd cycle (1:20 to 1:30) as a grace period.
+      for (int s = 0; s < 10; s++) {
+        if (!_alarmActive) {
+          Vibration.cancel();
+          return;
+        }
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
   }
 
   /// Dispatches offline SMS emergency alerts when 90-second timer expires or manual SOS is triggered.
