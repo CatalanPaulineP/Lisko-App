@@ -1,50 +1,146 @@
-import 'package:flutter/material.dart';
+// ==============================================================================
+// LisKo Mobile Safety Application — Notification Service
+// File: lib/services/notification_service.dart
+//
+// Manages all system notification channels and alarm intents.
+//
+// Response Routing Architecture:
+//   When the user taps an action button on the alarm notification (whether the
+//   app is foregrounded, backgrounded, or terminated), the response flows through:
+//
+//   Foreground / Resumed:
+//     onDidReceiveNotificationResponse → _handleNotificationResponse()
+//       → NotificationService.onActionReceived (registered by HomeScreenState)
+//
+//   App Killed (terminated):
+//     onDidReceiveBackgroundNotificationResponse → notificationBackgroundResponseHandler()
+//       (top-level @pragma function in main.dart)
+//       → SharedPreferences stores 'pending_notification_action'
+//       → LaunchGate reads & dispatches on next app boot
+// ==============================================================================
+
+import 'dart:ui';
+import 'dart:isolate';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// ---------------------------------------------------------------------------
+// Notification action ID constants
+// ---------------------------------------------------------------------------
+const String kNotifActionSafe   = 'safe_id';
+const String kNotifActionExtend = 'delay_id';
+const String kNotifActionSos    = 'sos_id';
+
+// ---------------------------------------------------------------------------
+// Background notification response handler (app fully terminated or in background).
+// ---------------------------------------------------------------------------
+@pragma('vm:entry-point')
+void notificationBackgroundResponseHandler(NotificationResponse response) async {
+  final actionId = response.actionId ?? response.payload ?? '';
+  if (actionId.isEmpty) return;
+  debugPrint('[NotificationService-BG] Action tapped: "$actionId"');
+
+  final sendPort = IsolateNameServer.lookupPortByName('lisko_notif_port');
+  if (sendPort != null) {
+    // Main isolate is still alive! Send it directly so it acts immediately without launching the app.
+    sendPort.send(actionId);
+  } else {
+    // App is fully terminated, save to SharedPreferences for next boot.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pending_notification_action', actionId);
+  }
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  // ---------------------------------------------------------------------------
+  // Static callback — registered by HomeScreenState.initState(),
+  // cleared in HomeScreenState.dispose().
+  //
+  // This lets the notification response reach the live widget without a
+  // GlobalKey or a third-party state manager.
+  // ---------------------------------------------------------------------------
+  static void Function(String actionId)? onActionReceived;
+  static ReceivePort? _receivePort;
+
+  /// Internal response router: called for foreground and background-resumed taps.
+  static void _handleNotificationResponse(NotificationResponse response) {
+    final actionId = response.actionId ?? response.payload ?? '';
+    debugPrint('[NotificationService] Response received - actionId: "$actionId"');
+    if (actionId.isNotEmpty) {
+      onActionReceived?.call(actionId);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Initialization
+  // ---------------------------------------------------------------------------
 
   Future<void> initialize() async {
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-    
-    // According to error `The named parameter 'initializationSettings' isn't defined`
-    // and `The named parameter 'settings' is required, but there's no corresponding argument`
+    // Setup IsolateNameServer port to listen to the background isolate
+    _receivePort ??= ReceivePort();
+    IsolateNameServer.removePortNameMapping('lisko_notif_port');
+    IsolateNameServer.registerPortWithName(_receivePort!.sendPort, 'lisko_notif_port');
+    _receivePort!.listen((message) {
+      if (message is String) {
+        onActionReceived?.call(message);
+      }
+    });
+
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+
     await _flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
+      // Foreground and background-resumed taps → static callback.
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
+      // App-killed taps → top-level @pragma function defined in main.dart.
+      onDidReceiveBackgroundNotificationResponse: notificationBackgroundResponseHandler,
     );
 
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    // Low-priority persistent channel for active trip countdown bar.
+    const AndroidNotificationChannel tripChannel = AndroidNotificationChannel(
       'lisko_trip_channel',
       'LisKo Trip Monitoring',
       description: 'Ongoing background monitoring for your active travel.',
       importance: Importance.low,
     );
-
     await _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
-        
+        ?.createNotificationChannel(tripChannel);
+
+    // Max-priority alarm channel — wakes lock screen like a native alarm clock.
     const AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
       'lisko_alarm_channel',
       'LisKo Arrival Alerts',
-      description: 'High priority alerts for safety checks.',
+      description: 'Wakes device and overlays lock screen for safety check alarms.',
       importance: Importance.max,
+      // System vibration disabled — custom Vibration.vibrate() loop handles haptics.
+      enableVibration: false,
       playSound: true,
-      enableVibration: true,
+      showBadge: true,
     );
-    
     await _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(alarmChannel);
   }
 
-  Future<void> showPersistentTripNotification(String destination, String remainingTime) async {
-    const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+  // ---------------------------------------------------------------------------
+  // Notification display methods
+  // ---------------------------------------------------------------------------
+
+  Future<void> showPersistentTripNotification(
+      String destination, String remainingTime) async {
+    const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_trip_channel',
       'LisKo Trip Monitoring',
       channelDescription: 'Ongoing background monitoring for your active travel.',
@@ -54,60 +150,67 @@ class NotificationService {
       autoCancel: false,
       showWhen: false,
     );
-    const NotificationDetails notificationDetails = NotificationDetails(android: androidNotificationDetails);
-    
     await _flutterLocalNotificationsPlugin.show(
       id: 888,
       title: 'LisKo: 🚶 Travel Timer',
       body: '$destination - $remainingTime remaining',
-      notificationDetails: notificationDetails,
+      notificationDetails: const NotificationDetails(android: details),
     );
   }
 
   Future<void> showArrivalAlarm(String destination) async {
-    const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
       'LisKo Arrival Alerts',
-      channelDescription: 'High priority alerts for safety checks.',
+      channelDescription:
+          'High priority safety check alarm — wakes device like a native alarm clock.',
       importance: Importance.max,
-      priority: Priority.high,
+      priority: Priority.max,
+      // fullScreenIntent: true → Android wakes the screen and overlays the lock
+      // screen immediately (same mechanism as the built-in alarm clock app).
       fullScreenIntent: true,
       ongoing: true,
       autoCancel: false,
+      // AndroidNotificationCategory.alarm tells the OS this is time-critical.
+      category: AndroidNotificationCategory.alarm,
+      enableVibration: false,
+      playSound: true,
       actions: <AndroidNotificationAction>[
-        AndroidNotificationAction('safe_id', "I'm safe", titleColor: Color(0xFF4CAF50)),
-        AndroidNotificationAction('delay_id', '+15 min', titleColor: Color(0xFF9E9E9E)),
-        AndroidNotificationAction('sos_id', 'Need help', titleColor: Color(0xFFF44336)),
+        AndroidNotificationAction(kNotifActionSafe,   "I'm Safe",   showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionExtend, '+15 min',    showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionSos,    'NEED HELP',  showsUserInterface: false),
       ],
     );
-    const NotificationDetails notificationDetails = NotificationDetails(android: androidNotificationDetails);
-    
     await _flutterLocalNotificationsPlugin.show(
       id: 999,
-      title: 'Did you arrive safely at $destination?',
-      body: 'Confirm your safety within 90 seconds or your trusted contacts will automatically receive emergency SMS alerts with your live location.',
-      notificationDetails: notificationDetails,
+      title: '⚠️ Safety Check — Did you arrive at $destination?',
+      body: 'Confirm your safety within 90 seconds or emergency SMS alerts will be sent to your trusted contacts.',
+      notificationDetails: const NotificationDetails(android: details),
     );
   }
 
   Future<void> showEmergencySentNotification(List<String> dispatchedTo) async {
-    const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
       'LisKo Arrival Alerts',
       channelDescription: 'High priority alerts for safety checks.',
       importance: Importance.max,
       priority: Priority.high,
     );
-    const NotificationDetails notificationDetails = NotificationDetails(android: androidNotificationDetails);
-    
-    final names = dispatchedTo.isNotEmpty ? dispatchedTo.join(', ') : 'trusted contacts';
+    final names =
+        dispatchedTo.isNotEmpty ? dispatchedTo.join(', ') : 'trusted contacts';
     await _flutterLocalNotificationsPlugin.show(
       id: 1000,
       title: 'EMERGENCY SMS SENT',
-      body: 'No response detected. Emergency SMS with live location broadcasted to $names.',
-      notificationDetails: notificationDetails,
+      body:
+          'No response detected. Emergency SMS with live location broadcasted to $names.',
+      notificationDetails: const NotificationDetails(android: details),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Cancellation
+  // ---------------------------------------------------------------------------
 
   Future<void> cancelPersistentTripNotification() async {
     await _flutterLocalNotificationsPlugin.cancel(id: 888);
