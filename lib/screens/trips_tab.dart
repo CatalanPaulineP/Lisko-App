@@ -131,9 +131,11 @@ class _TripsTabState extends State<TripsTab> {
 
         final timeFilteredTrips = trips.where((t) {
           if (_selectedTimeFilter == 'This Week') {
-            return now.difference(t.timestamp).inDays <= 7;
+            final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+            final startOfWeekMidnight = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+            return t.timestamp.isAfter(startOfWeekMidnight.subtract(const Duration(milliseconds: 1)));
           } else if (_selectedTimeFilter == 'This Month') {
-            return now.difference(t.timestamp).inDays <= 30;
+            return t.timestamp.year == now.year && t.timestamp.month == now.month;
           }
           return true;
         }).toList();
@@ -153,7 +155,7 @@ class _TripsTabState extends State<TripsTab> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TripsHeader(
-              tripCount: trips.length,
+              tripCount: timeFilteredTrips.length,
               safeCount: safeCount,
               extendedCount: extendedCount,
               alertsCount: alertsCount,
