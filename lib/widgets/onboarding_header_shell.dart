@@ -77,7 +77,7 @@ class _TopHeaderState extends State<TopHeader> {
               ),
               const SizedBox(width: 4),
               Text(
-                'Step ${widget.step} of 4',
+                'Step ${widget.step} of 5',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -107,7 +107,7 @@ class SegmentedProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: List.generate(
-        4,
+        5,
         (index) => Expanded(
           child: Container(
             height: 5,

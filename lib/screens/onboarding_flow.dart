@@ -56,13 +56,11 @@ class InitialSafetySetupScreen extends StatelessWidget {
       title: 'Initial Safety Setup',
       subtitle: 'Complete these steps before your first trip.',
       bottom: PrimaryButton(
-        label: 'Allow Notifications',
-        onPressed: () async {
-          await PermissionService().requestNotificationPermission();
-          if (!context.mounted) return;
+        label: 'Continue',
+        onPressed: () {
           Navigator.push(
             context,
-            createRoute(const TrustedContactsScreen()),
+            createRoute(const NotificationPermissionScreen()),
           );
         },
       ),
@@ -111,10 +109,55 @@ class InitialSafetySetupScreen extends StatelessWidget {
 }
 
 // =============================================================================
-// STEP 3: TRUSTED CONTACTS SCREEN
+// STEP 2: NOTIFICATION PERMISSION SCREEN
 // =============================================================================
 
-/// Step 3: Add Trusted Contacts Screen.
+/// Step 2: Notification Permission Request Screen.
+class NotificationPermissionScreen extends StatelessWidget {
+  const NotificationPermissionScreen({super.key});
+
+  void _goToContacts(BuildContext context) {
+    Navigator.push(context, createRoute(const TrustedContactsScreen()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SetupScaffold(
+      step: 2,
+      title: 'Enable Notifications',
+      subtitle: 'Never miss an important safety reminder or travel alert.',
+      bottom: Column(
+        children: [
+          PrimaryButton(
+            label: 'Allow',
+            onPressed: () async {
+              await PermissionService().requestNotificationPermission();
+              if (!context.mounted) return;
+              _goToContacts(context);
+            },
+          ),
+          const SizedBox(height: 8),
+          SecondaryButton(
+            label: 'Not Now',
+            onPressed: () => _goToContacts(context),
+          ),
+        ],
+      ),
+      child: const Column(
+        children: [
+          SizedBox(height: 12),
+          NotificationBell(),
+          SizedBox(height: 24),
+          MockNotificationCard(),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// STEP 3: TRUSTED CONTACTS SCREEN
+// =============================================================================
 class TrustedContactsScreen extends StatefulWidget {
   const TrustedContactsScreen({super.key});
 
@@ -282,7 +325,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   @override
   Widget build(BuildContext context) {
     return SetupScaffold(
-      step: 2,
+      step: 3,
       title: 'Add Trusted Contacts',
       subtitle: 'Add people we can contact if you need help during a trip.',
       bottom: PrimaryButton(
@@ -370,7 +413,7 @@ class SmsPermissionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SetupScaffold(
-      step: 3,
+      step: 4,
       title: 'Allow SMS Permission',
       subtitle:
           "LisKo uses your device's SMS service to notify your trusted contacts during emergencies or missed travel check-ins.",
@@ -418,7 +461,7 @@ class LocationAccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SetupScaffold(
-      step: 4,
+      step: 5,
       title: 'Allow Location Access',
       subtitle:
           'Your location is only accessed while a trip is active or when sending an emergency alert.',
