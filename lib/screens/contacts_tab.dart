@@ -223,26 +223,10 @@ class _ContactsTabState extends State<ContactsTab> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: SizedBox(
+                    child: GradientButton(
+                      label: 'Remove',
                       height: 48,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Remove',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                      onPressed: () => Navigator.pop(ctx, true),
                     ),
                   ),
                 ],
@@ -360,6 +344,7 @@ class _ContactsTabState extends State<ContactsTab> {
                           for (int i = 0; i < secondaryContacts.length; i++) ...[
                             SecondaryContactListItem(
                               contact: secondaryContacts[i],
+                              onEdit: () => _openEditContactModal(secondaryContacts[i], i + 1),
                               onRemove: () => _removeContact(i + 1),
                             ),
                             if (i < secondaryContacts.length - 1)
@@ -653,10 +638,12 @@ class SecondaryContactListItem extends StatelessWidget {
   const SecondaryContactListItem({
     super.key,
     required this.contact,
+    required this.onEdit,
     required this.onRemove,
   });
 
   final ContactPerson contact;
+  final VoidCallback onEdit;
   final VoidCallback onRemove;
 
   @override
@@ -707,14 +694,49 @@ class SecondaryContactListItem extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            onPressed: onRemove,
-            tooltip: 'Remove contact',
-            icon: const Icon(
-              Icons.delete_outline_rounded,
-              color: AppColors.body,
-              size: 20,
-            ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, color: AppColors.body),
+            onSelected: (value) {
+              if (value == 'edit') onEdit();
+              if (value == 'remove') onRemove();
+            },
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_rounded, size: 20, color: AppColors.header),
+                    SizedBox(width: 12),
+                    Text(
+                      'Edit',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.header,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'remove',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.primary),
+                    SizedBox(width: 12),
+                    Text(
+                      'Remove',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -989,25 +1011,9 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
               ],
               const SizedBox(height: 22),
               // Save Changes Action Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _handleSave,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  child: const Text('Save Changes'),
-                ),
+              GradientButton(
+                label: 'Save Changes',
+                onPressed: _handleSave,
               ),
             ],
           ),
@@ -1247,30 +1253,11 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
                 hasError: false,
               ),
               const SizedBox(height: 24),
-              // Add Contact Action Button (active crimson when valid, grey when disabled)
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isValid ? _handleAdd : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isValid
-                        ? AppColors.primary
-                        : const Color(0xFFCBD5E1),
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: const Color(0xFFE2E8F0),
-                    disabledForegroundColor: const Color(0xFF94A3B8),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  child: const Text('Add Contact'),
-                ),
+              // Add Contact Action Button (gradient when valid, grey when disabled)
+              GradientButton(
+                label: 'Add Contact',
+                onPressed: _isValid ? _handleAdd : null,
+                enabled: _isValid,
               ),
             ],
           ),
