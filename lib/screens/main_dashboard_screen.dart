@@ -68,6 +68,8 @@ class HomeScreenState extends State<HomeScreen> {
   bool tripActive = false;
   bool isArrived = false;
   int arrivalCountdown = 90;
+  bool isStationaryWarning = false;
+  int stationaryCountdown = 90;
   Duration remaining = const Duration(minutes: 45);
   DateTime? expectedArrivalAt;
   DateTime? safetyCheckDeadline;
@@ -266,7 +268,9 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       tripActive = true;
       isArrived = false;
+      isStationaryWarning = false;
       arrivalCountdown = 90;
+      stationaryCountdown = 90;
       destination = selectedDestination;
       totalDuration = duration;
       expectedArrivalAt = now.add(duration);
@@ -324,14 +328,47 @@ class HomeScreenState extends State<HomeScreen> {
         anchorLon: startPosition.longitude,
         onInactivityDetected: () {
           if (mounted && tripActive && !isArrived) {
-            debugPrint('[MainDashboard] Stationary condition received. Escalating alert.');
-            _escalateEmergencyAlert(isStationary: true);
+            debugPrint('[MainDashboard] Stationary condition received.');
+            _handleStationaryDetected();
           }
         },
       );
     }).catchError((e) {
       debugPrint('[StationaryDetection] Could not capture start position: $e');
     });
+  }
+
+  void _startStationaryCountdownTimer() {
+    _arrivalTimer?.cancel();
+    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!mounted) return;
+      final now = DateTime.now();
+      if (safetyCheckDeadline != null && now.isAfter(safetyCheckDeadline!)) {
+        _arrivalTimer?.cancel();
+        await _escalateEmergencyAlert(isManualSos: false, isStationary: true);
+      } else if (safetyCheckDeadline != null) {
+        setState(() => stationaryCountdown = safetyCheckDeadline!.difference(now).inSeconds);
+      }
+    });
+  }
+
+  void _handleStationaryDetected() async {
+    if (isArrived || isStationaryWarning) return;
+    tripTimer?.cancel();
+    final now = DateTime.now();
+    
+    setState(() {
+      isStationaryWarning = true;
+      safetyCheckDeadline = now.add(const Duration(seconds: 90));
+      stationaryCountdown = 90;
+      selectedTab = 0;
+    });
+
+    _startStationaryCountdownTimer();
+
+    _alarmActive = true;
+    NotificationService().showStationaryAlarm(destination);
+    _runVibrateLoop(cycles: 3);
   }
 
   /// Triggers arrival state and begins 90-second escalation countdown.
@@ -649,6 +686,7 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       tripActive = false;
       isArrived = false;
+      isStationaryWarning = false;
       remaining = Duration.zero;
       arrivalCountdown = 90;
       expectedArrivalAt = null;
@@ -671,7 +709,9 @@ class HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       isArrived = false;
+      isStationaryWarning = false;
       arrivalCountdown = 90;
+      stationaryCountdown = 90;
       remaining = expectedArrivalAt!.difference(currentTime);
     });
 
@@ -711,8 +751,8 @@ class HomeScreenState extends State<HomeScreen> {
         anchorLon: extendPosition.longitude,
         onInactivityDetected: () {
           if (mounted && tripActive && !isArrived) {
-            debugPrint('[MainDashboard] Stationary condition received. Escalating alert.');
-            _escalateEmergencyAlert(isStationary: true);
+            debugPrint('[MainDashboard] Stationary condition received during extended leg.');
+            _handleStationaryDetected();
           }
         },
       );
@@ -785,6 +825,8 @@ class HomeScreenState extends State<HomeScreen> {
                     onSos: _triggerEmergencyFlow,
                     isArrived: isArrived,
                     arrivalRemainingSeconds: arrivalCountdown,
+                    isStationaryWarning: isStationaryWarning,
+                    stationaryRemainingSeconds: stationaryCountdown,
                   )
                 : HomeDashboardTab(
                     key: _homeKey,

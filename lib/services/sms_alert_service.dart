@@ -85,16 +85,27 @@ class SmsAlertService {
     for (final contact in contacts) {
       if (!_isTestEnvironment) {
         try {
-          final cleanPhone = contact.phone.replaceAll(RegExp(r'[^\d+]'), '');
+          String cleanPhone = contact.phone.replaceAll(RegExp(r'[^\d+]'), '');
+          // Format to E.164 (Philippine context default as requested)
+          if (cleanPhone.startsWith('0')) {
+            cleanPhone = '+63${cleanPhone.substring(1)}';
+          } else if (cleanPhone.startsWith('63')) {
+            cleanPhone = '+$cleanPhone';
+          }
+
           final result = await BackgroundSms.sendMessage(
             phoneNumber: cleanPhone,
             message: alertMessage,
+            simSlot: 1,
           );
+          
           if (result == SmsStatus.sent) {
             dispatchedTo.add('${contact.name} ($cleanPhone)');
           } else {
             developer.log('SmsAlertService: Failed to send SMS to $cleanPhone - Status: $result');
           }
+        } on PlatformException catch (e) {
+          developer.log('SmsAlertService: PlatformException (Native Error) while sending SMS to ${contact.phone}: ${e.message} (Code: ${e.code}, Details: ${e.details})');
         } catch (e) {
           developer.log('SmsAlertService: Exception while sending SMS to ${contact.phone}: $e');
         }

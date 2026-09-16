@@ -189,6 +189,33 @@ class NotificationService {
     );
   }
 
+  Future<void> showStationaryAlarm(String destination) async {
+    const AndroidNotificationDetails details = AndroidNotificationDetails(
+      'lisko_alarm_channel',
+      'LisKo Arrival Alerts',
+      channelDescription:
+          'High priority safety check alarm - wakes device like a native alarm clock.',
+      importance: Importance.max,
+      priority: Priority.max,
+      fullScreenIntent: true,
+      ongoing: true,
+      autoCancel: false,
+      category: AndroidNotificationCategory.alarm,
+      enableVibration: false,
+      playSound: true,
+      actions: <AndroidNotificationAction>[
+        AndroidNotificationAction(kNotifActionExtend, '+15 min / Traffic', showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionSos,    'NEED HELP',  showsUserInterface: false),
+      ],
+    );
+    await _flutterLocalNotificationsPlugin.show(
+      id: 999, // use same ID so it replaces/cancels arrival if somehow concurrent
+      title: 'Are you stuck?',
+      body: "We detected little or no movement during your trip to $destination. If you do not respond in 90s, we will automatically alert your emergency contacts.",
+      notificationDetails: const NotificationDetails(android: details),
+    );
+  }
+
   Future<void> showEmergencySentNotification(List<String> dispatchedTo, {bool permissionDenied = false}) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
