@@ -1,3 +1,4 @@
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:developer' as developer;
 import 'package:background_sms/background_sms.dart';
 
@@ -40,6 +41,7 @@ class SmsAlertService {
     double? latitude,
     double? longitude,
     String? customMessage,
+    bool isManualSos = false,
   }) async {
     await triggerHapticAlert();
 
@@ -48,27 +50,49 @@ class SmsAlertService {
       developer.log('SmsAlertService: No trusted contacts configured to receive SOS.');
       return [];
     }
+    
+    if (!_isTestEnvironment) {
+      final smsStatus = await Permission.sms.status;
+      if (!smsStatus.isGranted) {
+        final requested = await Permission.sms.request();
+        if (!requested.isGranted) {
+          developer.log('SmsAlertService: SMS permission denied. Cannot dispatch.');
+          throw Exception('SMS_PERMISSION_DENIED');
+        }
+      }
+    }
 
     final coordText = (latitude != null && longitude != null)
-        ? ' Live location: https://maps.google.com/?q=$latitude,$longitude'
-        : '';
+        ? 'https://www.google.com/maps?q=$latitude,$longitude'
+        : 'Unknown Location';
 
-    final alertMessage = customMessage ??
-        'LisKo Emergency Alert: Student did not confirm safety within 90 seconds of arriving at $destination.$coordText Please verify their safety immediately.';
+    String alertMessage = customMessage ?? '';
+    
+    if (alertMessage.isEmpty) {
+      if (isManualSos) {
+        alertMessage = '[LISKO EMERGENCY] Student has pressed the SOS button during their commute and may be in danger. They may be unable to respond or speak. Their current location: $coordText. Please check on them immediately.';
+      } else {
+        alertMessage = '[LISKO SAFETY ALERT] Missed check-in: Student\'s travel timer expired without a confirmation response. They may have missed the notification or need assistance. Track their last known location here: $coordText.';
+      }
+    }
 
     developer.log('SmsAlertService: Dispatching offline emergency SMS to ${contacts.length} recipients: "$alertMessage"');
 
     final dispatchedTo = <String>[];
     for (final contact in contacts) {
       if (!_isTestEnvironment) {
-        final result = await BackgroundSms.sendMessage(
-          phoneNumber: contact.phone,
-          message: alertMessage,
-        );
-        if (result == SmsStatus.sent) {
-          dispatchedTo.add('${contact.name} (${contact.phone})');
-        } else {
-          developer.log('SmsAlertService: Failed to send SMS to ${contact.phone}');
+        try {
+          final result = await BackgroundSms.sendMessage(
+            phoneNumber: contact.phone,
+            message: alertMessage,
+          );
+          if (result == SmsStatus.sent) {
+            dispatchedTo.add('${contact.name} (${contact.phone})');
+          } else {
+            developer.log('SmsAlertService: Failed to send SMS to ${contact.phone} - Status: $result');
+          }
+        } catch (e) {
+          developer.log('SmsAlertService: Exception while sending SMS to ${contact.phone}: $e');
         }
       } else {
         dispatchedTo.add('${contact.name} (${contact.phone})');

@@ -189,7 +189,7 @@ class NotificationService {
     );
   }
 
-  Future<void> showEmergencySentNotification(List<String> dispatchedTo) async {
+  Future<void> showEmergencySentNotification(List<String> dispatchedTo, {bool permissionDenied = false}) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
       'LisKo Arrival Alerts',
@@ -197,13 +197,32 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
     );
-    final names =
-        dispatchedTo.isNotEmpty ? dispatchedTo.join(', ') : 'trusted contacts';
+
+    if (permissionDenied) {
+      await _flutterLocalNotificationsPlugin.show(
+        id: 1000,
+        title: 'EMERGENCY SMS FAILED',
+        body: 'SMS permission was denied. Could not dispatch offline emergency alerts to your contacts.',
+        notificationDetails: const NotificationDetails(android: details),
+      );
+      return;
+    }
+
+    if (dispatchedTo.isEmpty) {
+      await _flutterLocalNotificationsPlugin.show(
+        id: 1000,
+        title: 'EMERGENCY SMS FAILED',
+        body: 'Could not send SMS to any trusted contacts. Please check your signal or add valid contacts.',
+        notificationDetails: const NotificationDetails(android: details),
+      );
+      return;
+    }
+
+    final names = dispatchedTo.join(', ');
     await _flutterLocalNotificationsPlugin.show(
       id: 1000,
       title: 'EMERGENCY SMS SENT',
-      body:
-          'No response detected. Emergency SMS with live location broadcasted to $names.',
+      body: 'No response detected. Emergency SMS with live location broadcasted to $names.',
       notificationDetails: const NotificationDetails(android: details),
     );
   }
