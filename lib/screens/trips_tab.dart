@@ -44,25 +44,7 @@ class TripsTab extends StatefulWidget {
 }
 
 class _TripsTabState extends State<TripsTab> {
-  String _selectedFilter = 'All';
-  List<TripRecord> _trips = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTrips();
-  }
-
-  Future<void> _loadTrips() async {
-    final trips = await FirebaseService().getTrips();
-    if (mounted) {
-      setState(() {
-        _trips = trips;
-        _isLoading = false;
-      });
-    }
-  }
+  String _selectedFilter = 'Completed';
 
   void _showSortBottomSheet() {
     showModalBottomSheet<void>(
@@ -99,15 +81,6 @@ class _TripsTabState extends State<TripsTab> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const AppIcon.small(AppIcons.map, color: AppColors.header),
-                title: const Text('All Trips'),
-                trailing: _selectedFilter == 'All' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _selectedFilter = 'All');
-                },
-              ),
-              ListTile(
                 leading: const AppIcon.small(AppIcons.checkCircle, color: Color(0xFF10B981)),
                 title: const Text('Safe / Completed Only'),
                 trailing: _selectedFilter == 'Completed' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
@@ -143,56 +116,60 @@ class _TripsTabState extends State<TripsTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-    }
+    return StreamBuilder<List<TripRecord>>(
+      stream: FirebaseService().getTripsStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+        }
 
-    final safeCount = _trips.where((t) => t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived').length;
-    final extendedCount = _trips.where((t) => t.status.toLowerCase() == 'extended').length;
-    final alertsCount = _trips.where((t) => t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested').length;
+        final trips = snapshot.data ?? [];
 
-    final filteredTrips = _trips.where((t) {
-      if (_selectedFilter == 'All') return true;
-      if (_selectedFilter == 'Completed') return t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived';
-      if (_selectedFilter == 'Extended') return t.status.toLowerCase() == 'extended';
-      if (_selectedFilter == 'Alert') return t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested';
-      return true;
-    }).toList();
+        final safeCount = trips.where((t) => t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived').length;
+        final extendedCount = trips.where((t) => t.status.toLowerCase() == 'extended').length;
+        final alertsCount = trips.where((t) => t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested').length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TripsHeader(
-          tripCount: _trips.length,
-          safeCount: safeCount,
-          extendedCount: extendedCount,
-          alertsCount: alertsCount,
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 14),
-                TripFilterChips(
-                  selectedFilter: _selectedFilter,
-                  onFilterSelected: (filter) =>
-                      setState(() => _selectedFilter = filter),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+        final filteredTrips = trips.where((t) {
+          if (_selectedFilter == 'Completed') return t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived';
+          if (_selectedFilter == 'Extended') return t.status.toLowerCase() == 'extended';
+          if (_selectedFilter == 'Alert') return t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested';
+          return true;
+        }).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TripsHeader(
+              tripCount: trips.length,
+              safeCount: safeCount,
+              extendedCount: extendedCount,
+              alertsCount: alertsCount,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 14),
+                    TripFilterChips(
+                      selectedFilter: _selectedFilter,
+                      onFilterSelected: (filter) =>
+                          setState(() => _selectedFilter = filter),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                       RecentTripsSectionHeader(
                         onFilterTap: _showSortBottomSheet,
                       ),
                       const SizedBox(height: 12),
                       RecentTripsList(
                         filter: _selectedFilter,
-                        trips: filteredTrips, // Pass filtered trips
-                        isLoading: _isLoading,
+                        trips: filteredTrips,
+                        isLoading: snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData,
                       ),
                     ],
                   ),
@@ -202,6 +179,8 @@ class _TripsTabState extends State<TripsTab> {
           ),
         ),
       ],
+    );
+      }
     );
   }
 }
@@ -217,7 +196,16 @@ class TripFilterChips extends StatelessWidget {
   final String selectedFilter;
   final ValueChanged<String> onFilterSelected;
 
-  static const List<String> filters = ['All', 'This Week', 'This Month'];
+  static const List<String> filters = ['Completed', 'Extended', 'Alert'];
+
+  String _getDisplayText(String filter) {
+    switch (filter) {
+      case 'Completed': return 'Safe / Completed Only';
+      case 'Extended': return 'Extended Only';
+      case 'Alert': return 'Alerts Triggered Only';
+      default: return filter;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +238,7 @@ class TripFilterChips extends StatelessWidget {
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    filter,
+                    _getDisplayText(filter),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: isSelected

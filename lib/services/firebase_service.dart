@@ -36,6 +36,27 @@ class FirebaseService {
     }
   }
 
+  Stream<List<TripRecord>> getTripsStream() {
+    return _firestore
+        .collection('trips')
+        .orderBy('startedAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return TripRecord(
+          id: doc.id,
+          destination: data['destination'] ?? 'Unknown',
+          durationMinutes: data['estimatedTravelMinutes'] ?? 0,
+          status: data['status'] ?? 'Unknown',
+          timestamp: data['startedAt'] != null
+              ? (data['startedAt'] as Timestamp).toDate()
+              : DateTime.now(),
+        );
+      }).toList();
+    });
+  }
+
   /// Creates or updates a trip in Firebase.
   Future<void> saveOrUpdateTrip({
     required String tripId,

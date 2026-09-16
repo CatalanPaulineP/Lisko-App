@@ -382,25 +382,24 @@ class ActiveBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        // Semi-transparent white pill — readable on the navy header.
-        color: Colors.white.withValues(alpha: 0.15),
+        color: AppColors.successContainer,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.30),
+          color: AppColors.success,
           width: 1,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: const [
-          Icon(Icons.directions_run_rounded, size: 14, color: Colors.white),
+          Icon(Icons.directions_run_rounded, size: 14, color: AppColors.successText),
           SizedBox(width: 4),
           Text(
             'Active',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: AppColors.successText,
             ),
           ),
         ],
@@ -491,7 +490,7 @@ class _SafeButtonState extends State<SafeButton> {
       height: 52,
       child: Container(
         decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
+          color: AppColors.success,
           borderRadius: BorderRadius.circular(12),
         ),
         child: ElevatedButton.icon(
