@@ -614,6 +614,16 @@ class HomeScreenState extends State<HomeScreen> {
         );
       }
 
+      // Cleanup all background location monitoring and timers to ensure zero-surveillance
+      tripTimer?.cancel();
+      _arrivalTimer?.cancel();
+      _alarmActive = false;
+      Vibration.cancel();
+      NotificationService().cancelArrivalAlarm();
+      _geofenceService.stopMonitoring();
+      _stationaryService.stopMonitoring();
+      debugPrint('[Cleanup] All location monitoring stopped after emergency.');
+
       if (mounted) {
         setState(() {
           tripActive = false;
