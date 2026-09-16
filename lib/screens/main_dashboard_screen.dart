@@ -28,15 +28,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../widgets/heads_up_alarm_banner.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:flutter/services.dart';
 import 'package:vibration/vibration.dart';
 import '../services/local_storage_service.dart';
+import '../services/firebase_service.dart';
 import '../services/notification_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/geofence_service.dart';
+import '../services/stationary_detection_service.dart';
 import '../services/sms_alert_service.dart';
 import '../services/permission_service.dart';
 import '../widgets/app_icon.dart';
@@ -59,6 +62,7 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   final GeofenceService _geofenceService = GeofenceService();
   final SmsAlertService _smsAlertService = SmsAlertService();
+  final StationaryDetectionService _stationaryService = StationaryDetectionService();
 
   int selectedTab = 0;
   bool tripActive = false;
@@ -69,15 +73,151 @@ class HomeScreenState extends State<HomeScreen> {
   DateTime? safetyCheckDeadline;
   Duration totalDuration = const Duration(minutes: 45);
   String destination = 'Campus';
+  String tripId = '';
+  DateTime? tripStartedAt;
   Timer? tripTimer;
   Timer? _arrivalTimer;
 
+  // Global cancellation flag for the vibration alarm loop.
+  // Set true when the alarm fires; set false INSTANTLY by any action button so
+  // every pending await in _runVibrateLoop aborts before its next vibration burst.
+  bool _alarmActive = false;
+
+  // -------------------------------------------------------------------------
+  // Lifecycle — register / unregister notification response callback.
+  //
+  // By setting NotificationService.onActionReceived here, the notification
+  // response router (both foreground and killed-app) can call trip methods
+  // directly on the live HomeScreenState without a GlobalKey.
+  // -------------------------------------------------------------------------
+  @override
+  void initState() {
+    super.initState();
+    NotificationService.onActionReceived = _routeNotificationAction;
+    _restoreActiveTrip();
+  }
+
+  Future<void> _restoreActiveTrip() async {
+    const storage = LocalStorageService();
+    final data = await storage.readActiveTrip();
+    if (data == null || !mounted) return;
+
+    final dest = data['destination'] as String? ?? 'Campus';
+    final totalSecs = data['totalDurationSeconds'] as int? ?? 45 * 60;
+    final expMs = data['expectedArrivalAtMs'] as int?;
+    final arrived = data['isArrived'] as bool? ?? false;
+    final safetyMs = data['safetyCheckDeadlineMs'] as int?;
+    final tId = data['tripId'] as String? ?? '';
+    final startedMs = data['startedAtMs'] as int?;
+
+    setState(() {
+      tripActive = true;
+      destination = dest;
+      totalDuration = Duration(seconds: totalSecs);
+      expectedArrivalAt = expMs != null ? DateTime.fromMillisecondsSinceEpoch(expMs) : null;
+      isArrived = arrived;
+      safetyCheckDeadline = safetyMs != null ? DateTime.fromMillisecondsSinceEpoch(safetyMs) : null;
+      tripId = tId;
+      tripStartedAt = startedMs != null ? DateTime.fromMillisecondsSinceEpoch(startedMs) : null;
+      selectedTab = 0;
+    });
+
+    final now = DateTime.now();
+    if (isArrived && safetyCheckDeadline != null) {
+      if (now.isAfter(safetyCheckDeadline!)) {
+        // Already expired while app was closed
+        _escalateEmergencyAlert(isManualSos: false);
+      } else {
+        arrivalCountdown = safetyCheckDeadline!.difference(now).inSeconds;
+        _startArrivalCountdownTimer();
+        _runVibrateLoop(cycles: 3);
+      }
+    } else if (expectedArrivalAt != null) {
+      if (now.isAfter(expectedArrivalAt!)) {
+        _handleArrivalDetected(destination);
+      } else {
+        remaining = expectedArrivalAt!.difference(now);
+        _startTravelTimer();
+        _geofenceService.startMonitoring(
+          destination: destination,
+          onArrival: (target, distance) {
+            if (!mounted) return;
+            _handleArrivalDetected(target.name);
+          },
+          onError: (error) => debugPrint('Geofence tracking notice: $error'),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
+    // Unregister so stale callbacks from a destroyed widget are never called.
+    NotificationService.onActionReceived = null;
+    _alarmActive = false;           // Abort any running vibration loop.
+    Vibration.cancel();
     tripTimer?.cancel();
     _arrivalTimer?.cancel();
     _geofenceService.stopMonitoring();
+    _stationaryService.stopMonitoring();
     super.dispose();
+  }
+
+  // -------------------------------------------------------------------------
+  // Notification action router
+  //
+  // Called by NotificationService._handleNotificationResponse() (foreground /
+  // background-resumed) and by _LaunchGate._dispatchPendingNotificationAction()
+  // (killed-app restart path).
+  // -------------------------------------------------------------------------
+  void _routeNotificationAction(String actionId) {
+    if (!mounted) return;
+    debugPrint('[HomeScreenState] Routing notification action: "$actionId"');
+    switch (actionId) {
+      case kNotifActionSafe:
+        handleSafeAction();
+        break;
+      case kNotifActionExtend:
+        handleExtendAction();
+        break;
+      case kNotifActionSos:
+        handleSosAction();
+        break;
+      default:
+        debugPrint('[HomeScreenState] Unknown notification actionId: "$actionId"');
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Public trip action handlers — callable from outside the widget tree via
+  // NotificationService.onActionReceived.
+  // -------------------------------------------------------------------------
+
+  /// Marks the trip as safely completed. Cancels vibration and alarm notification.
+  void handleSafeAction() {
+    if (!mounted) return;
+    _alarmActive = false;         // Signal the vibration loop to abort immediately.
+    Vibration.cancel();
+    NotificationService().cancelArrivalAlarm();
+    _endTrip(safe: true);
+  }
+
+  /// Extends the trip timer by 15 minutes. Cancels current vibration loop.
+  void handleExtendAction() {
+    if (!mounted) return;
+    _alarmActive = false;         // Signal the vibration loop to abort immediately.
+    Vibration.cancel();
+    NotificationService().cancelArrivalAlarm();
+    _extendTrip();
+  }
+
+  /// Immediately triggers the emergency SOS flow (bypasses 5-second countdown).
+  void handleSosAction() {
+    if (!mounted) return;
+    _alarmActive = false;         // Signal the vibration loop to abort immediately.
+    Vibration.cancel();
+    NotificationService().cancelArrivalAlarm();
+    _triggerEmergencyFlow(immediate: true);
   }
 
   void _startTrip(String selectedDestination, Duration duration) async {
@@ -87,10 +227,42 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _startTravelTimer() {
+    tripTimer?.cancel();
+    tripTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final currentTime = DateTime.now();
+      if (expectedArrivalAt != null && currentTime.isAfter(expectedArrivalAt!)) {
+        tripTimer?.cancel();
+        _handleArrivalDetected(destination);
+      } else if (expectedArrivalAt != null) {
+        setState(() => remaining = expectedArrivalAt!.difference(currentTime));
+        final mm = remaining.inMinutes.toString().padLeft(2, '0');
+        final ss = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+        NotificationService().showPersistentTripNotification(destination, '$mm:$ss');
+      }
+    });
+  }
+
+  void _startArrivalCountdownTimer() {
+    _arrivalTimer?.cancel();
+    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final now = DateTime.now();
+      if (safetyCheckDeadline != null && now.isAfter(safetyCheckDeadline!)) {
+        _arrivalTimer?.cancel();
+        _escalateEmergencyAlert(isManualSos: false);
+      } else if (safetyCheckDeadline != null) {
+        setState(() => arrivalCountdown = safetyCheckDeadline!.difference(now).inSeconds);
+      }
+    });
+  }
+
   void _executeStartTrip(String selectedDestination, Duration duration) {
     tripTimer?.cancel();
     _arrivalTimer?.cancel();
     final now = DateTime.now();
+    final newTripId = now.millisecondsSinceEpoch.toString();
     setState(() {
       tripActive = true;
       isArrived = false;
@@ -99,8 +271,30 @@ class HomeScreenState extends State<HomeScreen> {
       totalDuration = duration;
       expectedArrivalAt = now.add(duration);
       remaining = duration;
+      tripId = newTripId;
+      tripStartedAt = now;
       selectedTab = 0;
     });
+
+    const LocalStorageService().saveActiveTrip(
+      isActive: true,
+      destination: destination,
+      totalDurationSeconds: totalDuration.inSeconds,
+      expectedArrivalAtMs: expectedArrivalAt?.millisecondsSinceEpoch,
+      isArrived: false,
+      tripId: tripId,
+      startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
+    );
+
+    // Sync to Firebase
+    FirebaseService().saveOrUpdateTrip(
+      tripId: tripId,
+      destination: destination,
+      estimatedTravelMinutes: totalDuration.inMinutes,
+      startedAt: tripStartedAt ?? now,
+      expectedArrivalAt: expectedArrivalAt,
+      status: 'active',
+    );
 
     // 1. Activate Conditional GPS Geofence Monitoring (strictly inactive when idle)
     _geofenceService.startMonitoring(
@@ -115,18 +309,28 @@ class HomeScreenState extends State<HomeScreen> {
     );
 
     // 2. Start Travel Countdown Timer using Timestamp Comparison
-    tripTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      final currentTime = DateTime.now();
-      if (expectedArrivalAt != null && currentTime.isAfter(expectedArrivalAt!)) {
-        tripTimer?.cancel();
-        _handleArrivalDetected(destination);
-      } else if (expectedArrivalAt != null) {
-        setState(() => remaining = expectedArrivalAt!.difference(currentTime));
-        final mm = remaining.inMinutes.toString().padLeft(2, '0');
-        final ss = (remaining.inSeconds % 60).toString().padLeft(2, '0');
-        NotificationService().showPersistentTripNotification(destination, '$mm:$ss');
-      }
+    _startTravelTimer();
+
+    // 3. Stationary Detection & Inactivity Geofence Algorithm
+    // Capture the student's GPS position at trip start as the anchor coordinate.
+    // After 10 minutes, re-sample and compare via Haversine. If the student
+    // hasn't moved ≥ 20m, trigger the safety heads-up banner.
+    Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 10),
+    ).then((startPosition) {
+      _stationaryService.startMonitoring(
+        anchorLat: startPosition.latitude,
+        anchorLon: startPosition.longitude,
+        onInactivityDetected: () {
+          // Only trigger if the trip is still running (not already arrived/ended)
+          if (mounted && tripActive && !isArrived) {
+            _handleArrivalDetected(destination);
+          }
+        },
+      );
+    }).catchError((e) {
+      debugPrint('[StationaryDetection] Could not capture start position: $e');
     });
   }
 
@@ -143,38 +347,79 @@ class HomeScreenState extends State<HomeScreen> {
       selectedTab = 0;
     });
 
+    const LocalStorageService().saveActiveTrip(
+      isActive: true,
+      destination: destination,
+      totalDurationSeconds: totalDuration.inSeconds,
+      expectedArrivalAtMs: expectedArrivalAt?.millisecondsSinceEpoch,
+      isArrived: true,
+      safetyCheckDeadlineMs: safetyCheckDeadline?.millisecondsSinceEpoch,
+      tripId: tripId,
+      startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
+    );
+
+    if (tripId.isNotEmpty && tripStartedAt != null) {
+      FirebaseService().saveOrUpdateTrip(
+        tripId: tripId,
+        destination: destination,
+        estimatedTravelMinutes: totalDuration.inMinutes,
+        startedAt: tripStartedAt!,
+        expectedArrivalAt: expectedArrivalAt,
+        status: 'arrived',
+      );
+    }
+
+    _startArrivalCountdownTimer();
+
     final storage = const LocalStorageService();
     final alertMode = await storage.readAlertMode();
     
     if (alertMode != 'Silent') {
-      try {
-        final hasVibrator = await Vibration.hasVibrator();
-        if (hasVibrator == true) {
-          await Vibration.vibrate(pattern: [0, 20000, 10000, 20000, 10000, 20000, 10000]);
-        } else {
-          HapticFeedback.heavyImpact();
-        }
-      } catch (_) {}
+      // Arm the cancellation flag BEFORE starting the loop so the first
+      // guard check inside _runVibrateLoop sees an active alarm state.
+      _alarmActive = true;
+      // Pulsing vibration loop: 3 outer cycles × (20s pulse window + 10s silent) = 90s.
+      // Each 20s window is itself a rapid zz-zz-zz pulse (500ms on / 500ms off).
+      // Any action button sets _alarmActive = false + calls Vibration.cancel(),
+      // which causes the next await in the loop to abort before the next burst.
+      _runVibrateLoop(cycles: 3);
     }
 
     NotificationService().cancelPersistentTripNotification();
     NotificationService().showArrivalAlarm(destinationName);
 
-    // Start 90-second safety escalation countdown
-    _arrivalTimer?.cancel();
-    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      final currentTime = DateTime.now();
-      
-      if (safetyCheckDeadline != null && currentTime.isAfter(safetyCheckDeadline!)) {
-        _arrivalTimer?.cancel();
-        Vibration.cancel();
-        setState(() => arrivalCountdown = 0);
-        _triggerEmergencyFlow();
-      } else if (safetyCheckDeadline != null) {
-        setState(() => arrivalCountdown = safetyCheckDeadline!.difference(currentTime).inSeconds);
-      }
-    });
+    // Show the top heads-up floating banner.
+    if (mounted) {
+      showGeneralDialog(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withValues(alpha: 0.6),
+        transitionDuration: Duration.zero, // Banner handles its own slide animation
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return HeadsUpAlarmBanner(
+            deadline: safetyCheckDeadline!,
+            onSafe: () {
+              _alarmActive = false;   // Stop loop before Vibration.cancel().
+              Vibration.cancel();
+              NotificationService().cancelArrivalAlarm();
+              _endTrip(safe: true);
+            },
+            onExtend: () {
+              _alarmActive = false;   // Stop loop before Vibration.cancel().
+              Vibration.cancel();
+              NotificationService().cancelArrivalAlarm();
+              _extendTrip();
+            },
+            onHelp: () {
+              _alarmActive = false;   // Stop loop before Vibration.cancel().
+              Vibration.cancel();
+              NotificationService().cancelArrivalAlarm();
+              _triggerEmergencyFlow(immediate: true);
+            },
+          );
+        },
+      );
+    }
   }
 
   /// Public test & demonstration helper allowing simulation of GPS arrival.
@@ -182,8 +427,60 @@ class HomeScreenState extends State<HomeScreen> {
     _handleArrivalDetected(destination);
   }
 
-  /// Dispatches offline SMS emergency alerts when 90-second timer expires.
-  Future<void> _escalateEmergencyAlert() async {
+  /// Drives a pulsing vibration alarm: [cycles] outer rounds × (20s pulse window + 10s silent).
+  /// Total for 3 cycles = 90 seconds — matching the safety-check countdown.
+  ///
+  /// Each 20-second "active" window is NOT a solid buzz. Instead it fires a rapid
+  /// zz-zz-zz pulse: 500ms vibrate → 500ms pause → repeat 20 times = 20 seconds.
+  /// This feels like a real alarm clock rather than a stuck motor.
+  ///
+  /// The `_alarmActive` flag is checked before EVERY await. Any action button sets
+  /// `_alarmActive = false` then calls `Vibration.cancel()`, which causes this loop
+  /// to detect the flag and return immediately — eliminating ghost vibrations.
+  ///
+  /// This method is fire-and-forget (no await at the call site).
+  void _runVibrateLoop({int cycles = 3}) async {
+    final hasVibrator = await Vibration.hasVibrator();
+    if (!_alarmActive) return;    // Guard: cancelled before hardware check finished.
+    if (hasVibrator != true) {
+      // Devices without a vibrator fall back to a single HapticFeedback burst.
+      HapticFeedback.heavyImpact();
+      return;
+    }
+
+    for (int outer = 0; outer < cycles; outer++) {
+      // ── 20-second pulsing window: 20 × (500ms ON + 500ms OFF) ─────────────
+      for (int pulse = 0; pulse < 20; pulse++) {
+        if (!_alarmActive) return;  // Abort: action button was tapped.
+
+        // Short vibration burst (500 ms).
+        try {
+          await Vibration.vibrate(duration: 500);
+        } catch (_) {}
+
+        if (!_alarmActive) return;  // Abort during or after vibration.
+
+        // 500 ms silent gap — gives the characteristic zz-zz-zz rhythm.
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      // ── 10-second silent inter-cycle gap (omit after last cycle) ───────────
+      if (outer < cycles - 1) {
+        // Check the flag every second of the silent gap so a button tap during
+        // the silence aborts within ≤1 second rather than waiting the full 10s.
+        for (int s = 0; s < 10; s++) {
+          if (!_alarmActive) return;
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
+    }
+
+    // Loop completed naturally (all 90 seconds elapsed without a tap).
+    // Escalation is handled by the arrival countdown timer in _handleArrivalDetected.
+  }
+
+  /// Dispatches offline SMS emergency alerts when 90-second timer expires or manual SOS is triggered.
+  Future<void> _escalateEmergencyAlert({bool isManualSos = false}) async {
     double? lat = _geofenceService.activeTarget?.latitude;
     double? lng = _geofenceService.activeTarget?.longitude;
 
@@ -202,28 +499,37 @@ class HomeScreenState extends State<HomeScreen> {
       destination: destination,
       latitude: lat,
       longitude: lng,
+      isManualSos: isManualSos,
     );
 
     NotificationService().showEmergencySentNotification(sentList);
+    
+    const LocalStorageService().saveActiveTrip(isActive: false);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.primary,
-          duration: const Duration(seconds: 5),
-          content: Text(
-            '⚠️ 90s safety window expired. Offline SMS alert dispatched to ${sentList.isEmpty ? "trusted contacts" : sentList.join(", ")}.',
-          ),
-        ),
+    // Log the trip locally as Alert
+    final storage = const LocalStorageService();
+    final history = await storage.readTripHistory();
+    final newTrip = TripRecord(
+      id: tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString(),
+      destination: destination,
+      durationMinutes: totalDuration.inMinutes,
+      status: 'Alert',
+      timestamp: tripStartedAt ?? DateTime.now(),
+    );
+    await storage.saveTripHistory([...history, newTrip]);
+
+    if (tripId.isNotEmpty && tripStartedAt != null) {
+      FirebaseService().saveOrUpdateTrip(
+        tripId: tripId,
+        destination: destination,
+        estimatedTravelMinutes: totalDuration.inMinutes,
+        startedAt: tripStartedAt!,
+        expectedArrivalAt: expectedArrivalAt,
+        completedAt: DateTime.now(),
+        status: isManualSos ? 'help_requested' : 'expired',
       );
     }
-  }
 
-  void _endTrip() {
-    tripTimer?.cancel();
-    _arrivalTimer?.cancel();
-    // Immediate GPS shutdown preserving Zero-Surveillance privacy
-    _geofenceService.stopMonitoring();
     setState(() {
       tripActive = false;
       isArrived = false;
@@ -231,6 +537,69 @@ class HomeScreenState extends State<HomeScreen> {
       arrivalCountdown = 90;
       expectedArrivalAt = null;
       safetyCheckDeadline = null;
+      tripId = '';
+      tripStartedAt = null;
+    });
+
+    if (mounted) {
+      final msgType = isManualSos ? "Manual SOS" : "Timer expiry";
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 5),
+          content: Text(
+            '⚠️ $msgType alert dispatched to ${sentList.isEmpty ? "trusted contacts" : sentList.join(", ")}.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _endTrip({bool safe = false}) async {
+    tripTimer?.cancel();
+    _arrivalTimer?.cancel();
+    Vibration.cancel();
+    NotificationService().cancelArrivalAlarm();
+    // Stop stationary detection immediately to prevent stale inactivity warnings
+    _stationaryService.stopMonitoring();
+    // Immediate GPS shutdown preserving Zero-Surveillance privacy
+    _geofenceService.stopMonitoring();
+    
+    const LocalStorageService().saveActiveTrip(isActive: false);
+
+    // Log the trip locally
+    final storage = const LocalStorageService();
+    final history = await storage.readTripHistory();
+    final newTrip = TripRecord(
+      id: tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString(),
+      destination: destination,
+      durationMinutes: totalDuration.inMinutes,
+      status: safe ? 'Completed' : 'Cancelled',
+      timestamp: tripStartedAt ?? DateTime.now(),
+    );
+    await storage.saveTripHistory([...history, newTrip]);
+
+    if (tripId.isNotEmpty && tripStartedAt != null) {
+      FirebaseService().saveOrUpdateTrip(
+        tripId: tripId,
+        destination: destination,
+        estimatedTravelMinutes: totalDuration.inMinutes,
+        startedAt: tripStartedAt!,
+        expectedArrivalAt: expectedArrivalAt,
+        completedAt: DateTime.now(),
+        status: safe ? 'arrived' : 'cancelled', // Changed 'arrived' string to represent successfully completed trip in the DB model based on user requirement
+      );
+    }
+    
+    setState(() {
+      tripActive = false;
+      isArrived = false;
+      remaining = Duration.zero;
+      arrivalCountdown = 90;
+      expectedArrivalAt = null;
+      safetyCheckDeadline = null;
+      tripId = '';
+      tripStartedAt = null;
     });
   }
 
@@ -251,27 +620,55 @@ class HomeScreenState extends State<HomeScreen> {
       remaining = expectedArrivalAt!.difference(currentTime);
     });
 
+    const LocalStorageService().saveActiveTrip(
+      isActive: true,
+      destination: destination,
+      totalDurationSeconds: totalDuration.inSeconds,
+      expectedArrivalAtMs: expectedArrivalAt?.millisecondsSinceEpoch,
+      isArrived: false,
+      tripId: tripId,
+      startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
+    );
+
+    if (tripId.isNotEmpty && tripStartedAt != null) {
+      FirebaseService().saveOrUpdateTrip(
+        tripId: tripId,
+        destination: destination,
+        estimatedTravelMinutes: totalDuration.inMinutes,
+        startedAt: tripStartedAt!,
+        expectedArrivalAt: expectedArrivalAt,
+        status: 'extended',
+      );
+    }
+
     // Re-enable travel countdown
-    tripTimer?.cancel();
-    tripTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      final nowTime = DateTime.now();
-      if (expectedArrivalAt != null && nowTime.isAfter(expectedArrivalAt!)) {
-        tripTimer?.cancel();
-        _handleArrivalDetected(destination);
-      } else if (expectedArrivalAt != null) {
-        setState(() => remaining = expectedArrivalAt!.difference(nowTime));
-        final mm = remaining.inMinutes.toString().padLeft(2, '0');
-        final ss = (remaining.inSeconds % 60).toString().padLeft(2, '0');
-        NotificationService().showPersistentTripNotification(destination, '$mm:$ss');
-      }
+    _startTravelTimer();
+
+    // Re-anchor stationary detection from the current position for the extended leg.
+    // This prevents a stale position from triggering a false inactivity warning.
+    _stationaryService.stopMonitoring();
+    Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 10),
+    ).then((extendPosition) {
+      _stationaryService.startMonitoring(
+        anchorLat: extendPosition.latitude,
+        anchorLon: extendPosition.longitude,
+        onInactivityDetected: () {
+          if (mounted && tripActive && !isArrived) {
+            _handleArrivalDetected(destination);
+          }
+        },
+      );
+    }).catchError((e) {
+      debugPrint('[StationaryDetection] Could not re-anchor on extend: $e');
     });
   }
 
   bool _alertScreenOpen = false;
   bool _sheetOpen = false;
 
-  void _triggerEmergencyFlow() {
+  void _triggerEmergencyFlow({bool immediate = false}) {
     if (_alertScreenOpen) return;
     _alertScreenOpen = true;
 
@@ -281,12 +678,12 @@ class HomeScreenState extends State<HomeScreen> {
         opaque: false,
         fullscreenDialog: true,
         pageBuilder: (context, _, __) => EmergencyAlertScreen(
-          onExecute: _escalateEmergencyAlert,
+          isManualSos: true,
+          immediateExecute: immediate,
+          onExecute: () => _escalateEmergencyAlert(isManualSos: true),
           onCancel: () {
-            // Cancel any arrival timers if we were in arrival state
             if (isArrived && arrivalCountdown == 0) {
-                // If it was triggered by the timer, we might want to reset or cancel the trip.
-                _endTrip();
+                _endTrip(safe: false);
             }
           },
         ),
@@ -309,6 +706,8 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Key _homeKey = UniqueKey();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -325,16 +724,16 @@ class HomeScreenState extends State<HomeScreen> {
                     destination: destination,
                     remaining: remaining,
                     totalDuration: totalDuration,
-                    onSafe: _endTrip,
+                    onSafe: () => _endTrip(safe: true),
                     onExtend: _extendTrip,
                     onSos: _triggerEmergencyFlow,
                     isArrived: isArrived,
                     arrivalRemainingSeconds: arrivalCountdown,
                   )
                 : HomeDashboardTab(
-                    key: const ValueKey('home-dashboard'),
+                    key: _homeKey,
                     onStartTrip: _openTripScheduler,
-                    onSos: _triggerEmergencyFlow,
+                    onSos: () => _triggerEmergencyFlow(immediate: true),
                   ),
           ),
           const TripsTab(key: ValueKey('trips')),
@@ -346,13 +745,21 @@ class HomeScreenState extends State<HomeScreen> {
         currentIndex: selectedTab,
         onTap: (index) {
           if (selectedTab == index) return;
-          setState(() => selectedTab = index);
+          setState(() {
+            selectedTab = index;
+            if (index == 0) _homeKey = UniqueKey(); // Force home refresh to sync settings
+          });
         },
         backgroundColor: AppColors.card,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.body,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 16,
+        iconSize: 22,
+        selectedFontSize: 11,
+        unselectedFontSize: 11,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
         items: const [
           BottomNavigationBarItem(
             icon: AppIcon.standard(

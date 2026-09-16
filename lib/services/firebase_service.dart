@@ -1,13 +1,11 @@
 import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'local_storage_service.dart';
+
 /// Service for interacting with Firebase Cloud Firestore.
 /// 
-/// CONSTRAINTS ALIGNMENT:
-/// To respect the Local-First and Zero-Surveillance architecture, this service 
-/// DOES NOT sync general user travel data, live location, or active trips.
-/// It strictly logs unacknowledged emergency events (SOS or TIMEOUT_ESCALATION) 
-/// to the 'emergency_events' collection for critical auditing purposes.
+/// Maintains the trips, emergency_events, and trusted_contacts collections.
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
   factory FirebaseService() => _instance;
@@ -15,10 +13,61 @@ class FirebaseService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// Retrieves the actual saved trip records from Firebase for the Trips tab.
+  Future<List<TripRecord>> getTrips() async {
+    try {
+      final snapshot = await _firestore.collection('trips')
+          .orderBy('startedAt', descending: true)
+          .get();
+      
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return TripRecord(
+          id: doc.id,
+          destination: data['destination'] ?? 'Unknown',
+          durationMinutes: data['estimatedTravelMinutes'] ?? 0,
+          status: data['status'] ?? 'Unknown',
+          timestamp: data['startedAt'] != null ? (data['startedAt'] as Timestamp).toDate() : DateTime.now(),
+        );
+      }).toList();
+    } catch (e) {
+      developer.log('FirebaseService: Failed to fetch trips. Error: $e');
+      return [];
+    }
+  }
+
+  /// Creates or updates a trip in Firebase.
+  Future<void> saveOrUpdateTrip({
+    required String tripId,
+    required String destination,
+    required int estimatedTravelMinutes,
+    required DateTime startedAt,
+    DateTime? expectedArrivalAt,
+    DateTime? completedAt,
+    required String status,
+    double? startLat,
+    double? startLng,
+  }) async {
+    try {
+      final data = {
+        'destination': destination,
+        'estimatedTravelMinutes': estimatedTravelMinutes,
+        'startedAt': Timestamp.fromDate(startedAt),
+        if (expectedArrivalAt != null) 'expectedArrivalAt': Timestamp.fromDate(expectedArrivalAt),
+        if (completedAt != null) 'completedAt': Timestamp.fromDate(completedAt),
+        'status': status,
+        if (startLat != null) 'startLocationLat': startLat,
+        if (startLng != null) 'startLocationLng': startLng,
+      };
+
+      await _firestore.collection('trips').doc(tripId).set(data, SetOptions(merge: true));
+      developer.log('FirebaseService: Saved/Updated trip $tripId ($status).');
+    } catch (e) {
+      developer.log('FirebaseService: Failed to save trip. Error: $e');
+    }
+  }
+
   /// Logs an emergency event to the 'emergency_events' collection.
-  /// 
-  /// Triggers only when the safety timer expires without user confirmation, or 
-  /// when the user explicitly triggers an SOS.
   Future<void> logEmergencyEvent({
     required String deviceId,
     required String tripId,
@@ -40,8 +89,6 @@ class FirebaseService {
       developer.log('FirebaseService: Successfully logged emergency event ($emergencyType).');
     } catch (e) {
       developer.log('FirebaseService: Failed to log emergency event to Firestore. Error: $e');
-      // Intentionally swallowing the error to prevent blocking the rest of the 
-      // emergency escalation flow (e.g., SMS dispatch) if network connectivity fails.
     }
   }
 }

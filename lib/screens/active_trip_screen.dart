@@ -7,6 +7,11 @@
 // is active. Replaces the idle home dashboard with real-time countdown tracking,
 // safe arrival confirmation, trip duration extension, and SOS escalation.
 //
+// Layout Structure (3 sections):
+// 1. Navy Header   — edge-to-edge Container with trip status, destination, duration.
+// 2. Centered Ring — Expanded + Center so CountdownRing floats in the middle.
+// 3. Bottom Buttons — SafeArea + Padding with SafeButton, +15min, and SOS.
+//
 // Geofencing & Safety Escalation Logic:
 // - Countdown Visualization: `CountdownRing` calculates elapsed vs total duration,
 //   rendering an emerald green circular arc that smoothly depletes as the student travels.
@@ -73,68 +78,109 @@ class ActiveTripTab extends StatelessWidget {
       return _buildArrivalView(context);
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── 1. NAVY HEADER ────────────────────────────────────────────────────
+        // Edge-to-edge navy Container clearly labelling the active trip state,
+        // destination name, configured duration, and live "Active" badge.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          decoration: const BoxDecoration(
+            color: AppColors.header, // Deep Navy #1E293B
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'TRIP IN PROGRESS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1.3,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.body,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'TRIP IN PROGRESS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        letterSpacing: 1.4,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF94A3B8), // muted slate on navy
+                      ),
                     ),
-                  ),
-                  Text(
-                    destination,
-                    style: const TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.header,
+                    const SizedBox(height: 4),
+                    Text(
+                      destination,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  Text(
-                    formatTripDuration(totalDuration),
-                    style: const TextStyle(fontSize: 12, color: AppColors.body),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      formatTripDuration(totalDuration),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const ActiveBadge(),
             ],
           ),
-          const SizedBox(height: 28),
-          CountdownRing(
-            remaining: remaining,
-            totalDuration: totalDuration,
+        ),
+
+        // ── 2. CENTERED COUNTDOWN RING ────────────────────────────────────────
+        // Expanded fills all remaining space between header and buttons.
+        // Center vertically and horizontally places the ring in the middle.
+        Expanded(
+          child: Center(
+            child: CountdownRing(
+              remaining: remaining,
+              totalDuration: totalDuration,
+            ),
           ),
-          const SizedBox(height: 30),
-          Row(
-            children: [
-              Expanded(child: SafeButton(onPressed: onSafe)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlineAction(
-                  label: '+ 15 min',
-                  icon: Icons.access_time_rounded,
-                  onPressed: onExtend,
+        ),
+
+        // ── 3. BOTTOM ACTION BUTTONS ──────────────────────────────────────────
+        // SafeArea (top: false) prevents overlap with the Android gesture bar.
+        // Fixed padding keeps buttons away from screen edges on all form factors.
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: SafeButton(onPressed: onSafe)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlineAction(
+                        label: '+ 15 min',
+                        icon: Icons.access_time_rounded,
+                        onPressed: onExtend,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                PrimaryButton(
+                  label: 'Need Help / SOS',
+                  onPressed: onSos,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-          PrimaryButton(
-            label: 'Need Help / SOS',
-            onPressed: onSos,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -327,6 +373,7 @@ class ActiveTripTab extends StatelessWidget {
 }
 
 /// Badge indicating active trip status.
+/// Colors are tuned for legibility against the navy header background.
 class ActiveBadge extends StatelessWidget {
   const ActiveBadge({super.key});
 
@@ -335,20 +382,25 @@ class ActiveBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.13),
+        // Semi-transparent white pill — readable on the navy header.
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.30),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: const [
-          Icon(Icons.directions_run_rounded, size: 14, color: AppColors.successText),
+          Icon(Icons.directions_run_rounded, size: 14, color: Colors.white),
           SizedBox(width: 4),
           Text(
             'Active',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: AppColors.successText,
+              color: Colors.white,
             ),
           ),
         ],
@@ -383,12 +435,7 @@ class CountdownRing extends StatelessWidget {
           SizedBox(
             width: 230,
             height: 230,
-            child: CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 12,
-              backgroundColor: AppColors.border,
-              color: AppColors.success,
-            ),
+            child: CustomPaint(painter: _TimerGradientPainter(progress: progress)),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -442,22 +489,29 @@ class _SafeButtonState extends State<SafeButton> {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 52,
-      child: ElevatedButton.icon(
-        onPressed: _handlePressed,
-        icon: const AppIcon.badge(
-          AppIcons.check,
-          color: Colors.white,
-          semanticIcon: Icons.check_rounded,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          borderRadius: BorderRadius.circular(12),
         ),
-        label: const Text("I'm Safe / Arrive"),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.success,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        child: ElevatedButton.icon(
+          onPressed: _handlePressed,
+          icon: const AppIcon.badge(
+            AppIcons.check,
+            color: Colors.white,
+            semanticIcon: Icons.check_rounded,
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          label: const Text("I'm Safe / Arrive"),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
       ),
     );
@@ -524,4 +578,51 @@ String formatTripDuration(Duration duration) {
   final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
   final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
   return '$hours:$minutes:$seconds';
+}
+
+class _TimerGradientPainter extends CustomPainter {
+  final double progress;
+  _TimerGradientPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    // Background track
+    final bgPaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 14
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, bgPaint);
+
+    // Gradient active arc
+    final gradientPaint = Paint()
+      ..shader = AppColors.timerGradient.createShader(
+          Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 14
+      ..strokeCap = StrokeCap.round;
+
+    // Glow shadow
+    final shadowPaint = Paint()
+      ..color = const Color(0x6010B981)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 24
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+
+    const startAngle = -3.14159 / 2;
+    final sweepAngle = 2 * 3.14159 * progress;
+
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
+        startAngle, sweepAngle, false, shadowPaint);
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
+        startAngle, sweepAngle, false, gradientPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TimerGradientPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }

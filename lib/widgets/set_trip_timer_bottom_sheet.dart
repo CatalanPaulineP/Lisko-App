@@ -25,6 +25,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/geofence_service.dart';
+import '../services/local_storage_service.dart';
 import 'action_buttons.dart';
 import 'app_icon.dart';
 
@@ -45,6 +46,27 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
   int hours = 0;
   int minutes = 45;
   bool _startTriggered = false;
+
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDefaultDuration();
+  }
+
+  Future<void> _loadDefaultDuration() async {
+    const storage = LocalStorageService();
+    final defaultMins = await storage.readDefaultTravelDuration();
+    if (mounted) {
+      setState(() {
+        selectedMinutes = defaultMins;
+        hours = defaultMins ~/ 60;
+        minutes = defaultMins % 60;
+        _isLoading = false;
+      });
+    }
+  }
 
   Duration get duration => Duration(hours: hours, minutes: minutes);
 
@@ -83,6 +105,17 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return TripSchedulerSurface(
+        child: const SizedBox(
+          height: 300,
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        ),
+      );
+    }
+
     return TripSchedulerSurface(
       child: SingleChildScrollView(
         physics: const ClampingScrollPhysics(),
@@ -242,24 +275,31 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
             SizedBox(
               width: double.infinity,
               height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _handleStartTrip,
-                icon: const AppIcon.badge(
-                  AppIcons.navigation,
-                  color: Colors.white,
-                  semanticIcon: Icons.navigation_rounded,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                label: const Text('START TRIP'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                child: ElevatedButton.icon(
+                  onPressed: _handleStartTrip,
+                  icon: const AppIcon.badge(
+                    AppIcons.navigation,
+                    color: Colors.white,
+                    semanticIcon: Icons.navigation_rounded,
                   ),
-                  textStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
+                  label: const Text('START TRIP'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shadowColor: Colors.transparent,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),

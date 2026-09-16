@@ -30,6 +30,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
+import '../services/local_storage_service.dart';
+import '../services/firebase_service.dart';
 import '../widgets/app_icon.dart';
 import 'home_tab.dart';
 
@@ -43,6 +45,24 @@ class TripsTab extends StatefulWidget {
 
 class _TripsTabState extends State<TripsTab> {
   String _selectedFilter = 'All';
+  List<TripRecord> _trips = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+  }
+
+  Future<void> _loadTrips() async {
+    final trips = await FirebaseService().getTrips();
+    if (mounted) {
+      setState(() {
+        _trips = trips;
+        _isLoading = false;
+      });
+    }
+  }
 
   void _showSortBottomSheet() {
     showModalBottomSheet<void>(
@@ -81,9 +101,7 @@ class _TripsTabState extends State<TripsTab> {
               ListTile(
                 leading: const AppIcon.small(AppIcons.map, color: AppColors.header),
                 title: const Text('All Trips'),
-                trailing: _selectedFilter == 'All'
-                    ? const Icon(Icons.check_rounded, color: AppColors.primary)
-                    : null,
+                trailing: _selectedFilter == 'All' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() => _selectedFilter = 'All');
@@ -92,31 +110,25 @@ class _TripsTabState extends State<TripsTab> {
               ListTile(
                 leading: const AppIcon.small(AppIcons.checkCircle, color: Color(0xFF10B981)),
                 title: const Text('Safe / Completed Only'),
-                trailing: _selectedFilter == 'Completed'
-                    ? const Icon(Icons.check_rounded, color: AppColors.primary)
-                    : null,
+                trailing: _selectedFilter == 'Completed' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() => _selectedFilter = 'Completed');
                 },
               ),
               ListTile(
-                leading: const AppIcon.small(AppIcons.schedule, color: Color(0xFFD97706)),
+                leading: const Icon(Icons.update_rounded, color: Color(0xFFD97706)),
                 title: const Text('Extended Only'),
-                trailing: _selectedFilter == 'Extended'
-                    ? const Icon(Icons.check_rounded, color: AppColors.primary)
-                    : null,
+                trailing: _selectedFilter == 'Extended' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() => _selectedFilter = 'Extended');
                 },
               ),
               ListTile(
-                leading: const AppIcon.small(AppIcons.warning, color: Color(0xFFDB2B38)),
-                title: const Text('Alerts Only'),
-                trailing: _selectedFilter == 'Alert'
-                    ? const Icon(Icons.check_rounded, color: AppColors.primary)
-                    : null,
+                leading: const AppIcon.small(AppIcons.warning, color: AppColors.primary),
+                title: const Text('Alerts Triggered'),
+                trailing: _selectedFilter == 'Alert' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() => _selectedFilter = 'Alert');
@@ -131,10 +143,31 @@ class _TripsTabState extends State<TripsTab> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    final safeCount = _trips.where((t) => t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived').length;
+    final extendedCount = _trips.where((t) => t.status.toLowerCase() == 'extended').length;
+    final alertsCount = _trips.where((t) => t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested').length;
+
+    final filteredTrips = _trips.where((t) {
+      if (_selectedFilter == 'All') return true;
+      if (_selectedFilter == 'Completed') return t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived';
+      if (_selectedFilter == 'Extended') return t.status.toLowerCase() == 'extended';
+      if (_selectedFilter == 'Alert') return t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested';
+      return true;
+    }).toList();
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const TripsHeader(),
+        TripsHeader(
+          tripCount: _trips.length,
+          safeCount: safeCount,
+          extendedCount: extendedCount,
+          alertsCount: alertsCount,
+        ),
         Expanded(
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
@@ -144,16 +177,23 @@ class _TripsTabState extends State<TripsTab> {
                 const SizedBox(height: 14),
                 TripFilterChips(
                   selectedFilter: _selectedFilter,
-                  onFilterSelected: (filter) => setState(() => _selectedFilter = filter),
+                  onFilterSelected: (filter) =>
+                      setState(() => _selectedFilter = filter),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      RecentTripsSectionHeader(onFilterTap: _showSortBottomSheet),
+                      RecentTripsSectionHeader(
+                        onFilterTap: _showSortBottomSheet,
+                      ),
                       const SizedBox(height: 12),
-                      RecentTripsList(filter: _selectedFilter),
+                      RecentTripsList(
+                        filter: _selectedFilter,
+                        trips: filteredTrips, // Pass filtered trips
+                        isLoading: _isLoading,
+                      ),
                     ],
                   ),
                 ),
@@ -197,7 +237,10 @@ class TripFilterChips extends StatelessWidget {
                 onTap: () => onFilterSelected(filter),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
@@ -210,7 +253,9 @@ class TripFilterChips extends StatelessWidget {
                     filter,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w600,
                       color: isSelected ? Colors.white : AppColors.body,
                     ),
                   ),
@@ -264,7 +309,18 @@ class RecentTripsSectionHeader extends StatelessWidget {
 
 /// Compact header with dark navy background (#1E293B), pattern, and tight balanced metrics card overlap.
 class TripsHeader extends StatelessWidget {
-  const TripsHeader({super.key});
+  const TripsHeader({
+    super.key,
+    required this.tripCount,
+    required this.safeCount,
+    required this.extendedCount,
+    required this.alertsCount,
+  });
+
+  final int tripCount;
+  final int safeCount;
+  final int extendedCount;
+  final int alertsCount;
 
   @override
   Widget build(BuildContext context) {
@@ -274,10 +330,9 @@ class TripsHeader extends StatelessWidget {
           top: 0,
           left: 0,
           right: 0,
-          bottom: 36, // Stops 36px above the bottom of the stack to let the card stick out
-          child: CustomPaint(
-            painter: const HomeHeaderPatternPainter(),
-          ),
+          bottom:
+              36, // Stops 36px above the bottom of the stack to let the card stick out
+          child: CustomPaint(painter: const HomeHeaderPatternPainter()),
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,7 +376,7 @@ class TripsHeader extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '3 trips recorded this month',
+                          '$tripCount trip${tripCount == 1 ? '' : 's'} recorded',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -334,10 +389,17 @@ class TripsHeader extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 28), // Explicit spacing to perfectly prevent text overlap
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: SummaryMetricsCard(),
+            const SizedBox(
+              height: 28,
+            ), // Explicit spacing to perfectly prevent text overlap
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SummaryMetricsCard(
+                total: tripCount,
+                safe: safeCount,
+                extended: extendedCount,
+                alerts: alertsCount,
+              ),
             ),
           ],
         ),
@@ -348,7 +410,18 @@ class TripsHeader extends StatelessWidget {
 
 /// Segmented 4-column metric bar with solid tinted backgrounds and rounded outer corners.
 class SummaryMetricsCard extends StatelessWidget {
-  const SummaryMetricsCard({super.key});
+  const SummaryMetricsCard({
+    super.key,
+    required this.total,
+    required this.safe,
+    required this.extended,
+    required this.alerts,
+  });
+
+  final int total;
+  final int safe;
+  final int extended;
+  final int alerts;
 
   @override
   Widget build(BuildContext context) {
@@ -366,16 +439,16 @@ class SummaryMetricsCard extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: const Row(
+      child: Row(
         children: [
           Expanded(
             child: MetricSegment(
-              value: '3',
+              value: total.toString(),
               label: 'Total',
               backgroundColor: Colors.white,
               valueColor: AppColors.header,
               labelColor: AppColors.body,
-              borderRadius: BorderRadius.only(
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 bottomLeft: Radius.circular(16),
               ),
@@ -383,30 +456,30 @@ class SummaryMetricsCard extends StatelessWidget {
           ),
           Expanded(
             child: MetricSegment(
-              value: '1',
+              value: safe.toString(),
               label: 'Safe',
-              backgroundColor: Color(0xFFD1FAE5),
-              valueColor: Color(0xFF10B981),
+              backgroundColor: const Color(0xFFD1FAE5),
+              valueColor: const Color(0xFF10B981),
               labelColor: AppColors.body,
             ),
           ),
           Expanded(
             child: MetricSegment(
-              value: '1',
+              value: extended.toString(),
               label: 'Extended',
-              backgroundColor: Color(0xFFFEF3C7),
-              valueColor: Color(0xFFD97706),
+              backgroundColor: const Color(0xFFFEF3C7),
+              valueColor: const Color(0xFFD97706),
               labelColor: AppColors.body,
             ),
           ),
           Expanded(
             child: MetricSegment(
-              value: '1',
+              value: alerts.toString(),
               label: 'Alerts',
-              backgroundColor: Color(0xFFFFDAD8),
-              valueColor: Color(0xFFDB2B38),
+              backgroundColor: const Color(0xFFFFDAD8),
+              valueColor: const Color(0xFFDB2B38),
               labelColor: AppColors.body,
-              borderRadius: BorderRadius.only(
+              borderRadius: const BorderRadius.only(
                 topRight: Radius.circular(16),
                 bottomRight: Radius.circular(16),
               ),
@@ -476,98 +549,59 @@ class MetricSegment extends StatelessWidget {
 }
 
 /// Model representing a recorded trip for display in the recent trips list.
-class RecordedTripData {
-  const RecordedTripData({
-    required this.icon,
-    required this.semanticIcon,
-    required this.iconColor,
-    required this.iconBgColor,
-    required this.title,
-    required this.subtitle,
-    required this.status,
-    required this.badgeBgColor,
-    required this.badgeTextColor,
-    required this.isThisWeek,
+class RecentTripsList extends StatelessWidget {
+  const RecentTripsList({
+    super.key,
+    this.filter = 'All',
+    required this.trips,
+    required this.isLoading,
   });
 
-  final String icon;
-  final IconData semanticIcon;
-  final Color iconColor;
-  final Color iconBgColor;
-  final String title;
-  final String subtitle;
-  final String status;
-  final Color badgeBgColor;
-  final Color badgeTextColor;
-  final bool isThisWeek;
-}
-
-/// Clean rounded container card listing past trips with status badges.
-class RecentTripsList extends StatelessWidget {
-  const RecentTripsList({super.key, this.filter = 'All'});
-
   final String filter;
+  final List<TripRecord> trips;
+  final bool isLoading;
 
-  static const List<RecordedTripData> allTrips = [
-    RecordedTripData(
-      icon: AppIcons.check,
-      semanticIcon: Icons.check_rounded,
-      iconColor: Color(0xFF10B981),
-      iconBgColor: Color(0xFFD1FAE5),
-      title: 'Campus - Home',
-      subtitle: 'June 10 | 50 mins',
-      status: 'Completed',
-      badgeBgColor: Color(0xFFD1FAE5),
-      badgeTextColor: Color(0xFF10B981),
-      isThisWeek: true,
-    ),
-    RecordedTripData(
-      icon: AppIcons.schedule,
-      semanticIcon: Icons.schedule_rounded,
-      iconColor: Color(0xFFD97706),
-      iconBgColor: Color(0xFFFEF3C7),
-      title: 'Home - Campus',
-      subtitle: 'June 08 | 45 mins (+15m)',
-      status: 'Extended',
-      badgeBgColor: Color(0xFFFEF3C7),
-      badgeTextColor: Color(0xFFD97706),
-      isThisWeek: true,
-    ),
-    RecordedTripData(
-      icon: AppIcons.warning,
-      semanticIcon: Icons.warning_amber_rounded,
-      iconColor: Color(0xFFDB2B38),
-      iconBgColor: Color(0xFFFFDAD8),
-      title: 'Campus - Home',
-      subtitle: 'June 05 | 30 mins',
-      status: 'Alert',
-      badgeBgColor: Color(0xFFFFDAD8),
-      badgeTextColor: Color(0xFFDB2B38),
-      isThisWeek: false,
-    ),
-  ];
-
-  List<RecordedTripData> _getFilteredTrips() {
+  List<TripRecord> _getFilteredTrips() {
+    if (trips.isEmpty) return trips;
+    final now = DateTime.now();
     switch (filter) {
       case 'This Week':
-        return allTrips.where((t) => t.isThisWeek).toList();
+        return trips.where((t) {
+          final diff = now.difference(t.timestamp).inDays;
+          return diff <= 7;
+        }).toList();
       case 'This Month':
+        return trips.where((t) {
+          return t.timestamp.month == now.month && t.timestamp.year == now.year;
+        }).toList();
       case 'All':
-        return allTrips;
+        return trips;
       case 'Completed':
-        return allTrips.where((t) => t.status == 'Completed').toList();
+        return trips.where((t) => t.status == 'Completed').toList();
       case 'Extended':
-        return allTrips.where((t) => t.status == 'Extended').toList();
+        return trips.where((t) => t.status == 'Extended').toList();
       case 'Alert':
-        return allTrips.where((t) => t.status == 'Alert').toList();
+        return trips.where((t) => t.status == 'Alert').toList();
       default:
-        return allTrips;
+        return trips;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final trips = _getFilteredTrips();
+    if (isLoading) {
+      return Container(
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final filteredTrips = _getFilteredTrips();
 
     return Container(
       decoration: BoxDecoration(
@@ -582,7 +616,7 @@ class RecentTripsList extends StatelessWidget {
           ),
         ],
       ),
-      child: trips.isEmpty
+      child: filteredTrips.isEmpty
           ? Padding(
               padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
               child: Center(
@@ -596,7 +630,7 @@ class RecentTripsList extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'No trips found for this filter',
+                      'No trips found',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -609,20 +643,77 @@ class RecentTripsList extends StatelessWidget {
             )
           : Column(
               children: [
-                for (int i = 0; i < trips.length; i++) ...[
-                  TripListItem(
-                    icon: trips[i].icon,
-                    semanticIcon: trips[i].semanticIcon,
-                    iconColor: trips[i].iconColor,
-                    iconBgColor: trips[i].iconBgColor,
-                    title: trips[i].title,
-                    subtitle: trips[i].subtitle,
-                    status: trips[i].status,
-                    badgeBgColor: trips[i].badgeBgColor,
-                    badgeTextColor: trips[i].badgeTextColor,
+                for (int i = 0; i < filteredTrips.length; i++) ...[
+                  Builder(
+                    builder: (context) {
+                      final trip = filteredTrips[i];
+                      // Dynamic styling based on status
+                      String iconStr;
+                      IconData semIcon;
+                      Color iColor;
+                      Color iBgColor;
+                      Color bBgColor;
+                      Color bTextColor;
+
+                      if (trip.status == 'Completed' || trip.status.toLowerCase() == 'arrived') {
+                        iconStr = AppIcons.check;
+                        semIcon = Icons.check_rounded;
+                        iColor = const Color(0xFF10B981);
+                        iBgColor = const Color(0xFFD1FAE5);
+                        bBgColor = const Color(0xFFD1FAE5);
+                        bTextColor = const Color(0xFF10B981);
+                      } else if (trip.status == 'Alert' || trip.status.toLowerCase() == 'expired' || trip.status.toLowerCase() == 'help_requested') {
+                        iconStr = AppIcons.warning;
+                        semIcon = Icons.warning_amber_rounded;
+                        iColor = const Color(0xFFDB2B38);
+                        iBgColor = const Color(0xFFFFDAD8);
+                        bBgColor = const Color(0xFFFFDAD8);
+                        bTextColor = const Color(0xFFDB2B38);
+                      } else {
+                        iconStr = AppIcons.schedule;
+                        semIcon = Icons.schedule_rounded;
+                        iColor = const Color(0xFFD97706);
+                        iBgColor = const Color(0xFFFEF3C7);
+                        bBgColor = const Color(0xFFFEF3C7);
+                        bTextColor = const Color(0xFFD97706);
+                      }
+
+                      final months = [
+                        'Jan',
+                        'Feb',
+                        'Mar',
+                        'Apr',
+                        'May',
+                        'Jun',
+                        'Jul',
+                        'Aug',
+                        'Sep',
+                        'Oct',
+                        'Nov',
+                        'Dec',
+                      ];
+                      final dateStr =
+                          '${months[trip.timestamp.month - 1]} ${trip.timestamp.day} | ${trip.durationMinutes} mins';
+
+                      return TripListItem(
+                        icon: iconStr,
+                        semanticIcon: semIcon,
+                        iconColor: iColor,
+                        iconBgColor: iBgColor,
+                        title: trip.destination,
+                        subtitle: dateStr,
+                        status: trip.status,
+                        badgeBgColor: bBgColor,
+                        badgeTextColor: bTextColor,
+                      );
+                    },
                   ),
-                  if (i < trips.length - 1)
-                    const Divider(height: 1, thickness: 1, color: AppColors.border),
+                  if (i < filteredTrips.length - 1)
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: AppColors.border,
+                    ),
                 ],
               ],
             ),
@@ -724,4 +815,3 @@ class TripListItem extends StatelessWidget {
     );
   }
 }
-
