@@ -1,11 +1,11 @@
 ﻿// ==============================================================================
-// LisKo Mobile Safety Application - Core Entry Point
+// Lisko Mobile Safety Application - Core Entry Point
 // File: lib/main.dart
 //
 // Role & Architectural Context:
 // Application bootstrapper and root widget coordinator. Initializes binary
 // messenger bindings and connects Firebase services via FlutterFire CLI options.
-// Configures the Material 3 application instance (`LisKoApp`), sets the light theme,
+// Configures the Material 3 application instance (`LiskoApp`), sets the light theme,
 // and delegates to `_LaunchGate` for splash screen timing and conditional routing.
 //
 // Notification Background Response Handler:
@@ -54,7 +54,7 @@ void main() async {
   } catch (error) {
     debugPrint('Firebase initialization notice: $error');
   }
-  runApp(const LisKoApp());
+  runApp(const LiskoApp());
 }
 
 // Backward-compatible color constants preserved for legacy test suites.
@@ -76,13 +76,13 @@ bool get _isTestMode {
 bool forceFreshStartupForTesting = true;
 
 /// Application root widget configuring Material 3 theme and initial launch gate.
-class LisKoApp extends StatelessWidget {
-  const LisKoApp({super.key});
+class LiskoApp extends StatelessWidget {
+  const LiskoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LisKo',
+      title: 'Lisko',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       home: const _LaunchGate(),
@@ -176,3 +176,4 @@ class _LaunchGateState extends State<_LaunchGate> {
     return const SplashScreen();
   }
 }
+

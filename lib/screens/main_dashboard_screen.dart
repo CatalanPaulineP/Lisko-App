@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Main Dashboard & Tab Coordinator
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Main Dashboard & Tab Coordinator
 // File: lib/screens/main_dashboard_screen.dart
 //
 // Role & Architectural Context:
@@ -934,3 +934,4 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+

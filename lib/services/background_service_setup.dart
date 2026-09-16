@@ -9,7 +9,7 @@ Future<void> initializeBackgroundService() async {
   
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'lisko_trip_channel',
-    'LisKo Trip Monitoring',
+    'Lisko Trip Monitoring',
     description: 'Ongoing background monitoring for your active travel.',
     importance: Importance.low,
   );
@@ -26,7 +26,7 @@ Future<void> initializeBackgroundService() async {
       autoStart: false,
       isForegroundMode: true,
       notificationChannelId: 'lisko_trip_channel',
-      initialNotificationTitle: 'LisKo Trip Active',
+      initialNotificationTitle: 'Lisko Trip Active',
       initialNotificationContent: 'Monitoring your travel...',
       foregroundServiceNotificationId: 888,
     ),
@@ -68,7 +68,7 @@ void onStart(ServiceInstance service) async {
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'lisko_trip_channel',
-            'LisKo Trip Monitoring',
+            'Lisko Trip Monitoring',
             icon: 'ic_bg_service_small',
             ongoing: true,
           ),
@@ -77,3 +77,4 @@ void onStart(ServiceInstance service) async {
     }
   });
 }
+

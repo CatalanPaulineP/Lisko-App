@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Active Trip Tracking View
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Active Trip Tracking View
 // File: lib/screens/active_trip_screen.dart
 //
 // Role & Architectural Context:
@@ -343,7 +343,7 @@ class ActiveTripTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Please confirm your safety. If you do not respond within 90 seconds, LisKo will automatically alert your trusted emergency contacts.',
+                  'Please confirm your safety. If you do not respond within 90 seconds, Lisko will automatically alert your trusted emergency contacts.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 11, color: AppColors.body, height: 1.4),
                 ),
@@ -528,7 +528,7 @@ class ActiveTripTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'If you do not respond within 90 seconds, LisKo will automatically alert your emergency contacts.',
+                  'If you do not respond within 90 seconds, Lisko will automatically alert your emergency contacts.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 11, color: AppColors.body, height: 1.4),
                 ),
@@ -811,5 +811,6 @@ class _TimerGradientPainter extends CustomPainter {
   bool shouldRepaint(covariant _TimerGradientPainter oldDelegate) =>
       oldDelegate.progress != progress;
 }
+
 
 

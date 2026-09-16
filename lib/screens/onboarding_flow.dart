@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Safety Onboarding Wizard
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Safety Onboarding Wizard
 // File: lib/screens/onboarding_flow.dart
 //
 // Role & Architectural Context:
@@ -89,7 +89,7 @@ class InitialSafetySetupScreen extends StatelessWidget {
             icon: AppIcons.sms,
             semanticIcon: Icons.sms_rounded,
             title: 'Allow SMS Permission',
-            subtitle: 'Let LisKo send an emergency SMS when needed.',
+            subtitle: 'Let Lisko send an emergency SMS when needed.',
             iconBackground: AppColors.primaryContainer,
             iconColor: AppColors.primary,
           ),
@@ -416,7 +416,7 @@ class SmsPermissionScreen extends StatelessWidget {
       step: 4,
       title: 'Allow SMS Permission',
       subtitle:
-          "LisKo uses your device's SMS service to notify your trusted contacts during emergencies or missed travel check-ins.",
+          "Lisko uses your device's SMS service to notify your trusted contacts during emergencies or missed travel check-ins.",
       bottom: Column(
         children: [
           PrimaryButton(
@@ -573,7 +573,7 @@ class _SetupCompleteScreenState extends State<SetupCompleteScreen>
               ),
               const SizedBox(height: 12),
               const Text(
-                'Your safety setup has been completed successfully. You can now begin using LisKo.',
+                'Your safety setup has been completed successfully. You can now begin using Lisko.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -1677,7 +1677,7 @@ class ContactsPermissionModal extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             const Text(
-              "'LisKo' Would Like to Access Your Contacts",
+              "'Lisko' Would Like to Access Your Contacts",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 19,
@@ -2710,5 +2710,6 @@ class InfoBox extends StatelessWidget {
     );
   }
 }
+
 
 

@@ -85,7 +85,7 @@ class PermissionService {
         bool goSettings = await _showExplanationModal(
           context,
           'Location Permission Is Disabled',
-          'LisKo needs location access to provide Travel Monitoring and emergency location features.\n\nPlease enable Location permission in your phone settings.',
+          'Lisko needs location access to provide Travel Monitoring and emergency location features.\n\nPlease enable Location permission in your phone settings.',
           'Open Settings',
         );
         if (goSettings) {
@@ -97,7 +97,7 @@ class PermissionService {
         bool allowReq = await _showExplanationModal(
           context,
           'Location Permission Required',
-          'LisKo needs access to your location to monitor your journey and provide your location during an emergency.',
+          'Lisko needs access to your location to monitor your journey and provide your location during an emergency.',
           'Allow Location',
         );
         if (allowReq) {
@@ -134,7 +134,7 @@ class PermissionService {
         bool goSettings = await _showExplanationModal(
           context,
           'SMS Permission Is Disabled',
-          'LisKo needs SMS access to automatically send emergency alerts to your trusted contacts if you do not respond.\n\nPlease enable SMS permission in your phone settings before starting a monitored trip.',
+          'Lisko needs SMS access to automatically send emergency alerts to your trusted contacts if you do not respond.\n\nPlease enable SMS permission in your phone settings before starting a monitored trip.',
           'Open Settings',
         );
         if (goSettings) {
@@ -146,7 +146,7 @@ class PermissionService {
         bool allowReq = await _showExplanationModal(
           context,
           'SMS Permission Required',
-          'LisKo needs SMS permission to send offline emergency alerts to your trusted contacts if you do not arrive safely. No messages are sent unless there is an emergency.',
+          'Lisko needs SMS permission to send offline emergency alerts to your trusted contacts if you do not arrive safely. No messages are sent unless there is an emergency.',
           'Allow SMS',
         );
         if (allowReq) {
@@ -165,7 +165,7 @@ class PermissionService {
       bool allowReq = await _showExplanationModal(
         context,
         'Notifications Needed',
-        'LisKo needs notification permission to show the background travel timer and the arrival safety check alert.',
+        'Lisko needs notification permission to show the background travel timer and the arrival safety check alert.',
         'Allow Notifications',
       );
       if (allowReq) {
@@ -205,3 +205,4 @@ class PermissionService {
     return result ?? false;
   }
 }
+

@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application – Stationary Detection & Inactivity Service
+﻿// ==============================================================================
+// Lisko Mobile Safety Application – Stationary Detection & Inactivity Service
 // File: lib/services/stationary_detection_service.dart
 //
 // Algorithm: Haversine Distance + Dwell-Time Inactivity Detection
@@ -245,4 +245,5 @@ class StationaryDetectionService {
   /// Converts degrees to radians.
   static double _toRadians(double degrees) => degrees * math.pi / 180.0;
 }
+
 

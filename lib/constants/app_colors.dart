@@ -1,9 +1,9 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Core Constants
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Core Constants
 // File: lib/constants/app_colors.dart
 //
 // Role & Architectural Context:
-// Global design tokens defining the centralized color palette for the LisKo
+// Global design tokens defining the centralized color palette for the Lisko
 // application. Ensures consistent visual identity across onboarding, dashboard,
 // trip tracking, contacts, and modal components.
 //
@@ -18,7 +18,7 @@
 
 import 'package:flutter/material.dart';
 
-/// Centralized design tokens establishing the official LisKo color system.
+/// Centralized design tokens establishing the official Lisko color system.
 ///
 /// Designed as an `abstract final class` to prevent instantiation and subclassing,
 /// acting purely as a static namespace for compile-time constant colors.
@@ -81,3 +81,4 @@ abstract final class AppColors {
   /// Delivers accessible text contrast on top of light emerald backgrounds.
   static const successText = Color(0xFF047857);
 }
+

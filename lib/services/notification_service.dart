@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application — Notification Service
+﻿// ==============================================================================
+// Lisko Mobile Safety Application — Notification Service
 // File: lib/services/notification_service.dart
 //
 // Manages all system notification channels and alarm intents.
@@ -110,7 +110,7 @@ class NotificationService {
     // Low-priority persistent channel for active trip countdown bar.
     const AndroidNotificationChannel tripChannel = AndroidNotificationChannel(
       'lisko_trip_channel',
-      'LisKo Trip Monitoring',
+      'Lisko Trip Monitoring',
       description: 'Ongoing background monitoring for your active travel.',
       importance: Importance.low,
     );
@@ -121,7 +121,7 @@ class NotificationService {
     // Max-priority alarm channel — wakes lock screen like a native alarm clock.
     const AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
       'lisko_alarm_channel',
-      'LisKo Arrival Alerts',
+      'Lisko Arrival Alerts',
       description: 'Wakes device and overlays lock screen for safety check alarms.',
       importance: Importance.max,
       // System vibration disabled — custom Vibration.vibrate() loop handles haptics.
@@ -142,7 +142,7 @@ class NotificationService {
       String destination, String remainingTime) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_trip_channel',
-      'LisKo Trip Monitoring',
+      'Lisko Trip Monitoring',
       channelDescription: 'Ongoing background monitoring for your active travel.',
       importance: Importance.low,
       priority: Priority.low,
@@ -152,7 +152,7 @@ class NotificationService {
     );
     await _flutterLocalNotificationsPlugin.show(
       id: 888,
-      title: 'LisKo: 🚶 Travel Timer',
+      title: 'Lisko: 🚶 Travel Timer',
       body: '$destination - $remainingTime remaining',
       notificationDetails: const NotificationDetails(android: details),
     );
@@ -161,7 +161,7 @@ class NotificationService {
   Future<void> showArrivalAlarm(String destination) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
-      'LisKo Arrival Alerts',
+      'Lisko Arrival Alerts',
       channelDescription:
           'High priority safety check alarm — wakes device like a native alarm clock.',
       importance: Importance.max,
@@ -192,7 +192,7 @@ class NotificationService {
   Future<void> showStationaryAlarm(String destination) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
-      'LisKo Arrival Alerts',
+      'Lisko Arrival Alerts',
       channelDescription:
           'High priority safety check alarm - wakes device like a native alarm clock.',
       importance: Importance.max,
@@ -219,7 +219,7 @@ class NotificationService {
   Future<void> showEmergencySentNotification(List<String> dispatchedTo, {bool permissionDenied = false}) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
-      'LisKo Arrival Alerts',
+      'Lisko Arrival Alerts',
       channelDescription: 'High priority alerts for safety checks.',
       importance: Importance.max,
       priority: Priority.high,
@@ -265,3 +265,4 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.cancel(id: 999);
   }
 }
+

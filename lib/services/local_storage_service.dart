@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Core Services
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Core Services
 // File: lib/services/local_storage_service.dart
 //
 // Role & Architectural Context:
@@ -353,3 +353,4 @@ class TripRecord {
         'timestamp': timestamp.toIso8601String(),
       };
 }
+

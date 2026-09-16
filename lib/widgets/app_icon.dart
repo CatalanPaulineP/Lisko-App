@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Core Components
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Core Components
 // File: lib/widgets/app_icon.dart
 //
 // Role & Architectural Context:
@@ -195,3 +195,4 @@ class AppIcon extends StatelessWidget {
     );
   }
 }
+

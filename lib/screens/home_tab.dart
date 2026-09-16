@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Home Dashboard Tab
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Home Dashboard Tab
 // File: lib/screens/home_tab.dart
 //
 // Role & Architectural Context:
@@ -292,3 +292,4 @@ class TodayActivity extends StatelessWidget {
     );
   }
 }
+

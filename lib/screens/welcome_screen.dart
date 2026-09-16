@@ -1,9 +1,9 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Welcome & Route Transitions
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Welcome & Route Transitions
 // File: lib/screens/welcome_screen.dart
 //
 // Role & Architectural Context:
-// First interactive onboarding screen. Welcomes new users, explains LisKo's
+// First interactive onboarding screen. Welcomes new users, explains Lisko's
 // commuter safety purpose (connecting students and trusted contacts), and hosts
 // the global `createRoute` navigation transition factory.
 //
@@ -65,7 +65,7 @@ Route createRoute(
   );
 }
 
-/// Initial welcome screen presenting LisKo's core mission and setup trigger.
+/// Initial welcome screen presenting Lisko's core mission and setup trigger.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
@@ -123,7 +123,7 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-/// Map preview graphic with LisKo security badge overlay.
+/// Map preview graphic with Lisko security badge overlay.
 class MapPreview extends StatelessWidget {
   const MapPreview({super.key});
 
@@ -173,3 +173,4 @@ class MapPreview extends StatelessWidget {
     );
   }
 }
+

@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Launch Experience
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Launch Experience
 // File: lib/screens/splash_screen.dart
 //
 // Role & Architectural Context:
@@ -459,3 +459,4 @@ class _SplashLoadingIndicatorState extends State<_SplashLoadingIndicator>
     );
   }
 }
+

@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Core Components
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Core Components
 // File: lib/widgets/action_buttons.dart
 //
 // Role & Architectural Context:
@@ -196,7 +196,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
 //
 // Renders the app's `AppColors.primaryGradient` (red top → darker red bottom)
 // wrapped inside an InkWell for native ripple feedback, ensuring visual
-// consistency with PrimaryButton throughout the entire LisKo surface.
+// consistency with PrimaryButton throughout the entire Lisko surface.
 // ---------------------------------------------------------------------------
 class GradientButton extends StatelessWidget {
   const GradientButton({
@@ -400,3 +400,4 @@ String _resolveIconify(IconData? icon) {
   if (icon == Icons.add_rounded) return AppIcons.add;
   return AppIcons.navigation;
 }
+

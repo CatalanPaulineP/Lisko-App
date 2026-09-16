@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Geofencing & Arrival Detection Service
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Geofencing & Arrival Detection Service
 // File: lib/services/geofence_service.dart
 //
 // Role & Architectural Context:

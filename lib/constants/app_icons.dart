@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Core Constants
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Core Constants
 // File: lib/constants/app_icons.dart
 //
 // Role & Architectural Context:
@@ -21,7 +21,7 @@ import 'package:iconify_flutter/icons/carbon.dart';
 import 'package:iconify_flutter/icons/material_symbols.dart';
 
 /// Centralized design system icon registry using Iconify (Carbon & MaterialSymbols)
-/// strictly mapped to LisKo size standards and color tokens.
+/// strictly mapped to Lisko size standards and color tokens.
 abstract final class AppIcons {
   // --- Navigation & App Bar ---
   /// Back arrow button for setup scaffolds and secondary navigation screens.
@@ -167,3 +167,4 @@ abstract final class AppIcons {
   /// Building / campus architecture glyph for campus geofence.
   static const String building = MaterialSymbols.apartment_rounded;
 }
+

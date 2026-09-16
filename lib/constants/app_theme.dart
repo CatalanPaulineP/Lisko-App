@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Core Constants
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Core Constants
 // File: lib/constants/app_theme.dart
 //
 // Role & Architectural Context:
@@ -22,7 +22,7 @@ import 'app_colors.dart';
 
 /// App theme configuration adhering to ISO/IEC 25010 design token hierarchy.
 abstract final class AppTheme {
-  /// Builds and returns the default Material 3 light theme for the LisKo application.
+  /// Builds and returns the default Material 3 light theme for the Lisko application.
   static ThemeData get light {
     return ThemeData(
       useMaterial3: true,
@@ -88,3 +88,4 @@ abstract final class AppTheme {
     );
   }
 }
+

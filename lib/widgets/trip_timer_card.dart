@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Dashboard Components
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Dashboard Components
 // File: lib/widgets/trip_timer_card.dart
 //
 // Role & Architectural Context:
@@ -210,3 +210,4 @@ class SosWarningBox extends StatelessWidget {
     );
   }
 }
+

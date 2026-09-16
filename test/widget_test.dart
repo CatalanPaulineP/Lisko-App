@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,7 +12,7 @@ void main() {
   testWidgets('setup flow shows the requested three screens', (tester) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.clear();
-    await tester.pumpWidget(const LisKoApp());
+    await tester.pumpWidget(const LiskoApp());
 
     expect(find.text('Loading...'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
@@ -83,7 +83,7 @@ void main() {
   ) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setBool('setup_completed', true);
-    await tester.pumpWidget(const LisKoApp());
+    await tester.pumpWidget(const LiskoApp());
 
     expect(find.text('Loading...'), findsOneWidget);
     expect(find.text('Good morning,'), findsNothing);
@@ -103,7 +103,7 @@ void main() {
   ) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.clear();
-    await tester.pumpWidget(const LisKoApp());
+    await tester.pumpWidget(const LiskoApp());
 
     await tester.pump(const Duration(seconds: 5));
     await tester.pump(const Duration(milliseconds: 300));

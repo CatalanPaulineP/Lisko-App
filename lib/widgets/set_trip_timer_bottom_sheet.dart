@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Trip Configuration Modal
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Trip Configuration Modal
 // File: lib/widgets/set_trip_timer_bottom_sheet.dart
 //
 // Role & Architectural Context:
@@ -816,3 +816,4 @@ class _TransitNodeCard extends StatelessWidget {
     );
   }
 }
+

@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Core Widgets Barrel Export
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Core Widgets Barrel Export
 // File: lib/widgets/widgets.dart
 //
 // Role & Architectural Context:
@@ -19,4 +19,5 @@ export 'set_trip_timer_bottom_sheet.dart';
 export 'system_status_card.dart';
 export 'trip_timer_card.dart';
 export '../constants/app_icons.dart';
+
 

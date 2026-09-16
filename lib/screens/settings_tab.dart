@@ -1,5 +1,5 @@
 ﻿// ==============================================================================
-// LisKo Mobile Safety Application - Settings & Preferences Tab
+// Lisko Mobile Safety Application - Settings & Preferences Tab
 // File: lib/screens/settings_tab.dart
 //
 // Role & Architectural Context:
@@ -22,7 +22,7 @@ import '../services/local_storage_service.dart';
 import '../widgets/app_icon.dart';
 import 'home_tab.dart'; // For HomeHeaderPatternPainter
 
-/// Tab for managing LisKo preferences, notifications, and permissions.
+/// Tab for managing Lisko preferences, notifications, and permissions.
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
 
@@ -86,7 +86,7 @@ class _SettingsTabState extends State<SettingsTab> {
       builder: (ctx) => AlertDialog(
         title: const Text('Campus Geofence'),
         content: const Text(
-            'PUP Santa Maria Campus coordinates are fixed at 14.8697° N, 120.9991° E.\n\n'
+            'PUP Santa Maria Campus coordinates are fixed at 14.8697� N, 120.9991� E.\n\n'
             'The arrival perimeter is set to 150 meters. When your device enters this radius, '
             'the arrival timer triggers automatically.'),
         actions: [
@@ -106,7 +106,7 @@ class _SettingsTabState extends State<SettingsTab> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => const InfoModalBottomSheet(
         title: 'User Guide & Safety Protocol',
-        content: 'The LisKo safety protocol operates in 3 escalation stages:\n\n'
+        content: 'The Lisko safety protocol operates in 3 escalation stages:\n\n'
             '1. Warning: 90 seconds before trip expiry, the app will notify you.\n'
             '2. Escalation: 3-cycle haptic vibrations occur.\n'
             '3. Emergency: Offline SMS dispatch to your trusted contacts.\n\n'
@@ -122,7 +122,7 @@ class _SettingsTabState extends State<SettingsTab> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => const InfoModalBottomSheet(
         title: 'Privacy Policy & GPS Usage',
-        content: 'LisKo uses a Zero-Surveillance Architecture:\n\n'
+        content: 'Lisko uses a Zero-Surveillance Architecture:\n\n'
             '- GPS is only tracked during active trips.\n'
             '- Geofence monitoring runs 100% locally on your device.\n'
             '- Your location data is NEVER uploaded to any cloud server.\n'
@@ -159,7 +159,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconColor: AppColors.primary,
                           title: 'Home Location Pin',
                           subtitle: _homeLat != null
-                              ? '${_homeLat!.toStringAsFixed(4)}° N, ${_homeLng!.toStringAsFixed(4)}° E'
+                              ? '${_homeLat!.toStringAsFixed(4)}� N, ${_homeLng!.toStringAsFixed(4)}� E'
                               : 'Tap to set home coordinates',
                           onTap: _openHomeGeofenceModal,
                         ),
@@ -170,7 +170,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconBg: AppColors.canvas,
                           iconColor: AppColors.body,
                           title: 'PUP Santa Maria Campus',
-                          subtitle: '14.8697° N, 120.9991° E • 150m',
+                          subtitle: '14.8697� N, 120.9991� E � 150m',
                           onTap: _openCampusGeofenceModal,
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
@@ -264,7 +264,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     child: Column(
                       children: [
                         Text(
-                          'LisKo v1.0.0 • PUP Santa Maria Campus',
+                          'Lisko v1.0.0 � PUP Santa Maria Campus',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -273,7 +273,7 @@ class _SettingsTabState extends State<SettingsTab> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Zero-Surveillance Architecture • Offline-First',
+                          'Zero-Surveillance Architecture � Offline-First',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -534,7 +534,7 @@ class SettingsHeader extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        'LisKo Preferences & Diagnostics',
+                        'Lisko Preferences & Diagnostics',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
@@ -819,4 +819,5 @@ class InfoModalBottomSheet extends StatelessWidget {
     );
   }
 }
+
 

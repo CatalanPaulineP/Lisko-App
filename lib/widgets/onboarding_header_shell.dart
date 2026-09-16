@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Core Scaffolding
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Core Scaffolding
 // File: lib/widgets/onboarding_header_shell.dart
 //
 // Role & Architectural Context:
@@ -210,3 +210,4 @@ class SetupScaffold extends StatelessWidget {
     );
   }
 }
+

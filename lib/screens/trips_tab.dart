@@ -1,5 +1,5 @@
-// ==============================================================================
-// LisKo Mobile Safety Application - Trip History & Metrics
+﻿// ==============================================================================
+// Lisko Mobile Safety Application - Trip History & Metrics
 // File: lib/screens/trips_tab.dart
 //
 // Role & Architectural Context:
@@ -804,3 +804,4 @@ class TripListItem extends StatelessWidget {
     );
   }
 }
+
