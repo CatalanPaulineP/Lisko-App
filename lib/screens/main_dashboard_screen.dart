@@ -269,6 +269,7 @@ class HomeScreenState extends State<HomeScreen> {
       tripActive = true;
       isArrived = false;
       isStationaryWarning = false;
+      _isEscalating = false;
       arrivalCountdown = 90;
       stationaryCountdown = 90;
       destination = selectedDestination;
@@ -642,8 +643,6 @@ class HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       debugPrint('Unhandled error in _escalateEmergencyAlert: $e');
-    } finally {
-      _isEscalating = false;
     }
   }
 
@@ -687,6 +686,7 @@ class HomeScreenState extends State<HomeScreen> {
       tripActive = false;
       isArrived = false;
       isStationaryWarning = false;
+      _isEscalating = false;
       remaining = Duration.zero;
       arrivalCountdown = 90;
       expectedArrivalAt = null;

@@ -64,18 +64,18 @@ class SmsAlertService {
     }
 
     final coordText = (latitude != null && longitude != null)
-        ? 'https://www.google.com/maps?q=$latitude,$longitude'
+        ? '$latitude, $longitude'
         : 'Unknown Location';
 
     String alertMessage = customMessage ?? '';
     
     if (alertMessage.isEmpty) {
       if (isManualSos) {
-        alertMessage = '[LISKO EMERGENCY] Student has pressed the SOS button during their commute and may be in danger. They may be unable to respond or speak. Their current location: $coordText. Please check on them immediately.';
+        alertMessage = '[LISKO EMERGENCY] Student needs immediate help! Location: $coordText (Copy these numbers and paste into Google Maps). Please contact them immediately.';
       } else if (isStationary) {
-        alertMessage = '[LISKO SAFETY ALERT] Stationary/No Movement Detected. The student has not moved for a significant time during their trip to $destination. Their current location: $coordText. Please check on them immediately.';
+        alertMessage = '[LISKO SAFETY ALERT] Stationary/No Movement Detected. Location: $coordText (Copy these numbers and paste into Google Maps). Please check on the student.';
       } else {
-        alertMessage = '[LISKO SAFETY ALERT] Missed check-in: Student\'s travel timer expired without a confirmation response. They may have missed the notification or need assistance. Track their last known location here: $coordText.';
+        alertMessage = '[LISKO SAFETY ALERT] Missed check-in: Student\'s travel timer expired. Location: $coordText (Copy these numbers and paste into Google Maps).';
       }
     }
 
