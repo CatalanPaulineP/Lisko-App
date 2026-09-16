@@ -183,8 +183,8 @@ class NotificationService {
     );
     await _flutterLocalNotificationsPlugin.show(
       id: 999,
-      title: '⚠️ Safety Check — Did you arrive at $destination?',
-      body: 'Confirm your safety within 90 seconds or emergency SMS alerts will be sent to your trusted contacts.',
+      title: 'Did you arrive safely at $destination?',
+      body: 'Confirm your safety within 90 seconds or your trusted contacts will automatically receive emergency SMS alerts with your live location.',
       notificationDetails: const NotificationDetails(android: details),
     );
   }
