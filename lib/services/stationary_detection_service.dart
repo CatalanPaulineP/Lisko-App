@@ -170,11 +170,11 @@ class StationaryDetectionService {
       );
 
       if (distanceMeters < kStationaryThresholdMeters) {
-        // Student has not moved. Trigger the inactivity safety prompt.
+        // Student has not moved. Trigger the inactivity prompt.
         debugPrint(
-          '[StationaryDetection] ⚠️ INACTIVITY DETECTED — '
+          '[StationaryDetection] Stationary threshold met. '
           'distance ${distanceMeters.toStringAsFixed(1)}m < ${kStationaryThresholdMeters}m. '
-          'Triggering safety banner.',
+          'Triggering emergency alarm/SMS sequence immediately.',
         );
         stopMonitoring();
         onInactivityDetected();

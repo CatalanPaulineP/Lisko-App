@@ -42,6 +42,7 @@ class SmsAlertService {
     double? longitude,
     String? customMessage,
     bool isManualSos = false,
+    bool isStationary = false,
   }) async {
     await triggerHapticAlert();
 
@@ -71,6 +72,8 @@ class SmsAlertService {
     if (alertMessage.isEmpty) {
       if (isManualSos) {
         alertMessage = '[LISKO EMERGENCY] Student has pressed the SOS button during their commute and may be in danger. They may be unable to respond or speak. Their current location: $coordText. Please check on them immediately.';
+      } else if (isStationary) {
+        alertMessage = '[LISKO SAFETY ALERT] Stationary/No Movement Detected. The student has not moved for a significant time during their trip to $destination. Their current location: $coordText. Please check on them immediately.';
       } else {
         alertMessage = '[LISKO SAFETY ALERT] Missed check-in: Student\'s travel timer expired without a confirmation response. They may have missed the notification or need assistance. Track their last known location here: $coordText.';
       }

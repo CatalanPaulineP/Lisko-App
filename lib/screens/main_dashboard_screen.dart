@@ -323,9 +323,9 @@ class HomeScreenState extends State<HomeScreen> {
         anchorLat: startPosition.latitude,
         anchorLon: startPosition.longitude,
         onInactivityDetected: () {
-          // Only trigger if the trip is still running (not already arrived/ended)
           if (mounted && tripActive && !isArrived) {
-            _handleArrivalDetected(destination);
+            debugPrint('[MainDashboard] Stationary condition received. Escalating alert.');
+            _escalateEmergencyAlert(isStationary: true);
           }
         },
       );
@@ -495,15 +495,16 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isEscalating = false;
 
   /// Dispatches offline SMS emergency alerts when 90-second timer expires or manual SOS is triggered.
-  Future<void> _escalateEmergencyAlert({bool isManualSos = false}) async {
+  Future<void> _escalateEmergencyAlert({bool isManualSos = false, bool isStationary = false}) async {
     if (_isEscalating) return;
     _isEscalating = true;
     
     try {
-      double? lat = _geofenceService.activeTarget?.latitude;
-      double? lng = _geofenceService.activeTarget?.longitude;
+      double? lat;
+      double? lng;
 
       try {
+        debugPrint('Fetching live location for SMS dispatch...');
         final position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
           timeLimit: const Duration(seconds: 5),
@@ -512,17 +513,26 @@ class HomeScreenState extends State<HomeScreen> {
         lng = position.longitude;
       } catch (e) {
         debugPrint('Failed to fetch live GPS for emergency escalation: $e');
+        // Fallback to last known position rather than the destination
+        final lastPosition = await Geolocator.getLastKnownPosition();
+        if (lastPosition != null) {
+          lat = lastPosition.latitude;
+          lng = lastPosition.longitude;
+        }
       }
 
       List<String> sentList = [];
       bool permissionDenied = false;
       try {
+        debugPrint('Dispatching SMS alert (isManualSos: $isManualSos, isStationary: $isStationary)...');
         sentList = await _smsAlertService.dispatchEmergencyAlert(
           destination: destination,
           latitude: lat,
           longitude: lng,
           isManualSos: isManualSos,
+          isStationary: isStationary,
         );
+        debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
         NotificationService().showEmergencySentNotification(sentList, permissionDenied: false);
       } catch (e) {
         if (e.toString().contains('SMS_PERMISSION_DENIED')) {
@@ -701,7 +711,8 @@ class HomeScreenState extends State<HomeScreen> {
         anchorLon: extendPosition.longitude,
         onInactivityDetected: () {
           if (mounted && tripActive && !isArrived) {
-            _handleArrivalDetected(destination);
+            debugPrint('[MainDashboard] Stationary condition received. Escalating alert.');
+            _escalateEmergencyAlert(isStationary: true);
           }
         },
       );
