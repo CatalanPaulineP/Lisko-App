@@ -260,7 +260,7 @@ void main() {
     tester,
   ) async {
     // Step 1: NotificationBell pulse animation
-    await tester.pumpWidget(const MaterialApp(home: NotificationPermissionScreen()));
+    await tester.pumpWidget(const MaterialApp(home: InitialSafetySetupScreen()));
     expect(find.byType(NotificationBell), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 900));
     expect(find.text('Allow Notifications'), findsOneWidget);

@@ -57,31 +57,40 @@ class _TopHeaderState extends State<TopHeader> {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.header,
-      padding: const EdgeInsets.fromLTRB(16, 14, 20, 16),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(8, 14, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            onPressed: _handleBack,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-            icon: const AppIcon.standard(
-              AppIcons.arrowBack,
-              color: Colors.white,
-              semanticIcon: Icons.arrow_back_rounded,
-            ),
-            tooltip: 'Back',
+          Row(
+            children: [
+              IconButton(
+                onPressed: _handleBack,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+                icon: const AppIcon.standard(
+                  AppIcons.arrowBack,
+                  color: Colors.white,
+                  semanticIcon: Icons.arrow_back_rounded,
+                ),
+                tooltip: 'Back',
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Step ${widget.step} of 4',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text(
-            'Step ${widget.step} of 5',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SegmentedProgress(filled: widget.step),
           ),
-          const SizedBox(width: 16),
-          Expanded(child: SegmentedProgress(filled: widget.step)),
         ],
       ),
     );
@@ -98,7 +107,7 @@ class SegmentedProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: List.generate(
-        5,
+        4,
         (index) => Expanded(
           child: Container(
             height: 5,

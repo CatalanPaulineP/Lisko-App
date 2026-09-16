@@ -42,109 +42,24 @@ import 'main_dashboard_screen.dart';
 import 'welcome_screen.dart';
 
 // =============================================================================
-// STEP 1: NOTIFICATION PERMISSION SCREEN
+// STEP 1: INITIAL SAFETY SETUP SCREEN
 // =============================================================================
 
-/// Step 1: Notification Permission Screen.
-class NotificationPermissionScreen extends StatelessWidget {
-  const NotificationPermissionScreen({super.key});
-
-  void _goToSetup(BuildContext context) {
-    Navigator.push(
-      context,
-      createRoute(
-        const InitialSafetySetupScreen(),
-        transition: RouteTransition.onboarding,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Hero(
-              tag: 'onboarding-header',
-              flightShuttleBuilder: fixedOnboardingHeader,
-              child: const Material(
-                type: MaterialType.transparency,
-                child: TopHeader(step: 1),
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 34),
-                    const NotificationBell(),
-                    const SizedBox(height: 26),
-                    Text(
-                      'Allow Notifications',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.header,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Receive travel reminders, emergency updates, and important safety notifications while using LisKo.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.5,
-                        color: AppColors.body,
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    const MockNotificationCard(),
-                    const SizedBox(height: 28),
-                    PrimaryButton(
-                      label: 'Get Started',
-                      onPressed: () async {
-                        await PermissionService().requestNotificationPermission();
-                        if (!context.mounted) return;
-                        _goToSetup(context);
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    SecondaryButton(
-                      label: 'Not Now',
-                      onPressed: () => _goToSetup(context),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// STEP 2: INITIAL SAFETY SETUP SCREEN
-// =============================================================================
-
-/// Step 2: Initial Safety Setup Checklist Overview.
+/// Step 1: Initial Safety Setup Checklist Overview.
 class InitialSafetySetupScreen extends StatelessWidget {
   const InitialSafetySetupScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return SetupScaffold(
-      step: 2,
+      step: 1,
       title: 'Initial Safety Setup',
       subtitle: 'Complete these steps before your first trip.',
       bottom: PrimaryButton(
-        label: 'Continue',
-        onPressed: () {
+        label: 'Allow Notifications',
+        onPressed: () async {
+          await PermissionService().requestNotificationPermission();
+          if (!context.mounted) return;
           Navigator.push(
             context,
             createRoute(const TrustedContactsScreen()),
@@ -154,8 +69,15 @@ class InitialSafetySetupScreen extends StatelessWidget {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CompletionProgress(),
-          SizedBox(height: 24),
+          SetupCard(
+            icon: AppIcons.warning,
+            semanticIcon: Icons.notifications_active_rounded,
+            title: 'Allow Notifications',
+            subtitle: 'Receive travel reminders and emergency updates.',
+            iconBackground: AppColors.primaryContainer,
+            iconColor: AppColors.primary,
+          ),
+          SizedBox(height: 12),
           SetupCard(
             icon: AppIcons.people,
             semanticIcon: Icons.people_alt_rounded,
@@ -360,7 +282,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   @override
   Widget build(BuildContext context) {
     return SetupScaffold(
-      step: 3,
+      step: 2,
       title: 'Add Trusted Contacts',
       subtitle: 'Add people we can contact if you need help during a trip.',
       bottom: PrimaryButton(
@@ -448,7 +370,7 @@ class SmsPermissionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SetupScaffold(
-      step: 4,
+      step: 3,
       title: 'Allow SMS Permission',
       subtitle:
           "LisKo uses your device's SMS service to notify your trusted contacts during emergencies or missed travel check-ins.",
@@ -496,7 +418,7 @@ class LocationAccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SetupScaffold(
-      step: 5,
+      step: 4,
       title: 'Allow Location Access',
       subtitle:
           'Your location is only accessed while a trip is active or when sending an emergency alert.',
@@ -846,40 +768,7 @@ class MockNotificationCard extends StatelessWidget {
   }
 }
 
-class CompletionProgress extends StatelessWidget {
-  const CompletionProgress({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '0 of 3 complete',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.header,
-              ),
-            ),
-            Text('0%', style: TextStyle(fontSize: 13, color: AppColors.body)),
-          ],
-        ),
-        const SizedBox(height: 9),
-        Container(
-          height: 6,
-          decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class SetupCard extends StatelessWidget {
   const SetupCard({

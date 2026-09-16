@@ -109,7 +109,7 @@ class WelcomeScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     createRoute(
-                      const NotificationPermissionScreen(),
+                      const InitialSafetySetupScreen(),
                       transition: RouteTransition.fadeWelcome,
                     ),
                   );
