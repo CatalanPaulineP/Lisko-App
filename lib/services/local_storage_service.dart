@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Core Services
 // File: lib/services/local_storage_service.dart
 //
@@ -67,6 +67,8 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
     int? totalDurationSeconds,
     int? expectedArrivalAtMs,
     bool? isArrived,
+    bool? isTimeoutWarning,
+    bool? isStationaryWarning,
     int? safetyCheckDeadlineMs,
     String? tripId,
     int? startedAtMs,
@@ -81,6 +83,8 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
       'totalDurationSeconds': totalDurationSeconds,
       'expectedArrivalAtMs': expectedArrivalAtMs,
       'isArrived': isArrived,
+      'isTimeoutWarning': isTimeoutWarning,
+      'isStationaryWarning': isStationaryWarning,
       'safetyCheckDeadlineMs': safetyCheckDeadlineMs,
       'tripId': tripId,
       'startedAtMs': startedAtMs,

@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Active Trip Tracking View
 // File: lib/screens/active_trip_screen.dart
 //
@@ -46,6 +46,8 @@ class ActiveTripTab extends StatelessWidget {
     required this.onSos,
     this.isArrived = false,
     this.arrivalRemainingSeconds = 90,
+    this.isTimeoutWarning = false,
+    this.timeoutRemainingSeconds = 90,
     this.isStationaryWarning = false,
     this.stationaryRemainingSeconds = 90,
   });
@@ -73,6 +75,11 @@ class ActiveTripTab extends StatelessWidget {
 
   /// Remaining seconds in the 90-second arrival safety verification countdown.
   final int arrivalRemainingSeconds;
+
+  /// Whether the student's device has been stationary for a long time.
+  final bool isTimeoutWarning;
+
+  final int timeoutRemainingSeconds;
 
   /// Whether the student's device has been stationary for a long time.
   final bool isStationaryWarning;

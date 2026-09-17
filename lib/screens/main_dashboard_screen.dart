@@ -68,6 +68,8 @@ class HomeScreenState extends State<HomeScreen> {
   bool tripActive = false;
   bool isArrived = false;
   int arrivalCountdown = 90;
+  bool isTimeoutWarning = false;
+  int timeoutCountdown = 90;
   bool isStationaryWarning = false;
   int stationaryCountdown = 90;
   Duration remaining = const Duration(minutes: 45);
@@ -255,7 +257,7 @@ class HomeScreenState extends State<HomeScreen> {
       final currentTime = DateTime.now();
       if (expectedArrivalAt != null && currentTime.isAfter(expectedArrivalAt!)) {
         tripTimer?.cancel();
-        _handleArrivalDetected(destination);
+        _handleTimeoutDetected();
       } else if (expectedArrivalAt != null) {
         setState(() => remaining = expectedArrivalAt!.difference(currentTime));
         final mm = remaining.inMinutes.toString().padLeft(2, '0');
@@ -386,7 +388,69 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _startTimeoutCountdownTimer() {
+    _arrivalTimer?.cancel();
+    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final now = DateTime.now();
+      if (safetyCheckDeadline != null && now.isAfter(safetyCheckDeadline!)) {
+        _arrivalTimer?.cancel();
+        _escalateEmergencyAlert(isManualSos: false);
+      } else if (safetyCheckDeadline != null) {
+        final rem = safetyCheckDeadline!.difference(now).inSeconds;
+        setState(() => timeoutCountdown = rem);
+        if (_alarmActive) _pulseVibration(rem);
+      }
+    });
+  }
+
+  void _handleTimeoutDetected() async {
+    if (isArrived || isTimeoutWarning || isStationaryWarning) return;
+    tripTimer?.cancel();
+    final now = DateTime.now();
+    
+    setState(() {
+      isTimeoutWarning = true;
+      safetyCheckDeadline = now.add(const Duration(seconds: 90));
+      timeoutCountdown = 90;
+      selectedTab = 0;
+    });
+
+    const LocalStorageService().saveActiveTrip(
+      isActive: true,
+      destination: destination,
+      totalDurationSeconds: totalDuration.inSeconds,
+      expectedArrivalAtMs: expectedArrivalAt?.millisecondsSinceEpoch,
+      isArrived: false,
+      isTimeoutWarning: true,
+      safetyCheckDeadlineMs: safetyCheckDeadline?.millisecondsSinceEpoch,
+      tripId: tripId,
+      startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
+    );
+
+    if (tripId.isNotEmpty && tripStartedAt != null) {
+      FirebaseService().saveOrUpdateTrip(
+        tripId: tripId,
+        destination: destination,
+        estimatedTravelMinutes: totalDuration.inMinutes,
+        startedAt: tripStartedAt!,
+        expectedArrivalAt: expectedArrivalAt,
+        status: 'timeout_warning',
+      );
+    }
+
+    _startTimeoutCountdownTimer();
+
+    final storage = const LocalStorageService();
+    final alertMode = await storage.readAlertMode();
+    if (alertMode != 'Silent') {
+      _alarmActive = true;
+    }
+    NotificationService().showPersistentTripNotification(destination, 'TIME\'S UP');
+  }
+
   void _handleStationaryDetected() async {
+
     if (isArrived || isStationaryWarning) return;
     tripTimer?.cancel();
     final now = DateTime.now();
