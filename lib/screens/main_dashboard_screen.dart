@@ -243,11 +243,12 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _startTrip(String selectedDestination, Duration duration) async {
+  Future<bool> _startTrip(String selectedDestination, Duration duration) async {
     final canStart = await PermissionService().checkTripRequirements(context);
     if (canStart) {
       _executeStartTrip(selectedDestination, duration);
     }
+    return canStart;
   }
 
   void _startTravelTimer() {
@@ -580,12 +581,19 @@ class HomeScreenState extends State<HomeScreen> {
 
       try {
         debugPrint('Fetching live location for SMS dispatch...');
-        final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 5),
-        );
-        lat = position.latitude;
-        lng = position.longitude;
+        Position? position;
+        if (isManualSos && _prefetchedPositionFuture != null) {
+          position = await _prefetchedPositionFuture;
+        } else {
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 5),
+          );
+        }
+        if (position != null && position.latitude != 0) {
+          lat = position.latitude;
+          lng = position.longitude;
+        }
       } catch (e) {
         debugPrint('Failed to fetch live GPS for emergency escalation: $e');
         // Fallback to last known position rather than the destination
@@ -819,10 +827,34 @@ class HomeScreenState extends State<HomeScreen> {
 
   bool _isPreparingSos = false;
 
-  void _triggerEmergencyFlow({bool immediate = false}) {
+  Future<Position?>? _prefetchedPositionFuture;
+
+  void _triggerEmergencyFlow({bool immediate = false}) async {
     if (_alertScreenOpen || _isPreparingSos) return;
+
+    // Issue 2 Fix: Validate permissions before entering panic countdown.
+    final permService = PermissionService();
+    if (!await permService.checkLocationPermission()) {
+      await permService.requestLocationPermission();
+    }
+    if (!await permService.checkSmsPermission()) {
+      await permService.requestSmsPermission();
+    }
+
     _alertScreenOpen = true;
     _isPreparingSos = true; // Lock background timeouts
+
+    // Issue 1 Fix: Start fetching location concurrently during the 5-sec countdown.
+    _prefetchedPositionFuture = Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 10),
+    ).catchError((e) async {
+      debugPrint('Prefetch failed: $e');
+      final pos = await Geolocator.getLastKnownPosition();
+      return pos ?? Position(longitude: 0, latitude: 0, timestamp: DateTime.now(), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
+    });
+
+    if (!mounted) return;
 
     Navigator.push(
       context,

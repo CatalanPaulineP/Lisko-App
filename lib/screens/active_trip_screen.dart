@@ -1,4 +1,4 @@
-// ==============================================================================
+﻿// ==============================================================================
 // Lisko Mobile Safety Application - Active Trip Tracking View
 // File: lib/screens/active_trip_screen.dart
 //

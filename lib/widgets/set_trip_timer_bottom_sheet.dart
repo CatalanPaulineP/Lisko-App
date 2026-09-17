@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Trip Configuration Modal
 // File: lib/widgets/set_trip_timer_bottom_sheet.dart
 //
@@ -34,7 +34,7 @@ class TripSchedulerSheet extends StatefulWidget {
   const TripSchedulerSheet({super.key, required this.onStart});
 
   /// Callback dispatched when the user confirms and starts the scheduled trip.
-  final void Function(String destination, Duration duration) onStart;
+  final Future<bool> Function(String destination, Duration duration) onStart;
 
   @override
   State<TripSchedulerSheet> createState() => _TripSchedulerSheetState();
@@ -93,14 +93,17 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
     });
   }
 
-  void _handleStartTrip() {
+  void _handleStartTrip() async {
     if (_startTriggered) return;
     _startTriggered = true;
 
-    if (mounted && Navigator.canPop(context)) {
+    bool started = await widget.onStart(selectedDestination, duration);
+    if (started && mounted && Navigator.canPop(context)) {
       Navigator.pop(context);
+    } else {
+      // Re-enable the button if permission was denied or settings were opened
+      _startTriggered = false; 
     }
-    widget.onStart(selectedDestination, duration);
   }
 
   @override
