@@ -193,10 +193,8 @@ class NotificationService {
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.max,
-      
-      ongoing: true,
-      autoCancel: false,
-      category: AndroidNotificationCategory.alarm,
+      ongoing: false,
+      autoCancel: true,
       enableVibration: false,
       playSound: true,
       actions: <AndroidNotificationAction>[
@@ -219,13 +217,8 @@ class NotificationService {
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.max,
-      // fullScreenIntent: true → Android wakes the screen and overlays the lock
-      
-      
-      ongoing: true,
-      autoCancel: false,
-      // AndroidNotificationCategory.alarm tells the OS this is time-critical.
-      category: AndroidNotificationCategory.alarm,
+      ongoing: false,
+      autoCancel: true,
       enableVibration: false,
       playSound: true,
       actions: <AndroidNotificationAction>[
