@@ -226,7 +226,7 @@ class NotificationService {
     );
   }
 
-  Future<void> showEmergencySentNotification(List<String> dispatchedTo, {bool permissionDenied = false}) async {
+  Future<void> showEmergencySentNotification(List<String> dispatchedTo, {bool permissionDenied = false, bool isManualSos = false}) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
       'Lisko Arrival Alerts',
@@ -255,10 +255,14 @@ class NotificationService {
       return;
     }
 
+    final body = isManualSos 
+        ? 'MANUAL SOS TRIGGERED. Emergency SMS with live location broadcasted to trusted contacts.'
+        : 'EMERGENCY SMS SENT - No response detected. Emergency SMS with live location broadcasted to trusted contacts.';
+        
     await _flutterLocalNotificationsPlugin.show(
       id: 1000,
       title: 'EMERGENCY SMS SENT',
-      body: 'EMERGENCY SMS SENT - No response detected. Emergency SMS with live location broadcasted to trusted contacts.',
+      body: body,
       notificationDetails: const NotificationDetails(android: details),
     );
   }

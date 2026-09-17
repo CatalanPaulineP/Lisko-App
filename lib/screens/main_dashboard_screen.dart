@@ -550,6 +550,7 @@ class HomeScreenState extends State<HomeScreen> {
   /// Dispatches offline SMS emergency alerts when 90-second timer expires or manual SOS is triggered.
   Future<void> _escalateEmergencyAlert({bool isManualSos = false, bool isStationary = false}) async {
     if (_isEscalating) return;
+    if (!isManualSos && _isPreparingSos) return; // Prevent timeouts from clashing with the 5-sec SOS countdown
     _isEscalating = true;
     
     try {
@@ -795,9 +796,12 @@ class HomeScreenState extends State<HomeScreen> {
   bool _alertScreenOpen = false;
   bool _sheetOpen = false;
 
+  bool _isPreparingSos = false;
+
   void _triggerEmergencyFlow({bool immediate = false}) {
     if (_alertScreenOpen) return;
     _alertScreenOpen = true;
+    _isPreparingSos = true; // Lock background timeouts
 
     Navigator.push(
       context,
@@ -809,6 +813,7 @@ class HomeScreenState extends State<HomeScreen> {
           immediateExecute: immediate,
           onExecute: () => _escalateEmergencyAlert(isManualSos: true),
           onCancel: () {
+            _isPreparingSos = false;
             if (isArrived && arrivalCountdown == 0) {
                 _endTrip(safe: false);
             }
@@ -816,7 +821,10 @@ class HomeScreenState extends State<HomeScreen> {
         ),
       ),
     ).whenComplete(() {
-      if (mounted) _alertScreenOpen = false;
+      if (mounted) {
+        _alertScreenOpen = false;
+        _isPreparingSos = false;
+      }
     });
   }
 
