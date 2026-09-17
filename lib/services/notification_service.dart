@@ -209,7 +209,7 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.show(
       id: 999,
       title: "Time's up!",
-      body: 'You did not check in for $destination. Confirm your safety within 90 seconds or your trusted contacts will automatically receive emergency SMS alerts with your live location.',
+      body: 'Time is up! Please confirm you arrived safely at $destination.',
       notificationDetails: const NotificationDetails(android: details),
     );
   }
@@ -315,6 +315,8 @@ class NotificationService {
   // ---------------------------------------------------------------------------
   // Cancellation
   // ---------------------------------------------------------------------------
+
+
 
   Future<void> cancelPersistentTripNotification() async {
     await _flutterLocalNotificationsPlugin.cancel(id: 888);
