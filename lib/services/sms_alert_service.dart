@@ -36,6 +36,22 @@ class SmsAlertService {
     }
   }
 
+  String _appendTimestamp(String message) {
+    final now = DateTime.now();
+    final mo = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    final y = now.year.toString();
+    int h = now.hour;
+    final ampm = h >= 12 ? 'PM' : 'AM';
+    if (h == 0) h = 12;
+    if (h > 12) h -= 12;
+    final hs = h.toString().padLeft(2, '0');
+    final mi = now.minute.toString().padLeft(2, '0');
+    final s = now.second.toString().padLeft(2, '0');
+    final timestamp = 'Time: $mo-$d-$y $hs:$mi:$s $ampm';
+    return '$message $timestamp';
+  }
+
   Future<List<String>> sendManualSos({
     double? latitude,
     double? longitude,
@@ -45,7 +61,7 @@ class SmsAlertService {
         : 'Unknown Location';
         
     final alertMessage = '[LISKO EMERGENCY] student needs immediate help! location : $coordText (Copy these numbers and paste into Google maps). Please check them immediately.';
-    return _internalDispatch(alertMessage);
+    return _internalDispatch(_appendTimestamp(alertMessage));
   }
 
   Future<List<String>> dispatchEmergencyAlert({
@@ -69,7 +85,7 @@ class SmsAlertService {
       }
     }
 
-    return _internalDispatch(alertMessage);
+    return _internalDispatch(_appendTimestamp(alertMessage));
   }
 
   Future<List<String>> _internalDispatch(String alertMessage) async {
