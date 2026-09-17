@@ -446,7 +446,7 @@ class HomeScreenState extends State<HomeScreen> {
     if (alertMode != 'Silent') {
       _alarmActive = true;
     }
-    NotificationService().showPersistentTripNotification(destination, 'TIME\'S UP');
+    NotificationService().showTimeoutAlarm(destination);
   }
 
   void _handleStationaryDetected() async {
@@ -547,7 +547,7 @@ class HomeScreenState extends State<HomeScreen> {
               _alarmActive = false;
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
-              _triggerEmergencyFlow(immediate: true);
+              _triggerEmergencyFlow(immediate: false);
             },
             onTimeout: () async {
               _alarmActive = false;

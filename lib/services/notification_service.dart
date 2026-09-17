@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application — Notification Service
 // File: lib/services/notification_service.dart
 //
@@ -186,6 +186,33 @@ class NotificationService {
     );
   }
 
+  Future<void> showTimeoutAlarm(String destination) async {
+    const AndroidNotificationDetails details = AndroidNotificationDetails(
+      'lisko_alarm_channel',
+      'Lisko Arrival Alerts',
+      channelDescription:
+          'High priority safety check alarm - wakes device like a native alarm clock.',
+      importance: Importance.max,
+      priority: Priority.max,
+      fullScreenIntent: true,
+      ongoing: true,
+      autoCancel: false,
+      category: AndroidNotificationCategory.alarm,
+      enableVibration: false,
+      playSound: true,
+      actions: <AndroidNotificationAction>[
+        AndroidNotificationAction(kNotifActionSafe,   "I'm Safe",   showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionExtend, '+15 min',    showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionSos,    'NEED HELP',  showsUserInterface: false),
+      ],
+    );
+    await _flutterLocalNotificationsPlugin.show(
+      id: 999,
+      title: "Time's up!",
+      body: 'You did not check in for $destination. Confirm your safety within 90 seconds or your trusted contacts will automatically receive emergency SMS alerts with your live location.',
+      notificationDetails: const NotificationDetails(android: details),
+    );
+  }
   Future<void> showArrivalAlarm(String destination) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',

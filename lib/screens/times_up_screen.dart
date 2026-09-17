@@ -1,6 +1,5 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
@@ -41,7 +40,8 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
         _timer.cancel();
         setState(() { _secondsLeft = 0; });
         await widget.onTimeout();
-        SystemNavigator.pop();
+        if (!mounted) return;
+        Navigator.pop(context);
       }
     });
   }
@@ -90,8 +90,8 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
+                        Navigator.pop(context);
                         widget.onSafe();
-                        SystemNavigator.pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.success,
@@ -115,8 +115,8 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
+                        Navigator.pop(context);
                         widget.onExtend();
-                        SystemNavigator.pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFD97706),
@@ -140,8 +140,8 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
+                        Navigator.pop(context);
                         widget.onHelp();
-                        SystemNavigator.pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
