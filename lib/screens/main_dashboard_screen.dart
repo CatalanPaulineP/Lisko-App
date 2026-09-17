@@ -219,6 +219,21 @@ class HomeScreenState extends State<HomeScreen> {
     _alarmActive = false;         // Signal the vibration loop to abort immediately.
     Vibration.cancel();
     NotificationService().cancelArrivalAlarm();
+    
+    // Explicitly cancel fallback timers and background trackers so they don't fire
+    _arrivalTimer?.cancel();
+    tripTimer?.cancel();
+    _stationaryService.stopMonitoring();
+    _geofenceService.stopMonitoring();
+    
+    // Reset any 'arrived' or 'idle' UI state so the dashboard properly displays the emergency
+    setState(() {
+      tripActive = true;
+      isArrived = false;
+      isStationaryWarning = false;
+      arrivalCountdown = 90;
+    });
+
     _triggerEmergencyFlow(immediate: true);
   }
 

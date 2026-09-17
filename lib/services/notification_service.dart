@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application — Notification Service
 // File: lib/services/notification_service.dart
 //
@@ -24,6 +24,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'sms_alert_service.dart';
 
 // ---------------------------------------------------------------------------
 // Notification action ID constants
@@ -49,6 +50,15 @@ void notificationBackgroundResponseHandler(NotificationResponse response) async 
     // App is fully terminated, save to SharedPreferences for next boot.
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('pending_notification_action', actionId);
+    
+    if (actionId == kNotifActionSos) {
+      try {
+        final smsService = SmsAlertService();
+        await smsService.sendManualSos();
+      } catch (e) {
+        debugPrint('[NotificationService-BG] Failed background SOS dispatch: $e');
+      }
+    }
   }
 }
 

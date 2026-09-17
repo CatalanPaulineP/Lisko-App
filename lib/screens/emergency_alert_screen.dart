@@ -26,7 +26,13 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   void initState() {
     countdown = widget.immediateExecute ? 0 : (widget.isManualSos ? 5 : 90);
     super.initState();
-    _startCountdown();
+    if (widget.immediateExecute) {
+      Future.microtask(() {
+        if (mounted) _executeAlert();
+      });
+    } else {
+      _startCountdown();
+    }
   }
 
   void _startCountdown() {
