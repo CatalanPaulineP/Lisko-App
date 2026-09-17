@@ -89,6 +89,7 @@ class SmsAlertService {
   }
 
   Future<List<String>> _internalDispatch(String alertMessage) async {
+    developer.log('SmsAlertService: Starting emergency SMS dispatch.');
     await triggerHapticAlert();
 
     final contacts = await _storage.readContacts();
@@ -98,48 +99,68 @@ class SmsAlertService {
     }
     
     if (!_isTestEnvironment) {
+      developer.log('SmsAlertService: SMS permission status: checking...');
       final smsStatus = await Permission.sms.status;
       if (!smsStatus.isGranted) {
         final requested = await Permission.sms.request();
         if (!requested.isGranted) {
-          developer.log('SmsAlertService: SMS permission denied. Cannot dispatch.');
+          developer.log('SmsAlertService: SMS permission denied.');
           throw Exception('SMS_PERMISSION_DENIED');
         }
       }
     }
 
-    developer.log('SmsAlertService: Dispatching offline emergency SMS to ${contacts.length} recipients: "$alertMessage"');
+    developer.log('SmsAlertService: Found ${contacts.length} trusted contacts.');
+    for (final contact in contacts) {
+      developer.log('SmsAlertService: Contact found: ${contact.name} (${contact.phone})');
+    }
 
     final dispatchedTo = <String>[];
     for (final contact in contacts) {
+      // Improved Phone Number Normalization
+      String digitsOnly = contact.phone.replaceAll(RegExp(r'\D'), '');
+      String cleanPhone = '';
+      if (digitsOnly.startsWith('0')) {
+        cleanPhone = '+63${digitsOnly.substring(1)}';
+      } else if (digitsOnly.startsWith('63')) {
+        cleanPhone = '+$digitsOnly';
+      } else if (digitsOnly.length == 10) {
+        cleanPhone = '+63$digitsOnly';
+      } else {
+        cleanPhone = '+$digitsOnly';
+      }
+
+      if (cleanPhone.length < 10) {
+        developer.log('SmsAlertService: Invalid phone number format for ${contact.name} ($cleanPhone). Skipping.');
+        continue;
+      }
+
+      developer.log('SmsAlertService: Normalized phone number for ${contact.name}: $cleanPhone');
+
       if (!_isTestEnvironment) {
         try {
-          String cleanPhone = contact.phone.replaceAll(RegExp(r'[^\d+]'), '');
-          // Format to E.164 (Philippine context default as requested)
-          if (cleanPhone.startsWith('0')) {
-            cleanPhone = '+63${cleanPhone.substring(1)}';
-          } else if (cleanPhone.startsWith('63')) {
-            cleanPhone = '+$cleanPhone';
-          }
-
+          developer.log('SmsAlertService: Attempting SMS send to ${contact.name} ($cleanPhone)...');
+          
           final result = await BackgroundSms.sendMessage(
             phoneNumber: cleanPhone,
             message: alertMessage,
-            simSlot: 1,
           );
           
+          developer.log('SmsAlertService: BackgroundSms result: $result');
+          
           if (result == SmsStatus.sent) {
+            developer.log('SmsAlertService: SMS successfully handed to Android for ${contact.name} ($cleanPhone).');
             dispatchedTo.add('${contact.name} ($cleanPhone)');
           } else {
-            developer.log('SmsAlertService: Failed to send SMS to $cleanPhone - Status: $result');
+            developer.log('SmsAlertService: SMS send failed. Status: $result');
           }
         } on PlatformException catch (e) {
-          developer.log('SmsAlertService: PlatformException (Native Error) while sending SMS to ${contact.phone}: ${e.message} (Code: ${e.code}, Details: ${e.details})');
+          developer.log('SmsAlertService: PlatformException (Native Error) while sending SMS to ${contact.name}: ${e.message} (Code: ${e.code}, Details: ${e.details})');
         } catch (e) {
-          developer.log('SmsAlertService: Exception while sending SMS to ${contact.phone}: $e');
+          developer.log('SmsAlertService: Exception while sending SMS to ${contact.name}: $e');
         }
       } else {
-        dispatchedTo.add('${contact.name} (${contact.phone})');
+        dispatchedTo.add('${contact.name} ($cleanPhone)');
       }
     }
 
