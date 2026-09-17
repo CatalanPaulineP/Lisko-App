@@ -22,6 +22,8 @@
 import 'dart:ui';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
@@ -48,13 +50,16 @@ void notificationBackgroundResponseHandler(NotificationResponse response) async 
     // Main isolate is still alive! Send it directly so it acts immediately without launching the app.
     sendPort.send(actionId);
   } else {
-    // App is fully terminated, save to SharedPreferences for next boot.
+    // App is fully terminated, initialize bindings so plugins work in background isolate
+    WidgetsFlutterBinding.ensureInitialized();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('pending_notification_action', actionId);
     
     if (actionId == kNotifActionSos) {
       await Future.delayed(const Duration(seconds: 5));
       try {
+        await Firebase.initializeApp(); // Required for SmsAlertService -> trusted_contacts query
+        
         double? lat;
         double? lng;
         try {
@@ -199,9 +204,27 @@ class NotificationService {
       playSound: true,
       styleInformation: BigTextStyleInformation('Did you arrive safely at $destination?'),
       actions: const <AndroidNotificationAction>[
-        AndroidNotificationAction(kNotifActionSafe,   "I'm Safe",   showsUserInterface: false),
-        AndroidNotificationAction(kNotifActionExtend, '+15 mins',   showsUserInterface: false),
-        AndroidNotificationAction(kNotifActionSos,    'Need Help',  showsUserInterface: false),
+        AndroidNotificationAction(
+          kNotifActionSafe,
+          "I'm Safe",
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          kNotifActionExtend,
+          '+15 mins',
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          kNotifActionSos,
+          'Need Help',
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
       ],
     );
     await _flutterLocalNotificationsPlugin.show(
@@ -224,9 +247,27 @@ class NotificationService {
       playSound: true,
       styleInformation: BigTextStyleInformation('Did you arrive safely at $destination?'),
       actions: const <AndroidNotificationAction>[
-        AndroidNotificationAction(kNotifActionSafe,   "I'm Safe",   showsUserInterface: false),
-        AndroidNotificationAction(kNotifActionExtend, '+15 mins',   showsUserInterface: false),
-        AndroidNotificationAction(kNotifActionSos,    'Need Help',  showsUserInterface: false),
+        AndroidNotificationAction(
+          kNotifActionSafe,
+          "I'm Safe",
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          kNotifActionExtend,
+          '+15 mins',
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          kNotifActionSos,
+          'Need Help',
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
       ],
     );
     await _flutterLocalNotificationsPlugin.show(
