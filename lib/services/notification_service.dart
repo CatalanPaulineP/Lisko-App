@@ -202,14 +202,14 @@ class NotificationService {
       playSound: true,
       actions: <AndroidNotificationAction>[
         AndroidNotificationAction(kNotifActionSafe,   "I'm Safe",   showsUserInterface: false),
-        AndroidNotificationAction(kNotifActionExtend, '+15 min',    showsUserInterface: false),
-        AndroidNotificationAction(kNotifActionSos,    'NEED HELP',  showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionExtend, '+15 mins',   showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionSos,    'Need Help',  showsUserInterface: false),
       ],
     );
     await _flutterLocalNotificationsPlugin.show(
       id: 999,
-      title: "Time's up!",
-      body: 'Time is up! Please confirm you arrived safely at $destination.',
+      title: "LisKo Travel Reminder",
+      body: 'Did you arrive safely at $destination?',
       notificationDetails: const NotificationDetails(android: details),
     );
   }
@@ -232,14 +232,14 @@ class NotificationService {
       playSound: true,
       actions: <AndroidNotificationAction>[
         AndroidNotificationAction(kNotifActionSafe,   "I'm Safe",   showsUserInterface: false),
-        AndroidNotificationAction(kNotifActionExtend, '+15 min',    showsUserInterface: false),
-        AndroidNotificationAction(kNotifActionSos,    'NEED HELP',  showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionExtend, '+15 mins',   showsUserInterface: false),
+        AndroidNotificationAction(kNotifActionSos,    'Need Help',  showsUserInterface: false),
       ],
     );
     await _flutterLocalNotificationsPlugin.show(
       id: 999,
-      title: 'Did you arrive safely at $destination?',
-      body: 'Confirm your safety within 90 seconds or your trusted contacts will automatically receive emergency SMS alerts with your live location.',
+      title: 'LisKo Travel Reminder',
+      body: 'Did you arrive safely at $destination?',
       notificationDetails: const NotificationDetails(android: details),
     );
   }
