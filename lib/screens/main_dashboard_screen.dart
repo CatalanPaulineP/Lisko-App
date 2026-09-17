@@ -214,27 +214,31 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   /// Immediately triggers the emergency SOS flow (bypasses 5-second countdown).
-  void handleSosAction() {
+  void handleSosAction() async {
     if (!mounted) return;
-    _alarmActive = false;         // Signal the vibration loop to abort immediately.
+    _alarmActive = false;         
     Vibration.cancel();
     NotificationService().cancelArrivalAlarm();
-    
-    // Explicitly cancel fallback timers and background trackers so they don't fire
-    _arrivalTimer?.cancel();
-    tripTimer?.cancel();
-    _stationaryService.stopMonitoring();
-    _geofenceService.stopMonitoring();
-    
-    // Reset any 'arrived' or 'idle' UI state so the dashboard properly displays the emergency
-    setState(() {
-      tripActive = true;
-      isArrived = false;
-      isStationaryWarning = false;
-      arrivalCountdown = 90;
-    });
+    final isForeground = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
 
-    _triggerEmergencyFlow(immediate: true);
+    if (isForeground) {
+      _triggerEmergencyFlow(immediate: false);
+    } else {
+      if (_isPreparingSos) return;
+      _isPreparingSos = true;
+
+      await Future.delayed(const Duration(seconds: 5));
+
+      if (!mounted) return;
+      if (_isPreparingSos) {
+        await _escalateEmergencyAlert(isManualSos: true);
+        if (mounted) {
+          setState(() {
+            _isPreparingSos = false;
+          });
+        }
+      }
+    }
   }
 
   void _startTrip(String selectedDestination, Duration duration) async {
@@ -799,7 +803,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isPreparingSos = false;
 
   void _triggerEmergencyFlow({bool immediate = false}) {
-    if (_alertScreenOpen) return;
+    if (_alertScreenOpen || _isPreparingSos) return;
     _alertScreenOpen = true;
     _isPreparingSos = true; // Lock background timeouts
 
@@ -870,7 +874,7 @@ class HomeScreenState extends State<HomeScreen> {
                 : HomeDashboardTab(
                     key: _homeKey,
                     onStartTrip: _openTripScheduler,
-                    onSos: () => _triggerEmergencyFlow(immediate: true),
+                    onSos: () => _triggerEmergencyFlow(immediate: false),
                   ),
           ),
             TripsTab(

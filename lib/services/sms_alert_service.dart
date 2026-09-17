@@ -44,7 +44,7 @@ class SmsAlertService {
         ? '$latitude, $longitude'
         : 'Unknown Location';
         
-    final alertMessage = '[LISKO EMERGENCY] Student needs immediate help! Location: $coordText (Copy these numbers and paste into Google Maps). Please contact them immediately.';
+    final alertMessage = '[LISKO EMERGENCY] student needs immediate help! location : $coordText (Copy these numbers and paste into Google maps). Please check them immediately.';
     return _internalDispatch(alertMessage);
   }
 

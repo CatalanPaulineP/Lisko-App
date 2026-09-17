@@ -24,6 +24,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 import 'sms_alert_service.dart';
 
 // ---------------------------------------------------------------------------
@@ -52,9 +53,26 @@ void notificationBackgroundResponseHandler(NotificationResponse response) async 
     await prefs.setString('pending_notification_action', actionId);
     
     if (actionId == kNotifActionSos) {
+      await Future.delayed(const Duration(seconds: 5));
       try {
+        double? lat;
+        double? lng;
+        try {
+          final position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 5),
+          );
+          lat = position.latitude;
+          lng = position.longitude;
+        } catch (e) {
+          final lastPosition = await Geolocator.getLastKnownPosition();
+          if (lastPosition != null) {
+            lat = lastPosition.latitude;
+            lng = lastPosition.longitude;
+          }
+        }
         final smsService = SmsAlertService();
-        await smsService.sendManualSos();
+        await smsService.sendManualSos(latitude: lat, longitude: lng);
       } catch (e) {
         debugPrint('[NotificationService-BG] Failed background SOS dispatch: $e');
       }
@@ -256,7 +274,7 @@ class NotificationService {
     }
 
     final body = isManualSos 
-        ? 'MANUAL SOS TRIGGERED. Emergency SMS with live location broadcasted to trusted contacts.'
+        ? 'EMERGENCY SMS SENT - student clicked the sos button for help.'
         : 'EMERGENCY SMS SENT - No response detected. Emergency SMS with live location broadcasted to trusted contacts.';
         
     await _flutterLocalNotificationsPlugin.show(
