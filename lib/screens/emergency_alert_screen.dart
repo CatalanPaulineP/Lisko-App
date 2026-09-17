@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:vibration/vibration.dart';
 import '../constants/app_colors.dart';
@@ -32,12 +32,13 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   void _startCountdown() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      if (countdown > 1) {
+      if (countdown > 0) {
         setState(() => countdown--);
-      } else {
-        _timer?.cancel();
-        Vibration.cancel();
-        _executeAlert();
+        if (countdown == 0) {
+          _timer?.cancel();
+          Vibration.cancel();
+          _executeAlert();
+        }
       }
     });
   }
@@ -85,6 +86,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Spacer(),
               Container(
@@ -103,6 +105,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
               const SizedBox(height: 32),
               Text(
                 widget.isManualSos ? 'Manual SOS Triggered' : 'Inactivity Safety Alert',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
@@ -126,6 +129,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
               if (!_done && !_executing) ...[
                 const Text(
                   'ALERTING CONTACTS IN',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
                     letterSpacing: 1.2,
@@ -136,6 +140,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
                 const SizedBox(height: 16),
                 Text(
                   '$countdown',
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 72,
                     fontWeight: FontWeight.w800,

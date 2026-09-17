@@ -563,13 +563,19 @@ class HomeScreenState extends State<HomeScreen> {
       bool permissionDenied = false;
       try {
         debugPrint('Dispatching SMS alert (isManualSos: $isManualSos, isStationary: $isStationary)...');
-        sentList = await _smsAlertService.dispatchEmergencyAlert(
-          destination: destination,
-          latitude: lat,
-          longitude: lng,
-          isManualSos: isManualSos,
-          isStationary: isStationary,
-        );
+        if (isManualSos) {
+          sentList = await _smsAlertService.sendManualSos(
+            latitude: lat,
+            longitude: lng,
+          );
+        } else {
+          sentList = await _smsAlertService.dispatchEmergencyAlert(
+            destination: destination,
+            latitude: lat,
+            longitude: lng,
+            isStationary: isStationary,
+          );
+        }
         debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
         NotificationService().showEmergencySentNotification(sentList, permissionDenied: false);
       } catch (e) {

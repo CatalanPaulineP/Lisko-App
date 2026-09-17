@@ -1,4 +1,4 @@
-﻿import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:developer' as developer;
 import 'package:background_sms/background_sms.dart';
 
@@ -36,14 +36,43 @@ class SmsAlertService {
     }
   }
 
+  Future<List<String>> sendManualSos({
+    double? latitude,
+    double? longitude,
+  }) async {
+    final coordText = (latitude != null && longitude != null)
+        ? '$latitude, $longitude'
+        : 'Unknown Location';
+        
+    final alertMessage = '[LISKO EMERGENCY] Student needs immediate help! Location: $coordText (Copy these numbers and paste into Google Maps). Please contact them immediately.';
+    return _internalDispatch(alertMessage);
+  }
+
   Future<List<String>> dispatchEmergencyAlert({
     required String destination,
     double? latitude,
     double? longitude,
     String? customMessage,
-    bool isManualSos = false,
     bool isStationary = false,
   }) async {
+    final coordText = (latitude != null && longitude != null)
+        ? '$latitude, $longitude'
+        : 'Unknown Location';
+
+    String alertMessage = customMessage ?? '';
+    
+    if (alertMessage.isEmpty) {
+      if (isStationary) {
+        alertMessage = '[LISKO SAFETY ALERT] Stationary/No Movement Detected. Location: $coordText (Copy these numbers and paste into Google Maps). Please check on the student.';
+      } else {
+        alertMessage = '[LISKO SAFETY ALERT] Missed check-in: Student\'s travel timer expired. Location: $coordText (Copy these numbers and paste into Google Maps).';
+      }
+    }
+
+    return _internalDispatch(alertMessage);
+  }
+
+  Future<List<String>> _internalDispatch(String alertMessage) async {
     await triggerHapticAlert();
 
     final contacts = await _storage.readContacts();
@@ -60,22 +89,6 @@ class SmsAlertService {
           developer.log('SmsAlertService: SMS permission denied. Cannot dispatch.');
           throw Exception('SMS_PERMISSION_DENIED');
         }
-      }
-    }
-
-    final coordText = (latitude != null && longitude != null)
-        ? '$latitude, $longitude'
-        : 'Unknown Location';
-
-    String alertMessage = customMessage ?? '';
-    
-    if (alertMessage.isEmpty) {
-      if (isManualSos) {
-        alertMessage = '[LISKO EMERGENCY] Student needs immediate help! Location: $coordText (Copy these numbers and paste into Google Maps). Please contact them immediately.';
-      } else if (isStationary) {
-        alertMessage = '[LISKO SAFETY ALERT] Stationary/No Movement Detected. Location: $coordText (Copy these numbers and paste into Google Maps). Please check on the student.';
-      } else {
-        alertMessage = '[LISKO SAFETY ALERT] Missed check-in: Student\'s travel timer expired. Location: $coordText (Copy these numbers and paste into Google Maps).';
       }
     }
 
