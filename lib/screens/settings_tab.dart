@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Settings & Preferences Tab
 // File: lib/screens/settings_tab.dart
 //
@@ -19,6 +19,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/local_storage_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/app_icon.dart';
 import 'home_tab.dart'; // For HomeHeaderPatternPainter
 
@@ -253,6 +254,20 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconColor: AppColors.body,
                           title: 'Privacy Policy & GPS Usage Rules',
                           onTap: _openPrivacyModal,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildActionRow(
+                          iconStr: AppIcons.warning,
+                          semanticIcon: Icons.bug_report_rounded,
+                          iconBg: const Color(0xFFFFDAD8),
+                          iconColor: AppColors.primary,
+                          title: 'TEST HEADS-UP NOTIFICATION',
+                          onTap: () {
+                            debugPrint('[TEST] Calling NotificationService.showArrivalAlarm()');
+                            NotificationService().showArrivalAlarm('PUP Santa Maria').then((_) {
+                              debugPrint('[TEST] showArrivalAlarm() completed');
+                            });
+                          },
                         ),
                       ],
                     ),
