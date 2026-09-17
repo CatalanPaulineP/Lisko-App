@@ -189,9 +189,8 @@ class NotificationService {
   Future<void> showTimeoutAlarm(String destination) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
-      'Lisko Arrival Alerts',
-      channelDescription:
-          'High priority safety check alarm - wakes device like a native alarm clock.',
+      'LisKo Travel Reminder',
+      channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.max,
       
@@ -216,9 +215,8 @@ class NotificationService {
   Future<void> showArrivalAlarm(String destination) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
-      'Lisko Arrival Alerts',
-      channelDescription:
-          'High priority safety check alarm — wakes device like a native alarm clock.',
+      'LisKo Travel Reminder',
+      channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.max,
       // fullScreenIntent: true → Android wakes the screen and overlays the lock
@@ -247,9 +245,8 @@ class NotificationService {
   Future<void> showStationaryAlarm(String destination) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
-      'Lisko Arrival Alerts',
-      channelDescription:
-          'High priority safety check alarm - wakes device like a native alarm clock.',
+      'LisKo Travel Reminder',
+      channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.max,
       
@@ -274,8 +271,8 @@ class NotificationService {
   Future<void> showEmergencySentNotification(List<String> dispatchedTo, {bool permissionDenied = false, bool isManualSos = false}) async {
     const AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
-      'Lisko Arrival Alerts',
-      channelDescription: 'High priority alerts for safety checks.',
+      'LisKo Travel Reminder',
+      channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.high,
     );
