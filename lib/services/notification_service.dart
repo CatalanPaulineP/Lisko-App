@@ -187,7 +187,7 @@ class NotificationService {
   }
 
   Future<void> showTimeoutAlarm(String destination) async {
-    const AndroidNotificationDetails details = AndroidNotificationDetails(
+    final AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
@@ -197,7 +197,8 @@ class NotificationService {
       autoCancel: true,
       enableVibration: false,
       playSound: true,
-      actions: <AndroidNotificationAction>[
+      styleInformation: BigTextStyleInformation('Did you arrive safely at $destination?'),
+      actions: const <AndroidNotificationAction>[
         AndroidNotificationAction(kNotifActionSafe,   "I'm Safe",   showsUserInterface: false),
         AndroidNotificationAction(kNotifActionExtend, '+15 mins',   showsUserInterface: false),
         AndroidNotificationAction(kNotifActionSos,    'Need Help',  showsUserInterface: false),
@@ -207,11 +208,11 @@ class NotificationService {
       id: 999,
       title: "LisKo Travel Reminder",
       body: 'Did you arrive safely at $destination?',
-      notificationDetails: const NotificationDetails(android: details),
+      notificationDetails: NotificationDetails(android: details),
     );
   }
   Future<void> showArrivalAlarm(String destination) async {
-    const AndroidNotificationDetails details = AndroidNotificationDetails(
+    final AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_alarm_channel',
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
@@ -221,7 +222,8 @@ class NotificationService {
       autoCancel: true,
       enableVibration: false,
       playSound: true,
-      actions: <AndroidNotificationAction>[
+      styleInformation: BigTextStyleInformation('Did you arrive safely at $destination?'),
+      actions: const <AndroidNotificationAction>[
         AndroidNotificationAction(kNotifActionSafe,   "I'm Safe",   showsUserInterface: false),
         AndroidNotificationAction(kNotifActionExtend, '+15 mins',   showsUserInterface: false),
         AndroidNotificationAction(kNotifActionSos,    'Need Help',  showsUserInterface: false),
@@ -231,7 +233,7 @@ class NotificationService {
       id: 999,
       title: 'LisKo Travel Reminder',
       body: 'Did you arrive safely at $destination?',
-      notificationDetails: const NotificationDetails(android: details),
+      notificationDetails: NotificationDetails(android: details),
     );
   }
 
