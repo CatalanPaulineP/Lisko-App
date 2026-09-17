@@ -146,13 +146,13 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(tripChannel);
 
-    // Max-priority alarm channel — wakes lock screen like a native alarm clock.
+    // Max-priority alarm channel – high importance for heads-up presentation.
     const AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
       'lisko_alarm_channel',
-      'Lisko Arrival Alerts',
-      description: 'Wakes device and overlays lock screen for safety check alarms.',
+      'LisKo Travel Reminder',
+      description: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
-      // System vibration disabled — custom Vibration.vibrate() loop handles haptics.
+      // System vibration disabled – custom Vibration.vibrate() loop handles haptics.
       enableVibration: false,
       playSound: true,
       showBadge: true,
@@ -194,7 +194,7 @@ class NotificationService {
           'High priority safety check alarm - wakes device like a native alarm clock.',
       importance: Importance.max,
       priority: Priority.max,
-      fullScreenIntent: true,
+      
       ongoing: true,
       autoCancel: false,
       category: AndroidNotificationCategory.alarm,
@@ -222,8 +222,8 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       // fullScreenIntent: true → Android wakes the screen and overlays the lock
-      // screen immediately (same mechanism as the built-in alarm clock app).
-      fullScreenIntent: true,
+      
+      
       ongoing: true,
       autoCancel: false,
       // AndroidNotificationCategory.alarm tells the OS this is time-critical.
@@ -252,7 +252,7 @@ class NotificationService {
           'High priority safety check alarm - wakes device like a native alarm clock.',
       importance: Importance.max,
       priority: Priority.max,
-      fullScreenIntent: true,
+      
       ongoing: true,
       autoCancel: false,
       category: AndroidNotificationCategory.alarm,
