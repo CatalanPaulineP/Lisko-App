@@ -322,5 +322,25 @@ class NotificationService {
   Future<void> cancelArrivalAlarm() async {
     await _flutterLocalNotificationsPlugin.cancel(id: 999);
   }
+
+  Future<void> showSimpleTestNotification() async {
+    const AndroidNotificationDetails details = AndroidNotificationDetails(
+      'lisko_alarm_channel',
+      'LisKo Travel Reminder',
+      channelDescription: 'Arrival reminders and travel safety confirmation',
+      importance: Importance.max,
+      priority: Priority.max,
+      ongoing: false,
+      autoCancel: true,
+      enableVibration: false,
+      playSound: true,
+    );
+    await _flutterLocalNotificationsPlugin.show(
+      id: 9999,
+      title: 'LisKo Heads-Up Test',
+      body: 'This is a simple high-priority notification test.',
+      notificationDetails: const NotificationDetails(android: details),
+    );
+  }
 }
 

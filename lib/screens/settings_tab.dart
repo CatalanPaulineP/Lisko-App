@@ -269,6 +269,20 @@ class _SettingsTabState extends State<SettingsTab> {
                             });
                           },
                         ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildActionRow(
+                          iconStr: AppIcons.warning,
+                          semanticIcon: Icons.bug_report_rounded,
+                          iconBg: const Color(0xFFFFDAD8),
+                          iconColor: AppColors.primary,
+                          title: 'TEST SIMPLE HEADS-UP',
+                          onTap: () {
+                            debugPrint('[TEST-SIMPLE] Showing simple max-priority notification');
+                            NotificationService().showSimpleTestNotification().then((_) {
+                              debugPrint('[TEST-SIMPLE] Notification show() completed');
+                            });
+                          },
+                        ),
                       ],
                     ),
                   ),
