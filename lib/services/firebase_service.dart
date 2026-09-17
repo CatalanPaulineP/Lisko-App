@@ -1,4 +1,4 @@
-﻿import 'dart:developer' as developer;
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'local_storage_service.dart';
@@ -12,6 +12,14 @@ class FirebaseService {
   FirebaseService._internal();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  DateTime _parseDateSafely(dynamic rawDate) {
+    if (rawDate == null) return DateTime.now();
+    if (rawDate is Timestamp) return rawDate.toDate();
+    if (rawDate is String) return DateTime.tryParse(rawDate) ?? DateTime.now();
+    if (rawDate is int) return DateTime.fromMillisecondsSinceEpoch(rawDate);
+    return DateTime.now();
+  }
 
   /// Retrieves the actual saved trip records from Firebase for the Trips tab.
   Future<List<TripRecord>> getTrips() async {
@@ -27,7 +35,7 @@ class FirebaseService {
           destination: data['destination'] ?? 'Unknown',
           durationMinutes: data['estimatedTravelMinutes'] ?? 0,
           status: data['status'] ?? 'Unknown',
-          timestamp: data['startedAt'] != null ? (data['startedAt'] as Timestamp).toDate() : DateTime.now(),
+          timestamp: _parseDateSafely(data['startedAt']),
         );
       }).toList();
     } catch (e) {
@@ -49,9 +57,7 @@ class FirebaseService {
           destination: data['destination'] ?? 'Unknown',
           durationMinutes: data['estimatedTravelMinutes'] ?? 0,
           status: data['status'] ?? 'Unknown',
-          timestamp: data['startedAt'] != null
-              ? (data['startedAt'] as Timestamp).toDate()
-              : DateTime.now(),
+          timestamp: _parseDateSafely(data['startedAt']),
         );
       }).toList();
     });

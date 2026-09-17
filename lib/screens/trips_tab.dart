@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Trip History & Metrics
 // File: lib/screens/trips_tab.dart
 //
@@ -45,9 +45,19 @@ class TripsTab extends StatefulWidget {
   State<TripsTab> createState() => _TripsTabState();
 }
 
-class _TripsTabState extends State<TripsTab> {
-  String _selectedFilter = 'Completed';
+class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin {
+  String _selectedFilter = 'All';
   String _selectedTimeFilter = 'All';
+  late final Stream<List<TripRecord>> _tripsStream;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tripsStream = FirebaseService().getTripsStream();
+  }
 
   void _showSortBottomSheet() {
     showModalBottomSheet<void>(
@@ -89,7 +99,7 @@ class _TripsTabState extends State<TripsTab> {
                 trailing: _selectedFilter == 'Completed' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () {
                   Navigator.pop(ctx);
-                  setState(() => _selectedFilter = 'Completed');
+                  setState(() => _selectedFilter = _selectedFilter == 'Completed' ? 'All' : 'Completed');
                 },
               ),
               ListTile(
@@ -98,7 +108,7 @@ class _TripsTabState extends State<TripsTab> {
                 trailing: _selectedFilter == 'Extended' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () {
                   Navigator.pop(ctx);
-                  setState(() => _selectedFilter = 'Extended');
+                  setState(() => _selectedFilter = _selectedFilter == 'Extended' ? 'All' : 'Extended');
                 },
               ),
               ListTile(
@@ -107,7 +117,7 @@ class _TripsTabState extends State<TripsTab> {
                 trailing: _selectedFilter == 'Alert' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () {
                   Navigator.pop(ctx);
-                  setState(() => _selectedFilter = 'Alert');
+                  setState(() => _selectedFilter = _selectedFilter == 'Alert' ? 'All' : 'Alert');
                 },
               ),
             ],
@@ -119,8 +129,9 @@ class _TripsTabState extends State<TripsTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return StreamBuilder<List<TripRecord>>(
-      stream: FirebaseService().getTripsStream(),
+      stream: _tripsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator(color: AppColors.primary));
