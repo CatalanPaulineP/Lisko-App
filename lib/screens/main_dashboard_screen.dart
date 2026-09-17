@@ -31,7 +31,7 @@ import 'package:flutter/material.dart';
 import 'times_up_screen.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'package:flutter/services.dart';
+
 import 'package:vibration/vibration.dart';
 import '../services/local_storage_service.dart';
 import '../services/firebase_service.dart';
@@ -132,7 +132,7 @@ class HomeScreenState extends State<HomeScreen> {
       } else {
         arrivalCountdown = safetyCheckDeadline!.difference(now).inSeconds;
         _startArrivalCountdownTimer();
-        _runVibrateLoop(cycles: 3);
+        // _runVibrateLoop removed; vibration handled in Timer
       }
     } else if (expectedArrivalAt != null) {
       if (now.isAfter(expectedArrivalAt!)) {
@@ -265,6 +265,16 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _pulseVibration(int remainingSeconds) {
+    if (remainingSeconds >= 71 && remainingSeconds <= 90) {
+      Vibration.vibrate(duration: 500);
+    } else if (remainingSeconds >= 41 && remainingSeconds <= 60) {
+      Vibration.vibrate(duration: 500);
+    } else if (remainingSeconds >= 11 && remainingSeconds <= 30) {
+      Vibration.vibrate(duration: 500);
+    }
+  }
+
   void _startArrivalCountdownTimer() {
     _arrivalTimer?.cancel();
     _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -274,7 +284,9 @@ class HomeScreenState extends State<HomeScreen> {
         _arrivalTimer?.cancel();
         _escalateEmergencyAlert(isManualSos: false);
       } else if (safetyCheckDeadline != null) {
-        setState(() => arrivalCountdown = safetyCheckDeadline!.difference(now).inSeconds);
+        final rem = safetyCheckDeadline!.difference(now).inSeconds;
+        setState(() => arrivalCountdown = rem);
+        if (_alarmActive) _pulseVibration(rem);
       }
     });
   }
@@ -367,7 +379,9 @@ class HomeScreenState extends State<HomeScreen> {
         _arrivalTimer?.cancel();
         await _escalateEmergencyAlert(isManualSos: false, isStationary: true);
       } else if (safetyCheckDeadline != null) {
-        setState(() => stationaryCountdown = safetyCheckDeadline!.difference(now).inSeconds);
+        final rem = safetyCheckDeadline!.difference(now).inSeconds;
+        setState(() => stationaryCountdown = rem);
+        if (_alarmActive) _pulseVibration(rem);
       }
     });
   }
@@ -388,7 +402,7 @@ class HomeScreenState extends State<HomeScreen> {
 
     _alarmActive = true;
     NotificationService().showStationaryAlarm(destination);
-    _runVibrateLoop(cycles: 3);
+    // _runVibrateLoop removed; vibration handled in Timer
   }
 
   /// Triggers arrival state and begins 90-second escalation countdown.
@@ -439,7 +453,7 @@ class HomeScreenState extends State<HomeScreen> {
       // Each 20s window is itself a rapid zz-zz-zz pulse (500ms on / 500ms off).
       // Any action button sets _alarmActive = false + calls Vibration.cancel(),
       // which causes the next await in the loop to abort before the next burst.
-      _runVibrateLoop(cycles: 3);
+      // _runVibrateLoop removed; vibration handled in Timer
     }
 
     NotificationService().cancelPersistentTripNotification();
@@ -486,67 +500,6 @@ class HomeScreenState extends State<HomeScreen> {
   /// Public test & demonstration helper allowing simulation of GPS arrival.
   void simulateGeofenceArrival() {
     _handleArrivalDetected(destination);
-  }
-
-  /// Drives a pulsing vibration alarm: [cycles] outer rounds (20s pulse window + 10s silent).
-  /// Total for 3 cycles = 90 seconds - matching the safety-check countdown.
-  ///
-  /// Each 20-second "active" window is NOT a solid buzz. Instead it fires a rapid
-  /// pulse: 1000ms vibrate + 1000ms pause + repeat 10 times = 20 seconds.
-  ///
-  /// The `_alarmActive` flag is checked before EVERY await. Any action button sets
-  /// `_alarmActive = false` then calls `Vibration.cancel()`, which causes this loop
-  /// to detect the flag and return immediately - eliminating ghost vibrations.
-  ///
-  /// This method is fire-and-forget (no await at the call site).
-  void _runVibrateLoop({int cycles = 3}) async {
-    final hasVibrator = await Vibration.hasVibrator();
-    if (!_alarmActive) return;    // Guard: cancelled before hardware check finished.
-    if (hasVibrator != true) {
-      // Devices without a vibrator fall back to a single HapticFeedback burst.
-      HapticFeedback.heavyImpact();
-      return;
-    }
-
-    for (int outer = 0; outer < cycles; outer++) {
-      // -- 20-second pulsing window: 10 x (1000ms ON + 1000ms OFF) --
-      for (int pulse = 0; pulse < 10; pulse++) {
-        if (!_alarmActive) {
-          Vibration.cancel();
-          return;
-        }
-
-        // Short vibration burst (1000 ms = 1 second).
-        try {
-          await Vibration.vibrate(duration: 1000);
-        } catch (_) {}
-
-        if (!_alarmActive) {
-          Vibration.cancel();
-          return;
-        }
-
-        // 1000 ms silent gap.
-        // Checked in 100ms increments to instantly abort if a button is tapped mid-pause.
-        for (int i = 0; i < 10; i++) {
-          if (!_alarmActive) {
-            Vibration.cancel();
-            return;
-          }
-          await Future.delayed(const Duration(milliseconds: 100));
-        }
-      }
-
-      // -- 10-second silent inter-cycle gap --
-      // Applied to EVERY cycle, including the final 3rd cycle (1:20 to 1:30) as a grace period.
-      for (int s = 0; s < 10; s++) {
-        if (!_alarmActive) {
-          Vibration.cancel();
-          return;
-        }
-        await Future.delayed(const Duration(seconds: 1));
-      }
-    }
   }
 
   bool _isEscalating = false;

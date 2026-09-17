@@ -1,4 +1,4 @@
-// ==============================================================================
+﻿// ==============================================================================
 // Lisko Mobile Safety Application — Notification Service
 // File: lib/services/notification_service.dart
 //
