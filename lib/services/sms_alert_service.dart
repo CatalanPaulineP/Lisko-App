@@ -69,7 +69,6 @@ class SmsAlertService {
     double? latitude,
     double? longitude,
     String? customMessage,
-    bool isStationary = false,
   }) async {
     final coordText = (latitude != null && longitude != null)
         ? '$latitude,$longitude'
@@ -78,11 +77,7 @@ class SmsAlertService {
     String alertMessage = customMessage ?? '';
     
     if (alertMessage.isEmpty) {
-      if (isStationary) {
-        alertMessage = 'LISKO ALERT: No movement detected! Loc: $coordText';
-      } else {
-        alertMessage = 'LISKO ALERT: Travel timer expired! Loc: $coordText';
-      }
+      alertMessage = 'LISKO ALERT: Travel timer expired! Loc: $coordText';
     }
 
     return _internalDispatch(_appendTimestamp(alertMessage));

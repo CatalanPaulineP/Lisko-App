@@ -68,7 +68,7 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
     int? expectedArrivalAtMs,
     bool? isArrived,
     bool? isTimeoutWarning,
-    bool? isStationaryWarning,
+    
     int? safetyCheckDeadlineMs,
     String? tripId,
     int? startedAtMs,
@@ -84,7 +84,7 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
       'expectedArrivalAtMs': expectedArrivalAtMs,
       'isArrived': isArrived,
       'isTimeoutWarning': isTimeoutWarning,
-      'isStationaryWarning': isStationaryWarning,
+      
       'safetyCheckDeadlineMs': safetyCheckDeadlineMs,
       'tripId': tripId,
       'startedAtMs': startedAtMs,

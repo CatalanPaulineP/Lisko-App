@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Active Trip Tracking View
 // File: lib/screens/active_trip_screen.dart
 //
@@ -48,8 +48,6 @@ class ActiveTripTab extends StatelessWidget {
     this.arrivalRemainingSeconds = 90,
     this.isTimeoutWarning = false,
     this.timeoutRemainingSeconds = 90,
-    this.isStationaryWarning = false,
-    this.stationaryRemainingSeconds = 90,
   });
 
   /// Target destination name (e.g., "Home" or "Campus").
@@ -76,24 +74,14 @@ class ActiveTripTab extends StatelessWidget {
   /// Remaining seconds in the 90-second arrival safety verification countdown.
   final int arrivalRemainingSeconds;
 
-  /// Whether the student's device has been stationary for a long time.
   final bool isTimeoutWarning;
 
   final int timeoutRemainingSeconds;
-
-  /// Whether the student's device has been stationary for a long time.
-  final bool isStationaryWarning;
-
-  /// Remaining seconds in the 90-second stationary safety verification countdown.
-  final int stationaryRemainingSeconds;
 
   @override
   Widget build(BuildContext context) {
     if (isArrived) {
       return _buildArrivalView(context);
-    }
-    if (isStationaryWarning) {
-      return _buildStationaryView(context);
     }
 
     return Column(
@@ -389,180 +377,6 @@ class ActiveTripTab extends StatelessWidget {
     );
   }
 
-  Widget _buildStationaryView(BuildContext context) {
-    final minutes = (stationaryRemainingSeconds ~/ 60).toString().padLeft(2, '0');
-    final seconds = (stationaryRemainingSeconds % 60).toString().padLeft(2, '0');
-    final countdownFormatted = "$minutes:$seconds";
-    final isUrgent = stationaryRemainingSeconds <= 30;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'STATIONARY ALERT',
-                    style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1.3,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFFD97706),
-                    ),
-                  ),
-                  Text(
-                    destination,
-                    style: const TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.header,
-                    ),
-                  ),
-                  const Text(
-                    'No movement detected',
-                    style: TextStyle(fontSize: 12, color: AppColors.body),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Text(
-                  'Warning',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFFD97706),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isUrgent ? AppColors.primary : const Color(0xFFE2E8F0),
-                width: isUrgent ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: (isUrgent ? AppColors.primary : Colors.black).withValues(alpha: 0.06),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFEF3C7),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: AppIcon.standard(
-                      AppIcons.infoOutline,
-                      color: Color(0xFFD97706),
-                      size: 30,
-                      semanticIcon: Icons.info_outline_rounded,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Are you stuck?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.header,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "We detected little or no movement during your trip. If you're experiencing traffic or a travel delay, you can extend your trip.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.body,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isUrgent
-                        ? AppColors.primaryContainer.withValues(alpha: 0.3)
-                        : const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppIcon.standard(
-                        AppIcons.schedule,
-                        size: 18,
-                        color: isUrgent ? AppColors.primary : const Color(0xFFD97706),
-                        semanticIcon: Icons.access_time_rounded,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Auto-alert in: $countdownFormatted',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: isUrgent ? AppColors.primary : const Color(0xFFD97706),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'If you do not respond within 90 seconds, Lisko will automatically alert your emergency contacts.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: AppColors.body, height: 1.4),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: OutlineAction(
-              label: '+ 15 Min / I am stuck in traffic',
-              icon: Icons.access_time_rounded,
-              onPressed: onExtend,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: PrimaryButton(
-              label: 'Need Help / SOS',
-              onPressed: onSos,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Badge indicating active trip status.

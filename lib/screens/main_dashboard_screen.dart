@@ -39,7 +39,7 @@ import '../services/notification_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/geofence_service.dart';
-import '../services/stationary_detection_service.dart';
+
 import '../services/sms_alert_service.dart';
 import '../services/permission_service.dart';
 import '../widgets/app_icon.dart';
@@ -62,7 +62,7 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   final GeofenceService _geofenceService = GeofenceService();
   final SmsAlertService _smsAlertService = SmsAlertService();
-  final StationaryDetectionService _stationaryService = StationaryDetectionService();
+
 
   int selectedTab = 0;
   bool tripActive = false;
@@ -70,8 +70,8 @@ class HomeScreenState extends State<HomeScreen> {
   int arrivalCountdown = 90;
   bool isTimeoutWarning = false;
   int timeoutCountdown = 90;
-  bool isStationaryWarning = false;
-  int stationaryCountdown = 90;
+
+
   Duration remaining = const Duration(minutes: 45);
   DateTime? expectedArrivalAt;
   DateTime? safetyCheckDeadline;
@@ -163,7 +163,7 @@ class HomeScreenState extends State<HomeScreen> {
     tripTimer?.cancel();
     _arrivalTimer?.cancel();
     _geofenceService.stopMonitoring();
-    _stationaryService.stopMonitoring();
+
     super.dispose();
   }
 
@@ -302,10 +302,10 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       tripActive = true;
       isArrived = false;
-      isStationaryWarning = false;
+
       _isEscalating = false;
       arrivalCountdown = 90;
-      stationaryCountdown = 90;
+
       destination = selectedDestination;
       totalDuration = duration;
       expectedArrivalAt = now.add(duration);
@@ -350,44 +350,8 @@ class HomeScreenState extends State<HomeScreen> {
     // 2. Start Travel Countdown Timer using Timestamp Comparison
     _startTravelTimer();
 
-    // 3. Stationary Detection & Inactivity Geofence Algorithm
-    // Capture the student's GPS position at trip start as the anchor coordinate.
-    // After 10 minutes, re-sample and compare via Haversine. If the student
-    // hasn't moved < 20m, trigger the safety heads-up banner.
-    Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 10),
-    ).then((startPosition) {
-      _stationaryService.startMonitoring(
-        anchorLat: startPosition.latitude,
-        anchorLon: startPosition.longitude,
-        onInactivityDetected: () {
-          if (mounted && tripActive && !isArrived) {
-            debugPrint('[MainDashboard] Stationary condition received.');
-            _handleStationaryDetected();
-          }
-        },
-      );
-    }).catchError((e) {
-      debugPrint('[StationaryDetection] Could not capture start position: $e');
-    });
   }
 
-  void _startStationaryCountdownTimer() {
-    _arrivalTimer?.cancel();
-    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      if (!mounted) return;
-      final now = DateTime.now();
-      if (safetyCheckDeadline != null && now.isAfter(safetyCheckDeadline!)) {
-        _arrivalTimer?.cancel();
-        await _escalateEmergencyAlert(isManualSos: false, isStationary: true);
-      } else if (safetyCheckDeadline != null) {
-        final rem = safetyCheckDeadline!.difference(now).inSeconds;
-        setState(() => stationaryCountdown = rem);
-        if (_alarmActive) _pulseVibration(rem);
-      }
-    });
-  }
 
   void _startTimeoutCountdownTimer() {
     _arrivalTimer?.cancel();
@@ -406,7 +370,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _handleTimeoutDetected() async {
-    if (isArrived || isTimeoutWarning || isStationaryWarning) return;
+    if (isArrived || isTimeoutWarning) return;
     tripTimer?.cancel();
     final now = DateTime.now();
     
@@ -450,25 +414,6 @@ class HomeScreenState extends State<HomeScreen> {
     NotificationService().showTimeoutAlarm(destination);
   }
 
-  void _handleStationaryDetected() async {
-
-    if (isArrived || isStationaryWarning) return;
-    tripTimer?.cancel();
-    final now = DateTime.now();
-    
-    setState(() {
-      isStationaryWarning = true;
-      safetyCheckDeadline = now.add(const Duration(seconds: 90));
-      stationaryCountdown = 90;
-      selectedTab = 0;
-    });
-
-    _startStationaryCountdownTimer();
-
-    _alarmActive = true;
-    NotificationService().showStationaryAlarm(destination);
-    // _runVibrateLoop removed; vibration handled in Timer
-  }
 
   /// Triggers arrival state and begins 90-second escalation countdown.
   void _handleArrivalDetected(String destinationName) async {
@@ -570,7 +515,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isEscalating = false;
 
   /// Dispatches offline SMS emergency alerts when 90-second timer expires or manual SOS is triggered.
-  Future<void> _escalateEmergencyAlert({bool isManualSos = false, bool isStationary = false}) async {
+  Future<void> _escalateEmergencyAlert({bool isManualSos = false}) async {
     if (_isEscalating) return;
     if (!isManualSos && _isPreparingSos) return; // Prevent timeouts from clashing with the 5-sec SOS countdown
     _isEscalating = true;
@@ -607,7 +552,7 @@ class HomeScreenState extends State<HomeScreen> {
       List<String> sentList = [];
       bool permissionDenied = false;
       try {
-        debugPrint('Dispatching SMS alert (isManualSos: $isManualSos, isStationary: $isStationary)...');
+        debugPrint('Dispatching SMS alert (isManualSos: $isManualSos, )...');
         if (isManualSos) {
           sentList = await _smsAlertService.sendManualSos(
             latitude: lat,
@@ -618,7 +563,7 @@ class HomeScreenState extends State<HomeScreen> {
             destination: destination,
             latitude: lat,
             longitude: lng,
-            isStationary: isStationary,
+            
           );
         }
         debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
@@ -672,7 +617,7 @@ class HomeScreenState extends State<HomeScreen> {
       Vibration.cancel();
       NotificationService().cancelArrivalAlarm();
       _geofenceService.stopMonitoring();
-      _stationaryService.stopMonitoring();
+
       debugPrint('[Cleanup] All location monitoring stopped after emergency.');
 
       if (mounted) {
@@ -718,8 +663,8 @@ class HomeScreenState extends State<HomeScreen> {
     _arrivalTimer?.cancel();
     Vibration.cancel();
     NotificationService().cancelArrivalAlarm();
-    // Stop stationary detection immediately to prevent stale inactivity warnings
-    _stationaryService.stopMonitoring();
+
+
     // Immediate GPS shutdown preserving Zero-Surveillance privacy
     _geofenceService.stopMonitoring();
     
@@ -752,7 +697,7 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       tripActive = false;
       isArrived = false;
-      isStationaryWarning = false;
+
       _isEscalating = false;
       remaining = Duration.zero;
       arrivalCountdown = 90;
@@ -776,9 +721,9 @@ class HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       isArrived = false;
-      isStationaryWarning = false;
+
       arrivalCountdown = 90;
-      stationaryCountdown = 90;
+
       remaining = expectedArrivalAt!.difference(currentTime);
     });
 
@@ -807,26 +752,8 @@ class HomeScreenState extends State<HomeScreen> {
     // Re-enable travel countdown
     _startTravelTimer();
 
-    // Re-anchor stationary detection from the current position for the extended leg.
-    // This prevents a stale position from triggering a false inactivity warning.
-    _stationaryService.stopMonitoring();
-    Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 10),
-    ).then((extendPosition) {
-      _stationaryService.startMonitoring(
-        anchorLat: extendPosition.latitude,
-        anchorLon: extendPosition.longitude,
-        onInactivityDetected: () {
-          if (mounted && tripActive && !isArrived) {
-            debugPrint('[MainDashboard] Stationary condition received during extended leg.');
-            _handleStationaryDetected();
-          }
-        },
-      );
-    }).catchError((e) {
-      debugPrint('[StationaryDetection] Could not re-anchor on extend: $e');
-    });
+
+
   }
 
   bool _alertScreenOpen = false;
@@ -924,8 +851,8 @@ class HomeScreenState extends State<HomeScreen> {
                     onSos: _triggerEmergencyFlow,
                     isArrived: isArrived,
                     arrivalRemainingSeconds: arrivalCountdown,
-                    isStationaryWarning: isStationaryWarning,
-                    stationaryRemainingSeconds: stationaryCountdown,
+                    
+                    
                   )
                 : HomeDashboardTab(
                     key: _homeKey,
