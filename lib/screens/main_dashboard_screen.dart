@@ -523,6 +523,7 @@ class HomeScreenState extends State<HomeScreen> {
     try {
       double? lat;
       double? lng;
+      double? acc;
 
       try {
         debugPrint('Fetching live location for SMS dispatch...');
@@ -531,13 +532,14 @@ class HomeScreenState extends State<HomeScreen> {
           position = await _prefetchedPositionFuture;
         } else {
           position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
+            desiredAccuracy: LocationAccuracy.best,
             timeLimit: const Duration(seconds: 5),
           );
         }
         if (position != null && position.latitude != 0) {
           lat = position.latitude;
           lng = position.longitude;
+          acc = position.accuracy;
         }
       } catch (e) {
         debugPrint('Failed to fetch live GPS for emergency escalation: $e');
@@ -546,24 +548,26 @@ class HomeScreenState extends State<HomeScreen> {
         if (lastPosition != null) {
           lat = lastPosition.latitude;
           lng = lastPosition.longitude;
+          acc = lastPosition.accuracy;
         }
       }
 
       List<String> sentList = [];
       bool permissionDenied = false;
       try {
-        debugPrint('Dispatching SMS alert (isManualSos: $isManualSos, )...');
+        debugPrint('Dispatching SMS alert (isManualSos: $isManualSos)...');
         if (isManualSos) {
           sentList = await _smsAlertService.sendManualSos(
             latitude: lat,
             longitude: lng,
+            accuracy: acc,
           );
         } else {
           sentList = await _smsAlertService.dispatchEmergencyAlert(
             destination: destination,
             latitude: lat,
             longitude: lng,
-            
+            accuracy: acc,
           );
         }
         debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
@@ -780,7 +784,7 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Issue 1 Fix: Start fetching location concurrently during the 5-sec countdown.
     _prefetchedPositionFuture = Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+      desiredAccuracy: LocationAccuracy.best,
       timeLimit: const Duration(seconds: 10),
     ).catchError((e) async {
       debugPrint('Prefetch failed: $e');

@@ -48,19 +48,28 @@ class SmsAlertService {
     final hs = h.toString().padLeft(2, '0');
     final mi = now.minute.toString().padLeft(2, '0');
     final s = now.second.toString().padLeft(2, '0');
-    final timestamp = 'Time: $mo-$d-$y $hs:$mi:$s $ampm';
-    return '$message $timestamp';
+    final timestamp = '\nTime: $mo-$d-$y $hs:$mi:$s $ampm';
+    return '$message$timestamp';
   }
 
   Future<List<String>> sendManualSos({
     double? latitude,
     double? longitude,
+    double? accuracy,
   }) async {
-    final coordText = (latitude != null && longitude != null)
-        ? '$latitude,$longitude'
-        : 'Unknown Loc';
+    String coordText = 'Unknown Loc';
+    String mapLink = '';
+    if (latitude != null && longitude != null) {
+      final latStr = latitude.toStringAsFixed(6);
+      final lngStr = longitude.toStringAsFixed(6);
+      coordText = '$latStr,$lngStr';
+      if (accuracy != null) {
+        coordText += ' (±${accuracy.toStringAsFixed(0)}m)';
+      }
+      mapLink = '\nMap: https://maps.google.com/?q=$latStr,$lngStr';
+    }
         
-    final alertMessage = 'LISKO SOS! Need immediate help! Loc: $coordText';
+    final alertMessage = 'LISKO SOS! Need help!\nLoc: $coordText$mapLink';
     return _internalDispatch(_appendTimestamp(alertMessage));
   }
 
@@ -68,16 +77,25 @@ class SmsAlertService {
     required String destination,
     double? latitude,
     double? longitude,
+    double? accuracy,
     String? customMessage,
   }) async {
-    final coordText = (latitude != null && longitude != null)
-        ? '$latitude,$longitude'
-        : 'Unknown Loc';
+    String coordText = 'Unknown Loc';
+    String mapLink = '';
+    if (latitude != null && longitude != null) {
+      final latStr = latitude.toStringAsFixed(6);
+      final lngStr = longitude.toStringAsFixed(6);
+      coordText = '$latStr,$lngStr';
+      if (accuracy != null) {
+        coordText += ' (±${accuracy.toStringAsFixed(0)}m)';
+      }
+      mapLink = '\nMap: https://maps.google.com/?q=$latStr,$lngStr';
+    }
 
     String alertMessage = customMessage ?? '';
     
     if (alertMessage.isEmpty) {
-      alertMessage = 'LISKO ALERT: Travel timer expired! Loc: $coordText';
+      alertMessage = 'LISKO ALERT: Travel timer expired!\nLoc: $coordText$mapLink';
     }
 
     return _internalDispatch(_appendTimestamp(alertMessage));
