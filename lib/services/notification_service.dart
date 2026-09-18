@@ -1,5 +1,5 @@
 // ==============================================================================
-// Lisko Mobile Safety Application â€” Notification Service
+// Lisko Mobile Safety Application — Notification Service
 // File: lib/services/notification_service.dart
 //
 // Manages all system notification channels and alarm intents.
@@ -9,19 +9,18 @@
 //   app is foregrounded, backgrounded, or terminated), the response flows through:
 //
 //   Foreground / Resumed:
-//     onDidReceiveNotificationResponse â†’ _handleNotificationResponse()
-//       â†’ NotificationService.onActionReceived (registered by HomeScreenState)
+//     onDidReceiveNotificationResponse → _handleNotificationResponse()
+//       → NotificationService.onActionReceived (registered by HomeScreenState)
 //
 //   App Killed (terminated):
-//     onDidReceiveBackgroundNotificationResponse â†’ notificationBackgroundResponseHandler()
+//     onDidReceiveBackgroundNotificationResponse → notificationBackgroundResponseHandler()
 //       (top-level @pragma function in main.dart)
-//       â†’ SharedPreferences stores 'pending_notification_action'
-//       â†’ LaunchGate reads & dispatches on next app boot
+//       → SharedPreferences stores 'pending_notification_action'
+//       → LaunchGate reads & dispatches on next app boot
 // ==============================================================================
 
 import 'dart:ui';
 import 'dart:isolate';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -94,7 +93,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   // ---------------------------------------------------------------------------
-  // Static callback â€” registered by HomeScreenState.initState(),
+  // Static callback — registered by HomeScreenState.initState(),
   // cleared in HomeScreenState.dispose().
   //
   // This lets the notification response reach the live widget without a
@@ -128,15 +127,15 @@ class NotificationService {
     });
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('ic_launcher');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
 
     await _flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
-      // Foreground and background-resumed taps â†’ static callback.
+      // Foreground and background-resumed taps → static callback.
       onDidReceiveNotificationResponse: _handleNotificationResponse,
-      // App-killed taps â†’ top-level @pragma function defined in main.dart.
+      // App-killed taps → top-level @pragma function defined in main.dart.
       onDidReceiveBackgroundNotificationResponse: notificationBackgroundResponseHandler,
     );
 
@@ -151,13 +150,13 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(tripChannel);
 
-    // Max-priority alarm channel â€“ high importance for heads-up presentation.
+    // Max-priority alarm channel – high importance for heads-up presentation.
     const AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
       'lisko_alarm_channel',
       'LisKo Travel Reminder',
       description: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
-      // System vibration disabled â€“ custom Vibration.vibrate() loop handles haptics.
+      // System vibration disabled – custom Vibration.vibrate() loop handles haptics.
       enableVibration: false,
       playSound: true,
       showBadge: true,
@@ -207,21 +206,21 @@ class NotificationService {
         AndroidNotificationAction(
           kNotifActionSafe,
           "I'm Safe",
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           kNotifActionExtend,
           '+15 mins',
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           kNotifActionSos,
           'Need Help',
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
@@ -250,21 +249,21 @@ class NotificationService {
         AndroidNotificationAction(
           kNotifActionSafe,
           "I'm Safe",
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           kNotifActionExtend,
           '+15 mins',
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           kNotifActionSos,
           'Need Help',
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
@@ -310,17 +309,14 @@ class NotificationService {
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
-      priority: Priority.max,
-      showWhen: true,
-      enableVibration: true,
-      playSound: true,
+      priority: Priority.high,
     );
 
     if (permissionDenied) {
       await _flutterLocalNotificationsPlugin.show(
-        id: 777,
-        title: 'SMS Failed',
-        body: 'Emergency SMS could not be sent because SMS permission is denied.',
+        id: 1000,
+        title: 'EMERGENCY SMS FAILED',
+        body: 'SMS permission was denied. Could not dispatch offline emergency alerts to your contacts.',
         notificationDetails: const NotificationDetails(android: details),
       );
       return;
@@ -328,21 +324,21 @@ class NotificationService {
 
     if (dispatchedTo.isEmpty) {
       await _flutterLocalNotificationsPlugin.show(
-        id: 777,
-        title: 'SMS Failed',
-        body: 'No trusted contacts found to send emergency SMS.',
+        id: 1000,
+        title: 'EMERGENCY SMS FAILED',
+        body: 'Could not send SMS to any trusted contacts. Please check your signal or add valid contacts.',
         notificationDetails: const NotificationDetails(android: details),
       );
       return;
     }
 
-    final String body = isManualSos
-        ? 'EMERGENCY SMS REQUEST SENT to trusted contacts.'
-        : 'EMERGENCY SMS REQUEST SENT - No response detected. Emergency SMS requested for trusted contacts.';
+    final body = isManualSos 
+        ? 'EMERGENCY SMS SENT - student clicked the sos button for help.'
+        : 'EMERGENCY SMS SENT - No response detected. Emergency SMS with live location broadcasted to trusted contacts.';
         
     await _flutterLocalNotificationsPlugin.show(
-      id: 777,
-      title: 'EMERGENCY SMS REQUESTED',
+      id: 1000,
+      title: 'EMERGENCY SMS SENT',
       body: body,
       notificationDetails: const NotificationDetails(android: details),
     );
@@ -382,3 +378,4 @@ class NotificationService {
     );
   }
 }
+

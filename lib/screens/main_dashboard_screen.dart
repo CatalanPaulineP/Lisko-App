@@ -704,6 +704,12 @@ class HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       debugPrint('Unhandled error in _escalateEmergencyAlert: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isEscalating = false;
+        });
+      }
     }
   }
 
