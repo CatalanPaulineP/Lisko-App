@@ -57,10 +57,10 @@ class SmsAlertService {
     double? longitude,
   }) async {
     final coordText = (latitude != null && longitude != null)
-        ? '$latitude, $longitude'
-        : 'Unknown Location';
+        ? '$latitude,$longitude'
+        : 'Unknown Loc';
         
-    final alertMessage = '[LISKO EMERGENCY] student needs immediate help! location : $coordText (Copy these numbers and paste into Google maps). Please check them immediately.';
+    final alertMessage = 'LISKO SOS! Need immediate help! Loc: $coordText';
     return _internalDispatch(_appendTimestamp(alertMessage));
   }
 
@@ -72,16 +72,16 @@ class SmsAlertService {
     bool isStationary = false,
   }) async {
     final coordText = (latitude != null && longitude != null)
-        ? '$latitude, $longitude'
-        : 'Unknown Location';
+        ? '$latitude,$longitude'
+        : 'Unknown Loc';
 
     String alertMessage = customMessage ?? '';
     
     if (alertMessage.isEmpty) {
       if (isStationary) {
-        alertMessage = '[LISKO SAFETY ALERT] Stationary/No Movement Detected. Location: $coordText (Copy these numbers and paste into Google Maps). Please check on the student.';
+        alertMessage = 'LISKO ALERT: No movement detected! Loc: $coordText';
       } else {
-        alertMessage = '[LISKO SAFETY ALERT] Missed check-in: Student\'s travel timer expired. Location: $coordText (Copy these numbers and paste into Google Maps).';
+        alertMessage = 'LISKO ALERT: Travel timer expired! Loc: $coordText';
       }
     }
 

@@ -689,10 +689,10 @@ class HomeScreenState extends State<HomeScreen> {
 
         final msgType = isManualSos ? "Manual SOS" : "Timer expiry";
         final statusMessage = permissionDenied 
-            ? "Failed to dispatch $msgType (SMS Permission Denied)."
+            ? "Failed to request $msgType SMS (Permission Denied)."
             : sentList.isEmpty 
-                ? "Failed to dispatch $msgType to contacts."
-                : "$msgType alert dispatched to ${sentList.join(", ")}.";
+                ? "Failed to request $msgType SMS."
+                : "$msgType SMS request sent to ${sentList.join(", ")}.";
                 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -794,6 +794,7 @@ class HomeScreenState extends State<HomeScreen> {
         startedAt: tripStartedAt!,
         expectedArrivalAt: expectedArrivalAt,
         status: 'extended',
+        wasExtended: true,
       );
     }
 

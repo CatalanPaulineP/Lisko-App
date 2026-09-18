@@ -36,6 +36,7 @@ class FirebaseService {
           durationMinutes: data['estimatedTravelMinutes'] ?? 0,
           status: data['status'] ?? 'Unknown',
           timestamp: _parseDateSafely(data['startedAt']),
+          wasExtended: data['wasExtended'] as bool? ?? false,
         );
       }).toList();
     } catch (e) {
@@ -58,6 +59,7 @@ class FirebaseService {
           durationMinutes: data['estimatedTravelMinutes'] ?? 0,
           status: data['status'] ?? 'Unknown',
           timestamp: _parseDateSafely(data['startedAt']),
+          wasExtended: data['wasExtended'] as bool? ?? false,
         );
       }).toList();
     });
@@ -74,6 +76,7 @@ class FirebaseService {
     required String status,
     double? startLat,
     double? startLng,
+    bool? wasExtended,
   }) async {
     try {
       final data = {
@@ -85,6 +88,7 @@ class FirebaseService {
         'status': status,
         if (startLat != null) 'startLocationLat': startLat,
         if (startLng != null) 'startLocationLng': startLng,
+        if (wasExtended != null) 'wasExtended': wasExtended,
       };
 
       await _firestore.collection('trips').doc(tripId).set(data, SetOptions(merge: true));

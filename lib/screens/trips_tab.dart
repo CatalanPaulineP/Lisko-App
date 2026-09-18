@@ -152,12 +152,12 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
         }).toList();
 
         final safeCount = timeFilteredTrips.where((t) => t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived').length;
-        final extendedCount = timeFilteredTrips.where((t) => t.status.toLowerCase() == 'extended').length;
+        final extendedCount = timeFilteredTrips.where((t) => t.wasExtended || t.status.toLowerCase() == 'extended').length;
         final alertsCount = timeFilteredTrips.where((t) => t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested').length;
 
         final filteredTrips = timeFilteredTrips.where((t) {
           if (_selectedFilter == 'Completed') return t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived';
-          if (_selectedFilter == 'Extended') return t.status.toLowerCase() == 'extended';
+          if (_selectedFilter == 'Extended') return t.wasExtended || t.status.toLowerCase() == 'extended';
           if (_selectedFilter == 'Alert') return t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested';
           return true;
         }).toList();

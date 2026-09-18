@@ -333,6 +333,7 @@ class TripRecord {
     required this.durationMinutes,
     required this.status, // 'Completed' or 'Alert'
     required this.timestamp,
+    this.wasExtended = false,
   });
 
   final String id;
@@ -340,6 +341,7 @@ class TripRecord {
   final int durationMinutes;
   final String status;
   final DateTime timestamp;
+  final bool wasExtended;
 
   factory TripRecord.fromJson(Map<String, dynamic> json) => TripRecord(
         id: json['id'] as String,
@@ -347,6 +349,7 @@ class TripRecord {
         durationMinutes: json['durationMinutes'] as int,
         status: json['status'] as String,
         timestamp: DateTime.parse(json['timestamp'] as String),
+        wasExtended: json['wasExtended'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -355,6 +358,7 @@ class TripRecord {
         'durationMinutes': durationMinutes,
         'status': status,
         'timestamp': timestamp.toIso8601String(),
+        'wasExtended': wasExtended,
       };
 }
 
