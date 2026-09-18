@@ -605,14 +605,15 @@ class HomeScreenState extends State<HomeScreen> {
           completedAt: DateTime.now(),
           status: isManualSos ? 'help_requested' : 'expired',
         );
-        FirebaseService().logEmergencyEvent(
-          deviceId: 'local_device',
-          tripId: tripId,
-          latitude: lat ?? 0.0,
-          longitude: lng ?? 0.0,
-          emergencyType: isManualSos ? 'SOS' : 'TIMEOUT_ESCALATION',
-        );
       }
+
+      FirebaseService().logEmergencyEvent(
+        deviceId: 'local_device',
+        tripId: tripId,
+        latitude: lat ?? 0.0,
+        longitude: lng ?? 0.0,
+        emergencyType: isManualSos ? 'SOS' : 'TIMEOUT_ESCALATION',
+      );
 
       // Cleanup all background location monitoring and timers to ensure zero-surveillance
       tripTimer?.cancel();

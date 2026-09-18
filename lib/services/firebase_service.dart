@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -46,12 +47,23 @@ class FirebaseService {
   }
 
   Stream<List<TripRecord>> getTripsStream() {
-    return _firestore
+    final controller = StreamController<List<TripRecord>>.broadcast();
+    
+    List<TripRecord> currentTrips = [];
+    List<TripRecord> currentEvents = [];
+
+    void emitCombined() {
+      final combined = [...currentTrips, ...currentEvents];
+      combined.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      controller.add(combined);
+    }
+
+    final subTrips = _firestore
         .collection('trips')
         .orderBy('startedAt', descending: true)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
+        .listen((snapshot) {
+      currentTrips = snapshot.docs.map((doc) {
         final data = doc.data();
         return TripRecord(
           id: doc.id,
@@ -62,7 +74,34 @@ class FirebaseService {
           wasExtended: data['wasExtended'] as bool? ?? false,
         );
       }).toList();
+      emitCombined();
     });
+
+    final subEvents = _firestore
+        .collection('emergency_events')
+        .where('tripId', isEqualTo: '')
+        .snapshots()
+        .listen((snapshot) {
+      currentEvents = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return TripRecord(
+          id: doc.id,
+          destination: 'Manual SOS',
+          durationMinutes: 0,
+          status: 'Alert',
+          timestamp: _parseDateSafely(data['triggeredAt']),
+          wasExtended: false,
+        );
+      }).toList();
+      emitCombined();
+    });
+
+    controller.onCancel = () {
+      subTrips.cancel();
+      subEvents.cancel();
+    };
+
+    return controller.stream;
   }
 
   /// Creates or updates a trip in Firebase.
