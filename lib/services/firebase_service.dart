@@ -46,62 +46,101 @@ class FirebaseService {
     }
   }
 
-  Stream<List<TripRecord>> getTripsStream() {
-    final controller = StreamController<List<TripRecord>>.broadcast();
+  StreamController<List<TripRecord>>? _tripsController;
+  StreamSubscription? _subTrips;
+  StreamSubscription? _subEvents;
+  
+  List<TripRecord> _localTrips = [];
+  List<TripRecord> _currentTrips = [];
+  List<TripRecord> _currentEvents = [];
+
+  void _emitCombinedTrips() {
+    if (_tripsController == null || _tripsController!.isClosed) return;
+    final map = <String, TripRecord>{};
+    for (final t in _localTrips) { map[t.id] = t; }
+    for (final t in _currentTrips) { map[t.id] = t; }
+    for (final t in _currentEvents) { map[t.id] = t; }
     
-    List<TripRecord> currentTrips = [];
-    List<TripRecord> currentEvents = [];
+    final combined = map.values.toList();
+    combined.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    _tripsController!.add(combined);
+  }
 
-    void emitCombined() {
-      final combined = [...currentTrips, ...currentEvents];
-      combined.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      controller.add(combined);
-    }
+  Future<void> refreshLocalTrips() async {
+    try {
+      _localTrips = await const LocalStorageService().readTripHistory();
+      final activeData = await const LocalStorageService().readActiveTrip();
+      if (activeData != null && activeData['isActive'] == true) {
+         final activeId = activeData['tripId'] as String? ?? '';
+         if (activeId.isNotEmpty && activeData['startedAtMs'] != null) {
+           _localTrips.add(TripRecord(
+             id: activeId,
+             destination: activeData['destination'] as String? ?? 'Unknown',
+             durationMinutes: (activeData['totalDurationSeconds'] as int? ?? 0) ~/ 60,
+             status: 'active',
+             timestamp: DateTime.fromMillisecondsSinceEpoch(activeData['startedAtMs'] as int),
+           ));
+         }
+      }
+      _emitCombinedTrips();
+    } catch (_) {}
+  }
 
-    final subTrips = _firestore
-        .collection('trips')
-        .orderBy('startedAt', descending: true)
-        .snapshots()
-        .listen((snapshot) {
-      currentTrips = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return TripRecord(
-          id: doc.id,
-          destination: data['destination'] ?? 'Unknown',
-          durationMinutes: data['estimatedTravelMinutes'] ?? 0,
-          status: data['status'] ?? 'Unknown',
-          timestamp: _parseDateSafely(data['startedAt']),
-          wasExtended: data['wasExtended'] as bool? ?? false,
-        );
-      }).toList();
-      emitCombined();
-    });
+  Stream<List<TripRecord>> getTripsStream() {
+    _tripsController ??= StreamController<List<TripRecord>>.broadcast(
+      onListen: () async {
+        await refreshLocalTrips();
 
-    final subEvents = _firestore
-        .collection('emergency_events')
-        .where('tripId', isEqualTo: '')
-        .snapshots()
-        .listen((snapshot) {
-      currentEvents = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return TripRecord(
-          id: doc.id,
-          destination: 'Manual SOS',
-          durationMinutes: 0,
-          status: 'Alert',
-          timestamp: _parseDateSafely(data['triggeredAt']),
-          wasExtended: false,
-        );
-      }).toList();
-      emitCombined();
-    });
+        _subTrips = _firestore
+            .collection('trips')
+            .orderBy('startedAt', descending: true)
+            .snapshots()
+            .listen((snapshot) {
+          _currentTrips = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return TripRecord(
+              id: doc.id,
+              destination: data['destination'] ?? 'Unknown',
+              durationMinutes: data['estimatedTravelMinutes'] ?? 0,
+              status: data['status'] ?? 'Unknown',
+              timestamp: _parseDateSafely(data['startedAt']),
+              wasExtended: data['wasExtended'] as bool? ?? false,
+            );
+          }).toList();
+          _emitCombinedTrips();
+        }, onError: (e) {
+          developer.log('FirebaseService trips error: $e');
+        });
 
-    controller.onCancel = () {
-      subTrips.cancel();
-      subEvents.cancel();
-    };
+        _subEvents = _firestore
+            .collection('emergency_events')
+            .where('tripId', isEqualTo: '')
+            .snapshots()
+            .listen((snapshot) {
+          _currentEvents = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return TripRecord(
+              id: doc.id,
+              destination: 'Manual SOS',
+              durationMinutes: 0,
+              status: 'Alert',
+              timestamp: _parseDateSafely(data['triggeredAt']),
+              wasExtended: false,
+            );
+          }).toList();
+          _emitCombinedTrips();
+        }, onError: (e) {
+          developer.log('FirebaseService emergency_events error: $e');
+        });
+      },
+      onCancel: () {
+        _subTrips?.cancel();
+        _subEvents?.cancel();
+        _tripsController = null;
+      },
+    );
 
-    return controller.stream;
+    return _tripsController!.stream;
   }
 
   /// Creates or updates a trip in Firebase.
@@ -139,6 +178,7 @@ class FirebaseService {
 
   /// Logs an emergency event to the 'emergency_events' collection.
   Future<void> logEmergencyEvent({
+    required String eventId,
     required String deviceId,
     required String tripId,
     required double latitude,
@@ -146,7 +186,7 @@ class FirebaseService {
     required String emergencyType,
   }) async {
     try {
-      await _firestore.collection('emergency_events').add({
+      await _firestore.collection('emergency_events').doc(eventId).set({
         'deviceId': deviceId,
         'tripId': tripId,
         'latitude': latitude,
@@ -156,7 +196,7 @@ class FirebaseService {
         'status': 'active',
       });
       
-      developer.log('FirebaseService: Successfully logged emergency event ($emergencyType).');
+      developer.log('FirebaseService: Successfully logged emergency event ($emergencyType) with ID: $eventId.');
     } catch (e) {
       developer.log('FirebaseService: Failed to log emergency event to Firestore. Error: $e');
     }

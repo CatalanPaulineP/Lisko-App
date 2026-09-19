@@ -72,11 +72,25 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
     int? safetyCheckDeadlineMs,
     String? tripId,
     int? startedAtMs,
+    double? cachedLat,
+    double? cachedLng,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!isActive) {
       await prefs.remove(_activeTripKey);
       return;
+    }
+    double? finalLat = cachedLat;
+    double? finalLng = cachedLng;
+    if (finalLat == null || finalLng == null) {
+      try {
+        final raw = prefs.getString(_activeTripKey);
+        if (raw != null) {
+          final existing = jsonDecode(raw) as Map<String, dynamic>;
+          finalLat = finalLat ?? (existing['cachedLat'] as num?)?.toDouble();
+          finalLng = finalLng ?? (existing['cachedLng'] as num?)?.toDouble();
+        }
+      } catch (_) {}
     }
     final data = {
       'destination': destination,
@@ -88,8 +102,23 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
       'safetyCheckDeadlineMs': safetyCheckDeadlineMs,
       'tripId': tripId,
       'startedAtMs': startedAtMs,
+      'cachedLat': finalLat,
+      'cachedLng': finalLng,
     };
     await prefs.setString(_activeTripKey, jsonEncode(data));
+  }
+
+  Future<void> updateCachedLocation(double lat, double lng) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_activeTripKey);
+    if (raw != null) {
+      try {
+        final existing = jsonDecode(raw) as Map<String, dynamic>;
+        existing['cachedLat'] = lat;
+        existing['cachedLng'] = lng;
+        await prefs.setString(_activeTripKey, jsonEncode(existing));
+      } catch (_) {}
+    }
   }
 
   Future<Map<String, dynamic>?> readActiveTrip() async {

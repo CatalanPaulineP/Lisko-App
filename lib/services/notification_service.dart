@@ -28,6 +28,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'sms_alert_service.dart';
+import 'local_storage_service.dart';
+import 'firebase_service.dart' as fs;
 
 // ---------------------------------------------------------------------------
 // Notification action ID constants
@@ -47,21 +49,79 @@ void notificationBackgroundResponseHandler(
   if (actionId.isEmpty) return;
   debugPrint('[NotificationService-BG] Action tapped: "$actionId"');
 
+  WidgetsFlutterBinding.ensureInitialized();
+  try { await Firebase.initializeApp(); } catch (_) {}
+
+  if (actionId == kNotifActionSafe || actionId == kNotifActionExtend) {
+    try {
+      final storage = const LocalStorageService();
+      final data = await storage.readActiveTrip();
+      if (data != null && data['isActive'] == true) {
+        final tripId = data['tripId'] as String? ?? '';
+        final dest = data['destination'] as String? ?? '';
+        final startedMs = data['startedAtMs'] as int?;
+        final expectedMs = data['expectedArrivalAtMs'] as int?;
+        final totalSecs = data['totalDurationSeconds'] as int? ?? 0;
+
+        if (actionId == kNotifActionSafe) {
+          await storage.saveActiveTrip(isActive: false);
+          if (tripId.isNotEmpty && startedMs != null) {
+            await fs.FirebaseService().saveOrUpdateTrip(
+              tripId: tripId,
+              destination: dest,
+              estimatedTravelMinutes: totalSecs ~/ 60,
+              startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
+              expectedArrivalAt: expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : null,
+              completedAt: DateTime.now(),
+              status: 'arrived',
+            );
+            final history = await storage.readTripHistory();
+            history.add(TripRecord(
+              id: tripId, destination: dest, durationMinutes: totalSecs ~/ 60,
+              status: 'Completed', timestamp: DateTime.fromMillisecondsSinceEpoch(startedMs),
+            ));
+            await storage.saveTripHistory(history);
+          }
+        } else if (actionId == kNotifActionExtend) {
+          final now = DateTime.now();
+          final currentExpected = expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : now;
+          final newExpected = currentExpected.isBefore(now) ? now.add(const Duration(minutes: 15)) : currentExpected.add(const Duration(minutes: 15));
+          await storage.saveActiveTrip(
+            isActive: true,
+            destination: dest,
+            totalDurationSeconds: totalSecs,
+            expectedArrivalAtMs: newExpected.millisecondsSinceEpoch,
+            tripId: tripId,
+            startedAtMs: startedMs,
+            isArrived: false,
+            isTimeoutWarning: false,
+          );
+          if (tripId.isNotEmpty && startedMs != null) {
+            await fs.FirebaseService().saveOrUpdateTrip(
+              tripId: tripId,
+              destination: dest,
+              estimatedTravelMinutes: totalSecs ~/ 60,
+              startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
+              expectedArrivalAt: newExpected,
+              status: 'extended',
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[NotificationService-BG] Database sync error: $e');
+    }
+  }
+
   final sendPort = IsolateNameServer.lookupPortByName('lisko_notif_port');
   if (sendPort != null) {
-    // Main isolate is still alive! Send it directly so it acts immediately without launching the app.
     sendPort.send(actionId);
   } else {
-    // App is fully terminated, initialize bindings so plugins work in background isolate
-    WidgetsFlutterBinding.ensureInitialized();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('pending_notification_action', actionId);
-
     if (actionId == kNotifActionSos) {
       await Future.delayed(const Duration(seconds: 5));
       try {
-        await Firebase.initializeApp(); // Required for SmsAlertService -> trusted_contacts query
-
         double? lat;
         double? lng;
         try {
@@ -76,15 +136,63 @@ void notificationBackgroundResponseHandler(
           if (lastPosition != null) {
             lat = lastPosition.latitude;
             lng = lastPosition.longitude;
+          } else {
+            final storage = const LocalStorageService();
+            final data = await storage.readActiveTrip();
+            if (data != null) {
+              lat = (data['cachedLat'] as num?)?.toDouble();
+              lng = (data['cachedLng'] as num?)?.toDouble();
+            }
           }
         }
-        final smsService = SmsAlertService();
-        await smsService.sendManualSos(latitude: lat, longitude: lng);
+        await SmsAlertService().sendManualSos(latitude: lat, longitude: lng);
+
+        final storage = const LocalStorageService();
+        final data = await storage.readActiveTrip();
+        if (data != null && data['isActive'] == true) {
+          final tripId = data['tripId'] as String? ?? '';
+          final dest = data['destination'] as String? ?? 'Manual SOS';
+          final startedMs = data['startedAtMs'] as int?;
+          final expectedMs = data['expectedArrivalAtMs'] as int?;
+          final totalSecs = data['totalDurationSeconds'] as int? ?? 0;
+
+          await storage.saveActiveTrip(isActive: false);
+
+          final history = await storage.readTripHistory();
+          final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
+          history.add(TripRecord(
+            id: eventId,
+            destination: dest,
+            durationMinutes: totalSecs ~/ 60,
+            status: 'Need Help',
+            timestamp: startedMs != null ? DateTime.fromMillisecondsSinceEpoch(startedMs) : DateTime.now(),
+          ));
+          await storage.saveTripHistory(history);
+
+          if (tripId.isNotEmpty && startedMs != null) {
+            await fs.FirebaseService().saveOrUpdateTrip(
+              tripId: tripId,
+              destination: dest,
+              estimatedTravelMinutes: totalSecs ~/ 60,
+              startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
+              expectedArrivalAt: expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : null,
+              completedAt: DateTime.now(),
+              status: 'help_requested',
+            );
+          }
+          fs.FirebaseService().logEmergencyEvent(
+            eventId: eventId,
+            deviceId: 'local_device',
+            tripId: tripId,
+            latitude: lat ?? 0.0,
+            longitude: lng ?? 0.0,
+            emergencyType: 'SOS',
+          );
+        }
       } catch (e) {
-        debugPrint(
-          '[NotificationService-BG] Failed background SOS dispatch: $e',
-        );
+        debugPrint('[NotificationService-BG] Failed background SOS dispatch: $e');
       }
+      await prefs.remove('pending_notification_action');
     }
   }
 }
@@ -228,8 +336,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       ongoing: false,
-      autoCancel: true,
-      additionalFlags: Int32List.fromList(<int>[4]),
+      autoCancel: false,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([
         0,
@@ -249,21 +356,18 @@ class NotificationService {
         AndroidNotificationAction(
           kNotifActionSafe,
           "I'm Safe",
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           kNotifActionExtend,
           '+15 mins',
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           kNotifActionSos,
           'Need Help',
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
@@ -285,8 +389,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       ongoing: false,
-      autoCancel: true,
-      additionalFlags: Int32List.fromList(<int>[4]),
+      autoCancel: false,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([
         0,
@@ -306,21 +409,18 @@ class NotificationService {
         AndroidNotificationAction(
           kNotifActionSafe,
           "I'm Safe",
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           kNotifActionExtend,
           '+15 mins',
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           kNotifActionSos,
           'Need Help',
-          icon: DrawableResourceAndroidBitmap('ic_launcher'),
           showsUserInterface: false,
           cancelNotification: true,
         ),
@@ -400,8 +500,8 @@ class NotificationService {
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.max,
-      ongoing: false,
-      autoCancel: true,
+      ongoing: true,
+      autoCancel: false,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([
         0,

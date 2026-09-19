@@ -11,13 +11,13 @@ class TimesUpScreen extends StatefulWidget {
     required this.onSafe,
     required this.onExtend,
     required this.onHelp,
-    required this.onTimeout,
+    required this.deadline,
   });
 
   final VoidCallback onSafe;
   final VoidCallback onExtend;
   final VoidCallback onHelp;
-  final Future<void> Function() onTimeout;
+  final DateTime deadline;
 
   @override
   State<TimesUpScreen> createState() => _TimesUpScreenState();
@@ -30,18 +30,17 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      if (_secondsLeft > 0) {
+      final remaining = widget.deadline.difference(DateTime.now()).inSeconds;
+      if (remaining >= 0) {
         setState(() {
-          _secondsLeft--;
+          _secondsLeft = remaining;
         });
       } else {
         _timer.cancel();
         setState(() { _secondsLeft = 0; });
-        await widget.onTimeout();
-        if (!mounted) return;
-        Navigator.pop(context);
+        // Let MainDashboardScreen handle the actual emergency escalation.
       }
     });
   }

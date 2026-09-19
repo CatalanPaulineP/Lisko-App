@@ -59,7 +59,7 @@ class HomeScreen extends StatefulWidget {
   HomeScreenState createState() => HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GeofenceService _geofenceService = GeofenceService();
   final SmsAlertService _smsAlertService = SmsAlertService();
 
@@ -85,8 +85,6 @@ class HomeScreenState extends State<HomeScreen> {
   // Global cancellation flag for the vibration alarm loop.
   // Set true when the alarm fires; set false INSTANTLY by any action button so
   // every pending await in _runVibrateLoop aborts before its next vibration burst.
-  bool _alarmActive = false;
-
   // -------------------------------------------------------------------------
   // Lifecycle — register / unregister notification response callback.
   //
@@ -97,8 +95,16 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     NotificationService.onActionReceived = _routeNotificationAction;
     _restoreActiveTrip();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      FirebaseService().refreshLocalTrips();
+    }
   }
 
   Future<void> _restoreActiveTrip() async {
@@ -113,6 +119,7 @@ class HomeScreenState extends State<HomeScreen> {
     final safetyMs = data['safetyCheckDeadlineMs'] as int?;
     final tId = data['tripId'] as String? ?? '';
     final startedMs = data['startedAtMs'] as int?;
+    final isTimeout = data['isTimeoutWarning'] as bool? ?? false;
 
     setState(() {
       tripActive = true;
@@ -120,21 +127,93 @@ class HomeScreenState extends State<HomeScreen> {
       totalDuration = Duration(seconds: totalSecs);
       expectedArrivalAt = expMs != null ? DateTime.fromMillisecondsSinceEpoch(expMs) : null;
       isArrived = arrived;
+      isTimeoutWarning = isTimeout;
       safetyCheckDeadline = safetyMs != null ? DateTime.fromMillisecondsSinceEpoch(safetyMs) : null;
       tripId = tId;
       tripStartedAt = startedMs != null ? DateTime.fromMillisecondsSinceEpoch(startedMs) : null;
       selectedTab = 0;
+      
+      if (isTimeout || isArrived) {
+        remaining = Duration.zero;
+      }
     });
 
     final now = DateTime.now();
-    if (isArrived && safetyCheckDeadline != null) {
+    if ((isArrived || isTimeout) && safetyCheckDeadline != null) {
       if (now.isAfter(safetyCheckDeadline!)) {
         // Already expired while app was closed
         _escalateEmergencyAlert(isManualSos: false);
       } else {
-        arrivalCountdown = safetyCheckDeadline!.difference(now).inSeconds;
-        _startArrivalCountdownTimer();
-        // _runVibrateLoop removed; vibration handled in Timer
+        if (isTimeout) {
+          timeoutCountdown = safetyCheckDeadline!.difference(now).inSeconds;
+          _startTimeoutCountdownTimer();
+          
+          if (mounted) {
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                opaque: false,
+                fullscreenDialog: true,
+                pageBuilder: (context, _, __) => TimesUpScreen(
+                  onSafe: () {
+                    Vibration.cancel();
+                    NotificationService().cancelArrivalAlarm();
+                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                    _endTrip(safe: true);
+                  },
+                  onExtend: () {
+                    Vibration.cancel();
+                    NotificationService().cancelArrivalAlarm();
+                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                    _extendTrip();
+                  },
+                  onHelp: () {
+                    Vibration.cancel();
+                    NotificationService().cancelArrivalAlarm();
+                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                    _triggerEmergencyFlow(immediate: false);
+                  },
+                  deadline: safetyCheckDeadline!,
+                ),
+              ),
+            );
+          }
+        } else {
+          arrivalCountdown = safetyCheckDeadline!.difference(now).inSeconds;
+          _startArrivalCountdownTimer();
+          // _runVibrateLoop removed; vibration handled in Timer
+          
+          if (mounted) {
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                opaque: false,
+                fullscreenDialog: true,
+                pageBuilder: (context, _, __) => TimesUpScreen(
+                  onSafe: () {
+                    Vibration.cancel();
+                    NotificationService().cancelArrivalAlarm();
+                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                    _endTrip(safe: true);
+                  },
+                  onExtend: () {
+                    Vibration.cancel();
+                    NotificationService().cancelArrivalAlarm();
+                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                    _extendTrip();
+                  },
+                  onHelp: () {
+                    Vibration.cancel();
+                    NotificationService().cancelArrivalAlarm();
+                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                    _triggerEmergencyFlow(immediate: false);
+                  },
+                  deadline: safetyCheckDeadline!,
+                ),
+              ),
+            );
+          }
+        }
       }
     } else if (expectedArrivalAt != null) {
       if (now.isAfter(expectedArrivalAt!)) {
@@ -158,7 +237,6 @@ class HomeScreenState extends State<HomeScreen> {
   void dispose() {
     // Unregister so stale callbacks from a destroyed widget are never called.
     NotificationService.onActionReceived = null;
-    _alarmActive = false;           // Abort any running vibration loop.
     Vibration.cancel();
     tripTimer?.cancel();
     _arrivalTimer?.cancel();
@@ -200,27 +278,33 @@ class HomeScreenState extends State<HomeScreen> {
   /// Marks the trip as safely completed. Cancels vibration and alarm notification.
   void handleSafeAction() {
     if (!mounted) return;
-    _alarmActive = false;         // Signal the vibration loop to abort immediately.
     Vibration.cancel();
     NotificationService().cancelArrivalAlarm();
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
     _endTrip(safe: true);
   }
 
   /// Extends the trip timer by 15 minutes. Cancels current vibration loop.
   void handleExtendAction() {
     if (!mounted) return;
-    _alarmActive = false;         // Signal the vibration loop to abort immediately.
     Vibration.cancel();
     NotificationService().cancelArrivalAlarm();
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
     _extendTrip();
   }
 
   /// Immediately triggers the emergency SOS flow (bypasses 5-second countdown).
   void handleSosAction() async {
     if (!mounted) return;
-    _alarmActive = false;         
     Vibration.cancel();
     NotificationService().cancelArrivalAlarm();
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
     final isForeground = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
 
     if (isForeground) {
@@ -268,28 +352,54 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _pulseVibration(int remainingSeconds) {
-    if (remainingSeconds >= 71 && remainingSeconds <= 90) {
-      Vibration.vibrate(duration: 500);
-    } else if (remainingSeconds >= 41 && remainingSeconds <= 60) {
-      Vibration.vibrate(duration: 500);
-    } else if (remainingSeconds >= 11 && remainingSeconds <= 30) {
-      Vibration.vibrate(duration: 500);
+
+
+  void _triggerVibrationPattern(int initialElapsed) async {
+    final storage = const LocalStorageService();
+    final alertMode = await storage.readAlertMode();
+    if (alertMode == 'Silent') return;
+
+    List<int> pattern = [];
+    for (int sec = initialElapsed; sec < 90; sec++) {
+      bool isActive = (sec >= 0 && sec < 20) || (sec >= 30 && sec < 50) || (sec >= 60 && sec < 80);
+      if (isActive) {
+        if (sec == initialElapsed) {
+          pattern.add(0); pattern.add(500);
+        } else {
+          pattern.add(500); pattern.add(500);
+        }
+      } else {
+        if (sec == initialElapsed) {
+          pattern.add(1000); pattern.add(0);
+        } else {
+          pattern.add(1000); pattern.add(0);
+        }
+      }
     }
+    Vibration.vibrate(pattern: pattern);
   }
 
   void _startArrivalCountdownTimer() {
     _arrivalTimer?.cancel();
-    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    Vibration.cancel();
+    
+    if (safetyCheckDeadline != null) {
+      final now = DateTime.now();
+      final rem = safetyCheckDeadline!.difference(now).inSeconds;
+      final elapsed = 90 - rem;
+      if (elapsed >= 0 && elapsed < 90) _triggerVibrationPattern(elapsed);
+    }
+
+    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if (!mounted) return;
       final now = DateTime.now();
       if (safetyCheckDeadline != null && now.isAfter(safetyCheckDeadline!)) {
         _arrivalTimer?.cancel();
+        if (Navigator.of(context).canPop()) Navigator.of(context).popUntil((route) => route.isFirst);
         _escalateEmergencyAlert(isManualSos: false);
       } else if (safetyCheckDeadline != null) {
         final rem = safetyCheckDeadline!.difference(now).inSeconds;
         setState(() => arrivalCountdown = rem);
-        if (_alarmActive) _pulseVibration(rem);
       }
     });
   }
@@ -305,6 +415,7 @@ class HomeScreenState extends State<HomeScreen> {
 
       _isEscalating = false;
       arrivalCountdown = 90;
+      isTimeoutWarning = false;
 
       destination = selectedDestination;
       totalDuration = duration;
@@ -324,6 +435,7 @@ class HomeScreenState extends State<HomeScreen> {
       tripId: tripId,
       startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
     );
+    FirebaseService().refreshLocalTrips();
 
     // Sync to Firebase
     FirebaseService().saveOrUpdateTrip(
@@ -350,21 +462,40 @@ class HomeScreenState extends State<HomeScreen> {
     // 2. Start Travel Countdown Timer using Timestamp Comparison
     _startTravelTimer();
 
+    Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.best,
+      timeLimit: const Duration(seconds: 10),
+    ).then((pos) {
+      if (mounted) {
+        _cachedActiveTripPosition = pos;
+        const LocalStorageService().updateCachedLocation(pos.latitude, pos.longitude);
+      }
+    }).catchError((_) {});
+
   }
 
 
   void _startTimeoutCountdownTimer() {
     _arrivalTimer?.cancel();
-    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    Vibration.cancel();
+
+    if (safetyCheckDeadline != null) {
+      final now = DateTime.now();
+      final rem = safetyCheckDeadline!.difference(now).inSeconds;
+      final elapsed = 90 - rem;
+      if (elapsed >= 0 && elapsed < 90) _triggerVibrationPattern(elapsed);
+    }
+
+    _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if (!mounted) return;
       final now = DateTime.now();
       if (safetyCheckDeadline != null && now.isAfter(safetyCheckDeadline!)) {
         _arrivalTimer?.cancel();
+        if (Navigator.of(context).canPop()) Navigator.of(context).popUntil((route) => route.isFirst);
         _escalateEmergencyAlert(isManualSos: false);
       } else if (safetyCheckDeadline != null) {
         final rem = safetyCheckDeadline!.difference(now).inSeconds;
         setState(() => timeoutCountdown = rem);
-        if (_alarmActive) _pulseVibration(rem);
       }
     });
   }
@@ -406,12 +537,53 @@ class HomeScreenState extends State<HomeScreen> {
 
     _startTimeoutCountdownTimer();
 
+    Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.best,
+      timeLimit: const Duration(seconds: 5),
+    ).then((pos) {
+      if (mounted) {
+        _cachedActiveTripPosition = pos;
+        const LocalStorageService().updateCachedLocation(pos.latitude, pos.longitude);
+      }
+    }).catchError((_) {});
+
     final storage = const LocalStorageService();
     final alertMode = await storage.readAlertMode();
     if (alertMode != 'Silent') {
-      _alarmActive = true;
     }
+    NotificationService().cancelPersistentTripNotification();
     NotificationService().showTimeoutAlarm(destination);
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          opaque: false,
+          fullscreenDialog: true,
+          pageBuilder: (context, _, __) => TimesUpScreen(
+            onSafe: () {
+              Vibration.cancel();
+              NotificationService().cancelArrivalAlarm();
+              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+              _endTrip(safe: true);
+            },
+            onExtend: () {
+              Vibration.cancel();
+              NotificationService().cancelArrivalAlarm();
+              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+              _extendTrip();
+            },
+            onHelp: () {
+              Vibration.cancel();
+              NotificationService().cancelArrivalAlarm();
+              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+              _triggerEmergencyFlow(immediate: false);
+            },
+            deadline: safetyCheckDeadline!,
+          ),
+        ),
+      );
+    }
   }
 
 
@@ -423,6 +595,7 @@ class HomeScreenState extends State<HomeScreen> {
     
     setState(() {
       isArrived = true;
+      isTimeoutWarning = false;
       safetyCheckDeadline = now.add(const Duration(seconds: 90));
       arrivalCountdown = 90;
       selectedTab = 0;
@@ -458,10 +631,8 @@ class HomeScreenState extends State<HomeScreen> {
     if (alertMode != 'Silent') {
       // Arm the cancellation flag BEFORE starting the loop so the first
       // guard check inside _runVibrateLoop sees an active alarm state.
-      _alarmActive = true;
       // Pulsing vibration loop: 3 outer cycles × (20s pulse window + 10s silent) = 90s.
       // Each 20s window is itself a rapid zz-zz-zz pulse (500ms on / 500ms off).
-      // Any action button sets _alarmActive = false + calls Vibration.cancel(),
       // which causes the next await in the loop to abort before the next burst.
       // _runVibrateLoop removed; vibration handled in Timer
     }
@@ -478,29 +649,21 @@ class HomeScreenState extends State<HomeScreen> {
           fullscreenDialog: true,
           pageBuilder: (context, _, __) => TimesUpScreen(
             onSafe: () {
-              _alarmActive = false;
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
               _endTrip(safe: true);
             },
             onExtend: () {
-              _alarmActive = false;
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
               _extendTrip();
             },
             onHelp: () {
-              _alarmActive = false;
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
               _triggerEmergencyFlow(immediate: false);
             },
-            onTimeout: () async {
-              _alarmActive = false;
-              Vibration.cancel();
-              NotificationService().cancelArrivalAlarm();
-              await _escalateEmergencyAlert(isManualSos: false);
-            },
+            deadline: safetyCheckDeadline!,
           ),
         ),
       );
@@ -513,6 +676,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   bool _isEscalating = false;
+  Position? _cachedActiveTripPosition;
 
   /// Dispatches offline SMS emergency alerts when 90-second timer expires or manual SOS is triggered.
   Future<void> _escalateEmergencyAlert({bool isManualSos = false}) async {
@@ -529,7 +693,15 @@ class HomeScreenState extends State<HomeScreen> {
         debugPrint('Fetching live location for SMS dispatch...');
         Position? position;
         if (isManualSos && _prefetchedPositionFuture != null) {
-          position = await _prefetchedPositionFuture;
+          try {
+            position = await _prefetchedPositionFuture;
+          } catch (e) {
+            debugPrint('Prefetch failed, retrying live location...');
+            position = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.best,
+              timeLimit: const Duration(seconds: 5),
+            );
+          }
         } else {
           position = await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.best,
@@ -543,12 +715,15 @@ class HomeScreenState extends State<HomeScreen> {
         }
       } catch (e) {
         debugPrint('Failed to fetch live GPS for emergency escalation: $e');
-        // Fallback to last known position rather than the destination
         final lastPosition = await Geolocator.getLastKnownPosition();
         if (lastPosition != null) {
           lat = lastPosition.latitude;
           lng = lastPosition.longitude;
           acc = lastPosition.accuracy;
+        } else if (_cachedActiveTripPosition != null) {
+          lat = _cachedActiveTripPosition!.latitude;
+          lng = _cachedActiveTripPosition!.longitude;
+          acc = _cachedActiveTripPosition!.accuracy;
         }
       }
 
@@ -586,14 +761,30 @@ class HomeScreenState extends State<HomeScreen> {
       // Log the trip locally as Alert
       final storage = const LocalStorageService();
       final history = await storage.readTripHistory();
+      
+      String eventType = 'Alert';
+      String eventDestination = destination;
+      if (isManualSos) {
+        if (tripId.isEmpty) {
+          eventDestination = 'Manual SOS';
+          eventType = 'Manual SOS';
+        } else {
+          eventType = 'Need Help';
+        }
+      } else {
+        eventType = 'Timer Expired';
+      }
+
+      final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
       final newTrip = TripRecord(
-        id: tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString(),
-        destination: destination,
+        id: eventId,
+        destination: eventDestination,
         durationMinutes: totalDuration.inMinutes,
-        status: 'Alert',
+        status: eventType,
         timestamp: tripStartedAt ?? DateTime.now(),
       );
       await storage.saveTripHistory([...history, newTrip]);
+      FirebaseService().refreshLocalTrips();
 
       if (tripId.isNotEmpty && tripStartedAt != null) {
         FirebaseService().saveOrUpdateTrip(
@@ -608,6 +799,7 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       FirebaseService().logEmergencyEvent(
+        eventId: eventId,
         deviceId: 'local_device',
         tripId: tripId,
         latitude: lat ?? 0.0,
@@ -618,7 +810,6 @@ class HomeScreenState extends State<HomeScreen> {
       // Cleanup all background location monitoring and timers to ensure zero-surveillance
       tripTimer?.cancel();
       _arrivalTimer?.cancel();
-      _alarmActive = false;
       Vibration.cancel();
       NotificationService().cancelArrivalAlarm();
       _geofenceService.stopMonitoring();
@@ -675,17 +866,18 @@ class HomeScreenState extends State<HomeScreen> {
     
     const LocalStorageService().saveActiveTrip(isActive: false);
 
-    // Log the trip locally
-    final storage = const LocalStorageService();
-    final history = await storage.readTripHistory();
-    final newTrip = TripRecord(
-      id: tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString(),
-      destination: destination,
-      durationMinutes: totalDuration.inMinutes,
-      status: safe ? 'Completed' : 'Cancelled',
-      timestamp: tripStartedAt ?? DateTime.now(),
-    );
-    await storage.saveTripHistory([...history, newTrip]);
+      // Log the trip locally
+      final storage = const LocalStorageService();
+      final history = await storage.readTripHistory();
+      final newTrip = TripRecord(
+        id: tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString(),
+        destination: destination,
+        durationMinutes: totalDuration.inMinutes,
+        status: safe ? 'Arrived Safely' : 'Cancelled',
+        timestamp: tripStartedAt ?? DateTime.now(),
+      );
+      await storage.saveTripHistory([...history, newTrip]);
+      FirebaseService().refreshLocalTrips();
 
     if (tripId.isNotEmpty && tripStartedAt != null) {
       FirebaseService().saveOrUpdateTrip(
@@ -702,6 +894,7 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       tripActive = false;
       isArrived = false;
+      isTimeoutWarning = false;
 
       _isEscalating = false;
       remaining = Duration.zero;
@@ -726,6 +919,7 @@ class HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       isArrived = false;
+      isTimeoutWarning = false;
 
       arrivalCountdown = 90;
 
@@ -749,7 +943,7 @@ class HomeScreenState extends State<HomeScreen> {
         estimatedTravelMinutes: totalDuration.inMinutes,
         startedAt: tripStartedAt!,
         expectedArrivalAt: expectedArrivalAt,
-        status: 'extended',
+        status: 'Trip Extended',
         wasExtended: true,
       );
     }
@@ -771,27 +965,32 @@ class HomeScreenState extends State<HomeScreen> {
   void _triggerEmergencyFlow({bool immediate = false}) async {
     if (_alertScreenOpen || _isPreparingSos) return;
 
-    // Issue 2 Fix: Validate permissions before entering panic countdown.
     final permService = PermissionService();
-    if (!await permService.checkLocationPermission()) {
-      await permService.requestLocationPermission();
+    await permService.checkTripRequirements(context);
+
+    // Wait for the user to return if they were sent to OS settings
+    while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      await Future.delayed(const Duration(milliseconds: 500));
     }
-    if (!await permService.checkSmsPermission()) {
-      await permService.requestSmsPermission();
-    }
+
+    if (!mounted) return;
 
     _alertScreenOpen = true;
     _isPreparingSos = true; // Lock background timeouts
 
-    // Issue 1 Fix: Start fetching location concurrently during the 5-sec countdown.
-    _prefetchedPositionFuture = Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.best,
-      timeLimit: const Duration(seconds: 10),
-    ).catchError((e) async {
-      debugPrint('Prefetch failed: $e');
-      final pos = await Geolocator.getLastKnownPosition();
-      return pos ?? Position(longitude: 0, latitude: 0, timestamp: DateTime.now(), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
-    });
+    // Only attempt live GPS if services are actually enabled to avoid native Google dialog overlapping
+    final serviceEnabled = await permService.isLocationServiceEnabled();
+    if (serviceEnabled) {
+      _prefetchedPositionFuture = Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 10),
+      ).catchError((e) {
+        debugPrint('Prefetch failed: $e');
+        throw e;
+      });
+    } else {
+      _prefetchedPositionFuture = Future.error('LocationServicesDisabled');
+    }
 
     if (!mounted) return;
 

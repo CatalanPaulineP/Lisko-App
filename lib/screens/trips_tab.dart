@@ -151,14 +151,14 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
           return true;
         }).toList();
 
-        final safeCount = timeFilteredTrips.where((t) => t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived').length;
-        final extendedCount = timeFilteredTrips.where((t) => t.wasExtended || t.status.toLowerCase() == 'extended').length;
-        final alertsCount = timeFilteredTrips.where((t) => t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested').length;
+        final safeCount = timeFilteredTrips.where((t) => ['completed', 'arrived', 'arrived safely'].contains(t.status.toLowerCase())).length;
+        final extendedCount = timeFilteredTrips.where((t) => t.wasExtended || ['extended', 'trip extended'].contains(t.status.toLowerCase())).length;
+        final alertsCount = timeFilteredTrips.where((t) => ['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired'].contains(t.status.toLowerCase())).length;
 
         final filteredTrips = timeFilteredTrips.where((t) {
-          if (_selectedFilter == 'Completed') return t.status.toLowerCase() == 'completed' || t.status.toLowerCase() == 'arrived';
-          if (_selectedFilter == 'Extended') return t.wasExtended || t.status.toLowerCase() == 'extended';
-          if (_selectedFilter == 'Alert') return t.status.toLowerCase() == 'alert' || t.status.toLowerCase() == 'expired' || t.status.toLowerCase() == 'help_requested';
+          if (_selectedFilter == 'Completed') return ['completed', 'arrived', 'arrived safely'].contains(t.status.toLowerCase());
+          if (_selectedFilter == 'Extended') return t.wasExtended || ['extended', 'trip extended'].contains(t.status.toLowerCase());
+          if (_selectedFilter == 'Alert') return ['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired'].contains(t.status.toLowerCase());
           return true;
         }).toList();
 
@@ -635,14 +635,14 @@ class RecentTripsList extends StatelessWidget {
                       Color bBgColor;
                       Color bTextColor;
 
-                      if (trip.status == 'Completed' || trip.status.toLowerCase() == 'arrived') {
+                      if (['completed', 'arrived', 'arrived safely'].contains(trip.status.toLowerCase())) {
                         iconStr = AppIcons.check;
                         semIcon = Icons.check_rounded;
                         iColor = const Color(0xFF10B981);
                         iBgColor = const Color(0xFFD1FAE5);
                         bBgColor = const Color(0xFFD1FAE5);
                         bTextColor = const Color(0xFF10B981);
-                      } else if (trip.status == 'Alert' || trip.status.toLowerCase() == 'expired' || trip.status.toLowerCase() == 'help_requested') {
+                      } else if (['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired'].contains(trip.status.toLowerCase())) {
                         iconStr = AppIcons.warning;
                         semIcon = Icons.warning_amber_rounded;
                         iColor = const Color(0xFFDB2B38);

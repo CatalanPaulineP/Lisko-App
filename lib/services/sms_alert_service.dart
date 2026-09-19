@@ -64,7 +64,7 @@ class SmsAlertService {
       final lngStr = longitude.toStringAsFixed(6);
       coordText = '$latStr,$lngStr';
       if (accuracy != null) {
-        coordText += ' (±${accuracy.toStringAsFixed(0)}m)';
+        coordText += ' (+/-${accuracy.toStringAsFixed(0)}m)';
       }
       mapLink = '\nMap: https://maps.google.com/?q=$latStr,$lngStr';
     }
@@ -87,7 +87,7 @@ class SmsAlertService {
       final lngStr = longitude.toStringAsFixed(6);
       coordText = '$latStr,$lngStr';
       if (accuracy != null) {
-        coordText += ' (±${accuracy.toStringAsFixed(0)}m)';
+        coordText += ' (+/-${accuracy.toStringAsFixed(0)}m)';
       }
       mapLink = '\nMap: https://maps.google.com/?q=$latStr,$lngStr';
     }

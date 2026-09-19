@@ -12,7 +12,7 @@
 // - Step 4: SMS Permission (`SmsPermissionScreen` with privacy disclaimers)
 // - Step 5: Location Geofencing (`LocationPermissionScreen` with zero-surveillance notice)
 // - Final: "You're Ready!" completion summary (`SetupReadyScreen`)
-//
+// 
 // Smart Philippine Phone Validation & Zero-Blocker Logic:
 // `PhilippinePhoneInputFormatter` enforces Philippine mobile standards:
 // - Automatically intercepts and strips leading zeroes when students type out of habit (e.g. `0917...` -> `917...`).
