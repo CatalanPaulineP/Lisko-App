@@ -627,62 +627,75 @@ class RecentTripsList extends StatelessWidget {
                   Builder(
                     builder: (context) {
                       final trip = trips[i];
-                      // Dynamic styling based on status
-                      String iconStr;
-                      IconData semIcon;
-                      Color iColor;
-                      Color iBgColor;
+                      final statusLower = trip.status.toLowerCase();
+                      
+                      String displayStatus;
+                      String displayTitle;
+                      String? displayDuration;
+
+                      bool isStandaloneSos = (statusLower == 'alert' && trip.destination == 'Manual SOS') || statusLower == 'manual sos';
+                      bool isExpired = statusLower == 'expired' || statusLower == 'timer expired';
+                      bool isArrived = ['completed', 'arrived', 'arrived safely'].contains(statusLower);
+                      bool isAlert = ['alert', 'help_requested', 'need help'].contains(statusLower);
+                      bool isExtended = trip.wasExtended || ['extended', 'trip extended'].contains(statusLower);
+                      bool isCancelled = statusLower == 'cancelled';
+
+                      if (isArrived) {
+                        displayStatus = 'ARRIVED';
+                      } else if (isExpired) {
+                        displayStatus = 'EXPIRED';
+                      } else if (isStandaloneSos || isAlert) {
+                        displayStatus = 'ALERT';
+                      } else if (isExtended) {
+                        displayStatus = 'EXTENDED';
+                      } else if (isCancelled) {
+                        displayStatus = 'CANCELLED';
+                      } else {
+                        displayStatus = trip.status.toUpperCase();
+                      }
+
+                      if (isStandaloneSos) {
+                        displayTitle = 'Emergency Alert';
+                        displayDuration = 'Manual SOS';
+                      } else {
+                        displayTitle = trip.destination;
+                        final mins = trip.durationMinutes;
+                        if (mins == 0) {
+                           displayDuration = 'Duration: <1 min';
+                        } else if (mins < 60) {
+                           displayDuration = 'Duration: $mins min${mins > 1 ? 's' : ''}';
+                        } else {
+                           final hr = mins ~/ 60;
+                           final m = mins % 60;
+                           displayDuration = 'Duration: $hr hr${hr > 1 ? 's' : ''}${m > 0 ? ' $m min${m > 1 ? 's' : ''}' : ''}';
+                        }
+                      }
+
+                      final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                      final h = trip.timestamp.hour;
+                      final min = trip.timestamp.minute.toString().padLeft(2, '0');
+                      final amPm = h >= 12 ? 'PM' : 'AM';
+                      final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+                      final displayDate = '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year} • $hour12:$min $amPm';
+
                       Color bBgColor;
                       Color bTextColor;
-
-                      if (['completed', 'arrived', 'arrived safely'].contains(trip.status.toLowerCase())) {
-                        iconStr = AppIcons.check;
-                        semIcon = Icons.check_rounded;
-                        iColor = const Color(0xFF10B981);
-                        iBgColor = const Color(0xFFD1FAE5);
+                      if (displayStatus == 'ARRIVED') {
                         bBgColor = const Color(0xFFD1FAE5);
                         bTextColor = const Color(0xFF10B981);
-                      } else if (['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired'].contains(trip.status.toLowerCase())) {
-                        iconStr = AppIcons.warning;
-                        semIcon = Icons.warning_amber_rounded;
-                        iColor = const Color(0xFFDB2B38);
-                        iBgColor = const Color(0xFFFFDAD8);
+                      } else if (displayStatus == 'EXPIRED' || displayStatus == 'ALERT') {
                         bBgColor = const Color(0xFFFFDAD8);
                         bTextColor = const Color(0xFFDB2B38);
                       } else {
-                        iconStr = AppIcons.schedule;
-                        semIcon = Icons.schedule_rounded;
-                        iColor = const Color(0xFFD97706);
-                        iBgColor = const Color(0xFFFEF3C7);
                         bBgColor = const Color(0xFFFEF3C7);
                         bTextColor = const Color(0xFFD97706);
                       }
 
-                      final months = [
-                        'Jan',
-                        'Feb',
-                        'Mar',
-                        'Apr',
-                        'May',
-                        'Jun',
-                        'Jul',
-                        'Aug',
-                        'Sep',
-                        'Oct',
-                        'Nov',
-                        'Dec',
-                      ];
-                      final dateStr =
-                          '${months[trip.timestamp.month - 1]} ${trip.timestamp.day} | ${trip.durationMinutes} mins';
-
                       return TripListItem(
-                        icon: iconStr,
-                        semanticIcon: semIcon,
-                        iconColor: iColor,
-                        iconBgColor: iBgColor,
-                        title: trip.destination,
-                        subtitle: dateStr,
-                        status: trip.status,
+                        title: displayTitle,
+                        subtitle: displayDate,
+                        durationOrSos: displayDuration,
+                        status: displayStatus,
                         badgeBgColor: bBgColor,
                         badgeTextColor: bTextColor,
                       );
@@ -705,49 +718,28 @@ class RecentTripsList extends StatelessWidget {
 class TripListItem extends StatelessWidget {
   const TripListItem({
     super.key,
-    required this.icon,
-    required this.semanticIcon,
-    required this.iconColor,
-    required this.iconBgColor,
     required this.title,
     required this.subtitle,
     required this.status,
     required this.badgeBgColor,
     required this.badgeTextColor,
+    this.durationOrSos,
   });
 
-  final String icon;
-  final IconData semanticIcon;
-  final Color iconColor;
-  final Color iconBgColor;
   final String title;
   final String subtitle;
   final String status;
   final Color badgeBgColor;
   final Color badgeTextColor;
+  final String? durationOrSos;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: AppIcon.standard(
-              icon,
-              size: 20,
-              color: iconColor,
-              semanticIcon: semanticIcon,
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -755,22 +747,31 @@ class TripListItem extends StatelessWidget {
                 Text(
                   title,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.header,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.body,
                   ),
                 ),
+                if (durationOrSos != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    durationOrSos!,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                    ),
+                  ),
+                ]
               ],
             ),
           ),
@@ -785,7 +786,7 @@ class TripListItem extends StatelessWidget {
               status,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11.5,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 color: badgeTextColor,
               ),
             ),
