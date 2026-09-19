@@ -36,7 +36,7 @@ class FirebaseService {
           destination: data['destination'] ?? 'Unknown',
           durationMinutes: data['estimatedTravelMinutes'] ?? 0,
           status: data['status'] ?? 'Unknown',
-          timestamp: _parseDateSafely(data['startedAt']),
+          timestamp: _parseDateSafely(data['completedAt'] ?? data['startedAt']),
           wasExtended: data['wasExtended'] as bool? ?? false,
         );
       }).toList();
@@ -103,7 +103,7 @@ class FirebaseService {
               destination: data['destination'] ?? 'Unknown',
               durationMinutes: data['estimatedTravelMinutes'] ?? 0,
               status: data['status'] ?? 'Unknown',
-              timestamp: _parseDateSafely(data['startedAt']),
+              timestamp: _parseDateSafely(data['completedAt'] ?? data['startedAt']),
               wasExtended: data['wasExtended'] as bool? ?? false,
             );
           }).toList();

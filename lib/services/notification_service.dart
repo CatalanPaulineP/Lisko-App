@@ -271,26 +271,16 @@ class NotificationService {
         >()
         ?.createNotificationChannel(tripChannel);
 
-    final Int64List alarmVibrationPattern = Int64List.fromList([
-      0,
-      1000,
-      500,
-      1000,
-      500,
-      1000,
-      500,
-      1000,
-    ]);
 
     // Max-priority alarm channel - high importance for heads-up presentation.
     final AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
-      'lisko_alarm_channel',
+      'lisko_alarm_channel_v2',
       'LisKo Travel Reminder',
       description: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       // Re-enabled system vibration because Dart background timers fail to vibrate when the screen is off.
-      enableVibration: true,
-      vibrationPattern: alarmVibrationPattern,
+      enableVibration: false,
+
       playSound: true,
       showBadge: true,
     );
@@ -330,24 +320,14 @@ class NotificationService {
 
   Future<void> showTimeoutAlarm(String destination) async {
     final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_alarm_channel',
+      'lisko_alarm_channel_v2',
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.max,
       ongoing: false,
       autoCancel: false,
-      enableVibration: true,
-      vibrationPattern: Int64List.fromList([
-        0,
-        1000,
-        500,
-        1000,
-        500,
-        1000,
-        500,
-        1000,
-      ]),
+      enableVibration: false,
       playSound: true,
       styleInformation: BigTextStyleInformation(
         'Did you arrive safely at $destination?',
@@ -383,24 +363,14 @@ class NotificationService {
 
   Future<void> showArrivalAlarm(String destination) async {
     final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_alarm_channel',
+      'lisko_alarm_channel_v2',
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.max,
       ongoing: false,
       autoCancel: false,
-      enableVibration: true,
-      vibrationPattern: Int64List.fromList([
-        0,
-        1000,
-        500,
-        1000,
-        500,
-        1000,
-        500,
-        1000,
-      ]),
+      enableVibration: false,
       playSound: true,
       styleInformation: BigTextStyleInformation(
         'Did you arrive safely at $destination?',
@@ -440,7 +410,7 @@ class NotificationService {
     bool isManualSos = false,
   }) async {
     final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_alarm_channel',
+      'lisko_alarm_channel_v2',
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
@@ -495,7 +465,7 @@ class NotificationService {
 
   Future<void> showSimpleTestNotification() async {
     final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_alarm_channel',
+      'lisko_alarm_channel_v2',
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,

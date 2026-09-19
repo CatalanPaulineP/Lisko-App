@@ -35,6 +35,7 @@ import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/local_storage_service.dart';
 import 'services/notification_service.dart';
+import 'services/background_service_setup.dart';
 
 export 'constants/app_colors.dart';
 export 'constants/app_icons.dart';
@@ -47,6 +48,7 @@ export 'widgets/widgets.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService().initialize();
+  await initializeBackgroundService();
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,

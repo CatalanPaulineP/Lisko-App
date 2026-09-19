@@ -31,8 +31,8 @@ import 'package:flutter/material.dart';
 import 'times_up_screen.dart';
 import 'package:geolocator/geolocator.dart';
 
-
 import 'package:vibration/vibration.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import '../services/local_storage_service.dart';
 import '../services/firebase_service.dart';
 import '../services/notification_service.dart';
@@ -104,6 +104,26 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       FirebaseService().refreshLocalTrips();
+      
+      if ((isTimeoutWarning || isArrived) && safetyCheckDeadline != null) {
+        final now = DateTime.now();
+        if (now.isBefore(safetyCheckDeadline!)) {
+          final rem = safetyCheckDeadline!.difference(now).inSeconds;
+          final elapsed = 90 - rem;
+          if (elapsed >= 0 && elapsed < 90) {
+            _triggerVibrationPattern(elapsed);
+          }
+        } else {
+          if (!_isEscalating) {
+            try {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            } catch (_) {}
+            _escalateEmergencyAlert(isManualSos: false);
+          }
+        }
+      }
     }
   }
 
@@ -142,7 +162,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if ((isArrived || isTimeout) && safetyCheckDeadline != null) {
       if (now.isAfter(safetyCheckDeadline!)) {
         // Already expired while app was closed
-        _escalateEmergencyAlert(isManualSos: false);
+        if (!_isEscalating) {
+          _escalateEmergencyAlert(isManualSos: false);
+        }
       } else {
         if (isTimeout) {
           timeoutCountdown = safetyCheckDeadline!.difference(now).inSeconds;
@@ -359,24 +381,37 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final alertMode = await storage.readAlertMode();
     if (alertMode == 'Silent') return;
 
+    List<bool> activeSeconds = [];
+    for (int sec = 0; sec < 90; sec++) {
+      bool inActiveBlock = (sec >= 0 && sec < 20) || (sec >= 30 && sec < 50) || (sec >= 60 && sec < 80);
+      bool isPulseVibrate = (sec % 4) < 2; // 2s on, 2s off
+      activeSeconds.add(inActiveBlock && isPulseVibrate);
+    }
+
+    if (initialElapsed >= 90) return;
+    List<bool> remaining = activeSeconds.sublist(initialElapsed);
+
     List<int> pattern = [];
-    for (int sec = initialElapsed; sec < 90; sec++) {
-      bool isActive = (sec >= 0 && sec < 20) || (sec >= 30 && sec < 50) || (sec >= 60 && sec < 80);
-      if (isActive) {
-        if (sec == initialElapsed) {
-          pattern.add(0); pattern.add(500);
-        } else {
-          pattern.add(500); pattern.add(500);
-        }
+    int currentDuration = 0;
+    bool currentState = false; 
+
+    for (int i = 0; i < remaining.length; i++) {
+      if (remaining[i] == currentState) {
+        currentDuration += 1000;
       } else {
-        if (sec == initialElapsed) {
-          pattern.add(1000); pattern.add(0);
-        } else {
-          pattern.add(1000); pattern.add(0);
-        }
+        pattern.add(currentDuration);
+        currentState = remaining[i];
+        currentDuration = 1000;
       }
     }
-    Vibration.vibrate(pattern: pattern);
+    
+    if (currentState == true) {
+      pattern.add(currentDuration);
+    }
+    
+    if (pattern.isNotEmpty) {
+      Vibration.vibrate(pattern: pattern);
+    }
   }
 
   void _startArrivalCountdownTimer() {
@@ -395,8 +430,14 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final now = DateTime.now();
       if (safetyCheckDeadline != null && now.isAfter(safetyCheckDeadline!)) {
         _arrivalTimer?.cancel();
-        if (Navigator.of(context).canPop()) Navigator.of(context).popUntil((route) => route.isFirst);
-        _escalateEmergencyAlert(isManualSos: false);
+        if (!_isEscalating) {
+          try {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
+          } catch (_) {}
+          _escalateEmergencyAlert(isManualSos: false);
+        }
       } else if (safetyCheckDeadline != null) {
         final rem = safetyCheckDeadline!.difference(now).inSeconds;
         setState(() => arrivalCountdown = rem);
@@ -425,6 +466,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tripStartedAt = now;
       selectedTab = 0;
     });
+
+    FlutterBackgroundService().startService();
 
     const LocalStorageService().saveActiveTrip(
       isActive: true,
@@ -491,8 +534,14 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final now = DateTime.now();
       if (safetyCheckDeadline != null && now.isAfter(safetyCheckDeadline!)) {
         _arrivalTimer?.cancel();
-        if (Navigator.of(context).canPop()) Navigator.of(context).popUntil((route) => route.isFirst);
-        _escalateEmergencyAlert(isManualSos: false);
+        if (!_isEscalating) {
+          try {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
+          } catch (_) {}
+          _escalateEmergencyAlert(isManualSos: false);
+        }
       } else if (safetyCheckDeadline != null) {
         final rem = safetyCheckDeadline!.difference(now).inSeconds;
         setState(() => timeoutCountdown = rem);
@@ -683,6 +732,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isEscalating) return;
     if (!isManualSos && _isPreparingSos) return; // Prevent timeouts from clashing with the 5-sec SOS countdown
     _isEscalating = true;
+    Vibration.cancel();
     
     try {
       double? lat;
@@ -746,13 +796,13 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           );
         }
         debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
-        NotificationService().showEmergencySentNotification(sentList, permissionDenied: false);
+        await NotificationService().showEmergencySentNotification(sentList, permissionDenied: false);
       } catch (e) {
         if (e.toString().contains('SMS_PERMISSION_DENIED')) {
           permissionDenied = true;
-          NotificationService().showEmergencySentNotification([], permissionDenied: true);
+          await NotificationService().showEmergencySentNotification([], permissionDenied: true);
         } else {
-          NotificationService().showEmergencySentNotification([], permissionDenied: false);
+          await NotificationService().showEmergencySentNotification([], permissionDenied: false);
         }
       }
       
@@ -781,7 +831,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         destination: eventDestination,
         durationMinutes: totalDuration.inMinutes,
         status: eventType,
-        timestamp: tripStartedAt ?? DateTime.now(),
+        timestamp: DateTime.now(),
       );
       await storage.saveTripHistory([...history, newTrip]);
       FirebaseService().refreshLocalTrips();
@@ -817,17 +867,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       debugPrint('[Cleanup] All location monitoring stopped after emergency.');
 
       if (mounted) {
-        setState(() {
-          tripActive = false;
-          isArrived = false;
-          remaining = Duration.zero;
-          arrivalCountdown = 90;
-          expectedArrivalAt = null;
-          safetyCheckDeadline = null;
-          tripId = '';
-          tripStartedAt = null;
-        });
-
         final msgType = isManualSos ? "Manual SOS" : "Timer expiry";
         final statusMessage = permissionDenied 
             ? "Failed to request $msgType SMS (Permission Denied)."
@@ -848,9 +887,19 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } finally {
       if (mounted) {
         setState(() {
+          tripActive = false;
+          isArrived = false;
+          isTimeoutWarning = false;
           _isEscalating = false;
+          remaining = Duration.zero;
+          arrivalCountdown = 90;
+          expectedArrivalAt = null;
+          safetyCheckDeadline = null;
+          tripId = '';
+          tripStartedAt = null;
         });
       }
+      FlutterBackgroundService().invoke('stopService');
     }
   }
 
@@ -874,7 +923,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         destination: destination,
         durationMinutes: totalDuration.inMinutes,
         status: safe ? 'Arrived Safely' : 'Cancelled',
-        timestamp: tripStartedAt ?? DateTime.now(),
+        timestamp: DateTime.now(),
       );
       await storage.saveTripHistory([...history, newTrip]);
       FirebaseService().refreshLocalTrips();
@@ -904,6 +953,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tripId = '';
       tripStartedAt = null;
     });
+
+    FlutterBackgroundService().invoke('stopService');
   }
 
   void _extendTrip() {
