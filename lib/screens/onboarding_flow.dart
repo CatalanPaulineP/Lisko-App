@@ -27,7 +27,9 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../services/phone_contact_service.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -170,38 +172,57 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   final List<ContactPerson> savedContacts = [];
 
   Future<void> _openContactsImport() async {
-    // Show custom modal to inform user what's happening (no system permission required for ACTION_PICK)
+    // 1. Show custom rationale modal first
     final allowed = await showDialog<bool>(
       context: context,
       builder: (_) => const ContactsPermissionModal(),
     );
     if (!mounted || allowed != true) return;
 
-    try {
-      final FlutterNativeContactPicker contactPicker = FlutterNativeContactPicker();
-      final contact = await contactPicker.selectContact();
-      
-      if (!mounted || contact == null) return;
-      
-      final phoneNumbers = contact.phoneNumbers;
-      if (phoneNumbers == null || phoneNumbers.isEmpty) return;
-      
-      final newContact = ContactPerson(
-        name: contact.fullName ?? 'Unknown',
-        phone: phoneNumbers.first,
-        initials: (contact.fullName != null && contact.fullName!.isNotEmpty) ? contact.fullName!.substring(0, 1).toUpperCase() : '?',
-      );
+    // 2. Check current system permission status
+    final status = await Permission.contacts.status;
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Contacts permission is permanently denied. Please enable it in settings.'),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: () => openAppSettings(),
+            ),
+          ),
+        );
+      }
+      return;
+    }
 
+    // 3. Request native Android permission
+    final requested = await Permission.contacts.request();
+    if (!requested.isGranted) return;
+
+    if (!mounted) return;
+
+    // 4. Proceed to selection
+    final ContactPerson? selected = await showModalBottomSheet<ContactPerson>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ContactSelectionBottomSheet(
+        onContactSelected: (contact) => Navigator.pop(ctx, contact),
+      ),
+    );
+
+    if (selected != null && mounted) {
       final result = await showModalBottomSheet<dynamic>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => SelectRelationshipBottomSheet(contact: newContact),
+        builder: (_) => SelectRelationshipBottomSheet(contact: selected),
       );
       if (mounted && result != null) {
         final finalContact = result is ContactPerson
             ? result
-            : newContact.copyWith(relationship: 'Mother');
+            : selected.copyWith(relationship: 'Mother');
         setState(() => savedContacts.add(finalContact));
         
         // Save to local storage immediately
@@ -210,8 +231,6 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         currentSaved.add(finalContact);
         await storage.saveContacts(currentSaved);
       }
-    } catch (e) {
-      debugPrint('Failed to pick contact: $e');
     }
   }
 
@@ -1739,33 +1758,98 @@ class ContactsPermissionModal extends StatelessWidget {
   }
 }
 
-class ContactSelectionBottomSheet extends StatelessWidget {
+class ContactSelectionBottomSheet extends StatefulWidget {
   const ContactSelectionBottomSheet({super.key, this.onContactSelected});
 
   final ValueChanged<ContactPerson>? onContactSelected;
 
-  static const contacts = [
-    ContactPerson(
-      name: 'Maria Santos',
-      phone: '+63 917 123 4567',
-      initials: 'MS',
-    ),
-    ContactPerson(
-      name: 'Juan Dela Cruz',
-      phone: '+63 905 456 7890',
-      initials: 'JD',
-    ),
-    ContactPerson(
-      name: 'Ana Reyes',
-      phone: '+63 918 222 3344',
-      initials: 'AR',
-    ),
-  ];
+  @override
+  State<ContactSelectionBottomSheet> createState() => _ContactSelectionBottomSheetState();
+}
+
+class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomSheet> {
+  final PhoneContactService _contactService = PhoneContactService();
+  final TextEditingController _searchController = TextEditingController();
+  
+  List<Contact>? _allContacts;
+  List<Contact>? _filteredContacts;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadContacts() async {
+    try {
+      final contacts = await _contactService.fetchContacts();
+      if (mounted) {
+        setState(() {
+          _allContacts = contacts;
+          _filteredContacts = contacts;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load contacts. Please ensure permission is granted.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _onSearchChanged() {
+    if (_allContacts == null) return;
+    setState(() {
+      _filteredContacts = _contactService.filterContacts(_allContacts!, _searchController.text);
+    });
+  }
+
+  Future<void> _handleContactTap(Contact contact) async {
+    String? selectedPhone;
+
+    if (contact.phones.length == 1) {
+      selectedPhone = contact.phones.first.number;
+    } else {
+      // Multiple numbers: show selection modal
+      selectedPhone = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => NumberSelectionBottomSheet(contact: contact),
+      );
+    }
+
+    if (selectedPhone != null && mounted) {
+      final normalizedPhone = PhoneContactService.normalizePhoneNumber(selectedPhone);
+      final initials = ContactPerson.computeInitials(contact.displayName);
+      
+      widget.onContactSelected?.call(ContactPerson(
+        name: contact.displayName,
+        phone: normalizedPhone,
+        initials: initials,
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
       decoration: const BoxDecoration(
         color: AppColors.canvas,
@@ -1814,75 +1898,27 @@ class ContactSelectionBottomSheet extends StatelessWidget {
               'Select a contact to import',
               style: TextStyle(fontSize: 14, color: AppColors.body),
             ),
-            const SizedBox(height: 20),
-            ...contacts.map(
-              (contact) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Material(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    onTap: () => onContactSelected?.call(contact),
-                    borderRadius: BorderRadius.circular(14),
-                    child: Padding(
-                      padding: const EdgeInsets.all(13),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primaryContainer,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                contact.initials,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  contact.name,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.header,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  contact.phone,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.body,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const AppIcon.badge(
-                            AppIcons.chevronRight,
-                            color: AppColors.body,
-                            semanticIcon: Icons.chevron_right_rounded,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+            const SizedBox(height: 16),
+            // Search Bar
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search contacts...',
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.body),
+                filled: true,
+                fillColor: AppColors.card,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _buildContent(),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -1900,6 +1936,221 @@ class ContactSelectionBottomSheet extends StatelessWidget {
                   ),
                 ),
                 child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Text(
+          _errorMessage!,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.body),
+        ),
+      );
+    }
+
+    if (_filteredContacts == null || _filteredContacts!.isEmpty) {
+      return const Center(
+        child: Text(
+          'No contacts found',
+          style: TextStyle(color: AppColors.body),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _filteredContacts!.length,
+      itemBuilder: (context, index) {
+        final contact = _filteredContacts![index];
+        final initials = ContactPerson.computeInitials(contact.displayName);
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Material(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: () => _handleContactTap(contact),
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.all(13),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            contact.displayName,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.header,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            contact.phones.length == 1 
+                              ? contact.phones.first.number 
+                              : '${contact.phones.length} phone numbers',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.body,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const AppIcon.badge(
+                      AppIcons.chevronRight,
+                      color: AppColors.body,
+                      semanticIcon: Icons.chevron_right_rounded,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class NumberSelectionBottomSheet extends StatelessWidget {
+  const NumberSelectionBottomSheet({super.key, required this.contact});
+
+  final Contact contact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+      decoration: const BoxDecoration(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Align(
+              alignment: Alignment.topCenter,
+              child: Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppColors.borderSubtle,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Select Phone Number',
+              style: TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w800,
+                color: AppColors.header,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Choose a number for ${contact.displayName}',
+              style: const TextStyle(fontSize: 14, color: AppColors.body),
+            ),
+            const SizedBox(height: 20),
+            ...contact.phones.map((phone) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Material(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  onTap: () => Navigator.pop(context, phone.number),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.phone_rounded, color: AppColors.primary, size: 20),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            phone.number,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.header,
+                            ),
+                          ),
+                        ),
+                        if (phone.label != PhoneLabel.mobile)
+                          Text(
+                            phone.label.toString().split('.').last.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.body,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            )),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  backgroundColor: AppColors.border,
+                  foregroundColor: AppColors.body,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                child: const Text('Back'),
               ),
             ),
           ],

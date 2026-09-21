@@ -30,8 +30,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
-import 'package:flutter_native_contact_picker/model/contact.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
@@ -94,31 +93,66 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
-  final FlutterNativeContactPicker _contactPicker = FlutterNativeContactPicker();
 
   Future<void> _openImportModal() async {
-    try {
-      final Contact? contact = await _contactPicker.selectContact();
-      if (contact != null && contact.phoneNumbers != null && contact.phoneNumbers!.isNotEmpty) {
-        final String name = contact.fullName ?? 'Unknown';
-        final String phone = contact.phoneNumbers!.first;
-        final String initials = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    // 1. Show custom rationale modal first
+    final allowed = await showDialog<bool>(
+      context: context,
+      builder: (_) => const ContactsPermissionModal(),
+    );
+    if (!mounted || allowed != true) return;
 
-        final imported = ContactPerson(
-          name: name,
-          phone: phone,
-          initials: initials,
-          relationship: 'Other',
+    // 2. Check current system permission status
+    final status = await Permission.contacts.status;
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Contacts permission is permanently denied. Please enable it in settings.'),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: () => openAppSettings(),
+            ),
+          ),
         );
+      }
+      return;
+    }
 
+    // 3. Request native Android permission
+    final requested = await Permission.contacts.request();
+    if (!requested.isGranted) return;
+
+    if (!mounted) return;
+
+    // 4. Proceed to selection
+    final ContactPerson? selected = await showModalBottomSheet<ContactPerson>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ContactSelectionBottomSheet(
+        onContactSelected: (contact) => Navigator.pop(ctx, contact),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      // Step 2: Select Relationship
+      final ContactPerson? confirmed = await showModalBottomSheet<ContactPerson>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => SelectRelationshipBottomSheet(contact: selected),
+      );
+
+      if (confirmed != null && mounted) {
         final updated = List<ContactPerson>.from(_contacts);
-        if (!updated.any((c) => c.phone == imported.phone)) {
-          updated.add(imported);
+        if (!updated.any((c) => c.phone == confirmed.phone)) {
+          updated.add(confirmed);
           _updateContacts(updated);
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Imported $name successfully')),
+              SnackBar(content: Text('Imported ${confirmed.name} successfully')),
             );
           }
         } else {
@@ -129,8 +163,6 @@ class _ContactsTabState extends State<ContactsTab> {
           }
         }
       }
-    } catch (e) {
-      debugPrint('Failed to pick contact: $e');
     }
   }
 

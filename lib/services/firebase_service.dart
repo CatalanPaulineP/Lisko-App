@@ -192,7 +192,7 @@ class FirebaseService {
         'latitude': latitude,
         'longitude': longitude,
         'emergencyType': emergencyType, // e.g., 'SOS', 'TIMEOUT_ESCALATION'
-        'triggeredAt': FieldValue.serverTimestamp(),
+        'triggeredAt': Timestamp.fromDate(DateTime.now()),
         'status': 'active',
       });
       

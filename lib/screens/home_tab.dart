@@ -27,6 +27,9 @@ import '../constants/app_icons.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/system_status_card.dart';
 import '../widgets/trip_timer_card.dart';
+import '../services/firebase_service.dart';
+import '../services/local_storage_service.dart';
+import 'trips_tab.dart';
 
 /// Home dashboard view containing the hero header, trip launcher, and status indicators.
 class HomeDashboardTab extends StatelessWidget {
@@ -270,15 +273,35 @@ class _HomeStartButtonState extends State<HomeStartButton> {
 }
 
 /// Summary of today's active or previous travel activity.
-class TodayActivity extends StatelessWidget {
+class TodayActivity extends StatefulWidget {
   const TodayActivity({super.key});
 
   @override
+  State<TodayActivity> createState() => _TodayActivityState();
+}
+
+class _TodayActivityState extends State<TodayActivity> {
+  late final Stream<List<TripRecord>> _tripsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _tripsStream = FirebaseService().getTripsStream();
+    
+    // Fix: When returning Home from the Trips tab, this widget is rebuilt with a new StreamBuilder.
+    // Since FirebaseService's stream is a broadcast stream, new listeners won't automatically 
+    // receive the last emitted event if the stream was already active. By explicitly invoking 
+    // refreshLocalTrips(), we force the stream to emit a fresh state immediately, 
+    // guaranteeing the loading spinner is dismissed without breaking the Trips tab.
+    FirebaseService().refreshLocalTrips();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           "TODAY'S ACTIVITY",
           style: TextStyle(
             fontSize: 11,
@@ -287,21 +310,144 @@ class TodayActivity extends StatelessWidget {
             color: AppColors.body,
           ),
         ),
-        SizedBox(height: 9),
-        DashboardCard(
-          child: Row(
-            children: [
-              Text('•', style: TextStyle(fontSize: 16, color: AppColors.body)),
-              SizedBox(width: 8),
-              Text(
-                'No active trip recorded',
-                style: TextStyle(fontSize: 13, color: AppColors.body),
+        const SizedBox(height: 9),
+        StreamBuilder<List<TripRecord>>(
+          stream: _tripsStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              return const DashboardCard(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            final trips = snapshot.data ?? [];
+            final now = DateTime.now();
+            final todayStart = DateTime(now.year, now.month, now.day);
+            final tomorrowStart = todayStart.add(const Duration(days: 1));
+
+            final todaysTrips = trips.where((t) => t.timestamp.isAfter(todayStart.subtract(const Duration(milliseconds: 1))) && t.timestamp.isBefore(tomorrowStart)).toList();
+
+            if (todaysTrips.isEmpty) {
+              return const DashboardCard(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'No trips recorded today',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.header,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Start a trip to see your activity here.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.body,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // If there are trips today, take the most recent one (since the list is already newest-first)
+            final trip = todaysTrips.first;
+            final statusLower = trip.status.toLowerCase();
+            
+            String displayStatus;
+            String displayTitle;
+            String? displayDuration;
+
+            bool isStandaloneSos = (statusLower == 'alert' && trip.destination == 'Manual SOS') || statusLower == 'manual sos';
+            bool isExpired = statusLower == 'expired' || statusLower == 'timer expired';
+            bool isArrived = ['completed', 'arrived', 'arrived safely'].contains(statusLower);
+            bool isAlert = ['alert', 'help_requested', 'need help'].contains(statusLower);
+            bool isExtended = trip.wasExtended || ['extended', 'trip extended'].contains(statusLower);
+            bool isCancelled = statusLower == 'cancelled';
+
+            if (isArrived) {
+              displayStatus = 'ARRIVED';
+            } else if (isExpired) {
+              displayStatus = 'EXPIRED';
+            } else if (isStandaloneSos || isAlert) {
+              displayStatus = 'ALERT';
+            } else if (isExtended) {
+              displayStatus = 'EXTENDED';
+            } else if (isCancelled) {
+              displayStatus = 'CANCELLED';
+            } else {
+              displayStatus = trip.status.toUpperCase();
+            }
+
+            if (isStandaloneSos) {
+              displayTitle = 'Emergency Alert';
+              displayDuration = 'Manual SOS';
+            } else {
+              displayTitle = trip.destination;
+              final mins = trip.durationMinutes;
+              if (mins == 0) {
+                 displayDuration = 'Duration: <1 min';
+              } else if (mins < 60) {
+                 displayDuration = 'Duration: $mins min${mins > 1 ? 's' : ''}';
+              } else {
+                 final hr = mins ~/ 60;
+                 final m = mins % 60;
+                 displayDuration = 'Duration: $hr hr${hr > 1 ? 's' : ''}${m > 0 ? ' $m min${m > 1 ? 's' : ''}' : ''}';
+              }
+            }
+
+            final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            final h = trip.timestamp.hour;
+            final min = trip.timestamp.minute.toString().padLeft(2, '0');
+            final amPm = h >= 12 ? 'PM' : 'AM';
+            final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+            final displayDate = '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year} • $hour12:$min $amPm';
+
+            Color bBgColor;
+            Color bTextColor;
+            if (displayStatus == 'ARRIVED') {
+              bBgColor = const Color(0xFFD1FAE5);
+              bTextColor = const Color(0xFF10B981);
+            } else if (displayStatus == 'EXPIRED' || displayStatus == 'ALERT') {
+              bBgColor = const Color(0xFFFFDAD8);
+              bTextColor = const Color(0xFFDB2B38);
+            } else {
+              bBgColor = const Color(0xFFFEF3C7);
+              bTextColor = const Color(0xFFD97706);
+            }
+
+            return DashboardCard(
+              child: Padding(
+                padding: const EdgeInsets.all(0),
+                child: TripListItem(
+                  title: displayTitle,
+                  subtitle: displayDate,
+                  durationOrSos: displayDuration,
+                  status: displayStatus,
+                  badgeBgColor: bBgColor,
+                  badgeTextColor: bTextColor,
+                ),
               ),
-            ],
-          ),
+            );
+          },
         ),
       ],
     );
   }
 }
-

@@ -249,7 +249,20 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             if (!mounted) return;
             _handleArrivalDetected(target.name);
           },
-          onError: (error) => debugPrint('Geofence tracking notice: $error'),
+          onError: (error) {
+            debugPrint('Geofence tracking notice: $error');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: AppColors.body,
+                  duration: const Duration(seconds: 5),
+                  content: const Text(
+                    'Auto-arrival detection is unavailable for this destination. Your trip timer will continue.',
+                  ),
+                ),
+              );
+            }
+          },
         );
       }
     }
@@ -499,6 +512,17 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       },
       onError: (error) {
         debugPrint('Geofence tracking notice: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.body,
+              duration: const Duration(seconds: 5),
+              content: const Text(
+                'Auto-arrival detection is unavailable for this destination. Your trip timer will continue.',
+              ),
+            ),
+          );
+        }
       },
     );
 
@@ -738,6 +762,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       double? lat;
       double? lng;
       double? acc;
+      String? locError;
 
       try {
         debugPrint('Fetching live location for SMS dispatch...');
@@ -749,13 +774,13 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             debugPrint('Prefetch failed, retrying live location...');
             position = await Geolocator.getCurrentPosition(
               desiredAccuracy: LocationAccuracy.best,
-              timeLimit: const Duration(seconds: 5),
+              timeLimit: const Duration(seconds: 10),
             );
           }
         } else {
           position = await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.best,
-            timeLimit: const Duration(seconds: 5),
+            timeLimit: const Duration(seconds: 10),
           );
         }
         if (position != null && position.latitude != 0) {
@@ -763,22 +788,44 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           lng = position.longitude;
           acc = position.accuracy;
         }
+      } on TimeoutException {
+        locError = 'GPS Timeout';
+      } on PermissionDeniedException {
+        locError = 'Permission Denied';
       } catch (e) {
+        if (e.toString().contains('LocationServiceDisabledException') || e.toString().contains('LocationServicesDisabled')) {
+          locError = 'GPS Disabled';
+        } else {
+          locError = 'Unavailable';
+        }
         debugPrint('Failed to fetch live GPS for emergency escalation: $e');
-        final lastPosition = await Geolocator.getLastKnownPosition();
-        if (lastPosition != null) {
-          lat = lastPosition.latitude;
-          lng = lastPosition.longitude;
-          acc = lastPosition.accuracy;
-        } else if (_cachedActiveTripPosition != null) {
-          lat = _cachedActiveTripPosition!.latitude;
-          lng = _cachedActiveTripPosition!.longitude;
-          acc = _cachedActiveTripPosition!.accuracy;
+      }
+
+      // If live location failed, attempt to fall back to the last known position
+      if (lat == null || lng == null) {
+        try {
+          final lastPosition = await Geolocator.getLastKnownPosition();
+          if (lastPosition != null) {
+            lat = lastPosition.latitude;
+            lng = lastPosition.longitude;
+            acc = lastPosition.accuracy;
+            locError = null; // Cleared because we found a fallback
+          } else if (_cachedActiveTripPosition != null) {
+            lat = _cachedActiveTripPosition!.latitude;
+            lng = _cachedActiveTripPosition!.longitude;
+            acc = _cachedActiveTripPosition!.accuracy;
+            locError = null;
+          } else {
+            locError ??= 'No Cached Loc';
+          }
+        } catch (e) {
+          // If fallback also fails (e.g., due to Permission Denied), keep the previous error string
+          debugPrint('Fallback location also failed: $e');
         }
       }
 
       List<String> sentList = [];
-      bool permissionDenied = false;
+      bool permissionDenied = (locError == 'Permission Denied');
       try {
         debugPrint('Dispatching SMS alert (isManualSos: $isManualSos)...');
         if (isManualSos) {
@@ -786,6 +833,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             latitude: lat,
             longitude: lng,
             accuracy: acc,
+            locationError: locError,
           );
         } else {
           sentList = await _smsAlertService.dispatchEmergencyAlert(
@@ -793,10 +841,11 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             latitude: lat,
             longitude: lng,
             accuracy: acc,
+            locationError: locError,
           );
         }
         debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
-        await NotificationService().showEmergencySentNotification(sentList, permissionDenied: false);
+        await NotificationService().showEmergencySentNotification(sentList, permissionDenied: permissionDenied);
       } catch (e) {
         if (e.toString().contains('SMS_PERMISSION_DENIED')) {
           permissionDenied = true;
@@ -1019,7 +1068,10 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final permService = PermissionService();
     await permService.checkTripRequirements(context);
 
-    // Wait for the user to return if they were sent to OS settings
+    // Wait for the user to return if they were sent to OS settings.
+    // A small delay ensures the OS has time to transition the app to a paused state
+    // before we evaluate the while condition.
+    await Future.delayed(const Duration(milliseconds: 500));
     while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
       await Future.delayed(const Duration(milliseconds: 500));
     }
@@ -1029,16 +1081,25 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _alertScreenOpen = true;
     _isPreparingSos = true; // Lock background timeouts
 
-    // Only attempt live GPS if services are actually enabled to avoid native Google dialog overlapping
+    // Only attempt live GPS if services are actually enabled
     final serviceEnabled = await permService.isLocationServiceEnabled();
     if (serviceEnabled) {
       _prefetchedPositionFuture = Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 10),
+        timeLimit: const Duration(seconds: 30),
       ).catchError((e) {
         debugPrint('Prefetch failed: $e');
         throw e;
       });
+
+      // Fix: The getCurrentPosition call above may trigger the native Android
+      // "For a better experience, turn on device location..." dialog.
+      // This dialog puts the Flutter app into an inactive/paused state.
+      // We MUST wait for this flow to completely finish before showing the countdown.
+      await Future.delayed(const Duration(milliseconds: 500));
+      while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
     } else {
       _prefetchedPositionFuture = Future.error('LocationServicesDisabled');
     }

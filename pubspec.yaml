@@ -22,6 +22,7 @@ dependencies:
   background_sms: ^0.0.4
   flutter_background_service: ^5.1.0
   cloud_firestore: ^6.9.0
+  flutter_contacts: 1.1.9
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1

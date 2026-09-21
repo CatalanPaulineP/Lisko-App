@@ -92,12 +92,12 @@ class ContactPerson {
   /// Automatically computes 1-2 character uppercase initials from a contact's full name.
   /// Handles single names, multi-word names, and empty fallbacks safely.
   static String computeInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty || parts[0].isEmpty) return '??';
     if (parts.length == 1) {
       return parts[0].substring(0, parts[0].length.clamp(1, 2)).toUpperCase();
     }
-    return (parts[0][0] + parts[1][0]).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 }
 

@@ -113,13 +113,6 @@ class GeofenceService {
       longitude: 120.96163959792787,
       radiusMeters: 150.0,
     ),
-    GeofenceTarget(
-      id: 'divine_mercy',
-      name: 'Divine Mercy Parking Lot',
-      latitude: 14.825227768565744,
-      longitude: 120.97022830836544,
-      radiusMeters: 150.0,
-    ),
   ];
 
   StreamSubscription<Position>? _positionSubscription;
@@ -148,8 +141,16 @@ class GeofenceService {
   }
 
   /// Resolves target geofence coordinates based on selected destination name.
-  Future<GeofenceTarget> resolveTarget(String destinationName) async {
+  Future<GeofenceTarget?> resolveTarget(String destinationName) async {
     final normalized = destinationName.trim().toLowerCase();
+
+    // Prefer exact match against commuter nodes
+    for (final node in commuterNodes) {
+      if (normalized == node.name.toLowerCase()) {
+        return node;
+      }
+    }
+
     if (normalized.contains('campus') || normalized.contains('pup') || normalized.contains('school')) {
       return pupSantaMariaCampus;
     }
@@ -166,21 +167,14 @@ class GeofenceService {
     }
 
     for (final node in commuterNodes) {
-      if (normalized == node.name.toLowerCase() ||
-          normalized == node.id.toLowerCase() ||
+      if (normalized == node.id.toLowerCase() ||
           normalized == node.name.split(' ').first.toLowerCase()) {
         return node;
       }
     }
 
-    // For custom destinations, default to Campus or baseline
-    return GeofenceTarget(
-      id: 'custom',
-      name: destinationName,
-      latitude: pupSantaMariaCampus.latitude,
-      longitude: pupSantaMariaCampus.longitude,
-      radiusMeters: 150.0,
-    );
+    // unknown destination - avoid silent fallback to Campus
+    return null;
   }
 
   /// Activates on-demand GPS monitoring when a commute starts.
@@ -196,6 +190,10 @@ class GeofenceService {
     stopMonitoring();
 
     _activeTarget = await resolveTarget(destination);
+    if (_activeTarget == null) {
+      onError?.call('Location monitoring unavailable for this destination');
+      return false;
+    }
     _arrivalDetected = false;
     _isMonitoring = true;
 

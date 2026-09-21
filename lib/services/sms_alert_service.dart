@@ -56,8 +56,9 @@ class SmsAlertService {
     double? latitude,
     double? longitude,
     double? accuracy,
+    String? locationError,
   }) async {
-    String coordText = 'Unknown Loc';
+    String coordText = locationError ?? 'Unavailable';
     String mapLink = '';
     if (latitude != null && longitude != null) {
       final latStr = latitude.toStringAsFixed(6);
@@ -78,9 +79,10 @@ class SmsAlertService {
     double? latitude,
     double? longitude,
     double? accuracy,
+    String? locationError,
     String? customMessage,
   }) async {
-    String coordText = 'Unknown Loc';
+    String coordText = locationError ?? 'Unavailable';
     String mapLink = '';
     if (latitude != null && longitude != null) {
       final latStr = latitude.toStringAsFixed(6);
