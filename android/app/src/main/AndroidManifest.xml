@@ -5,6 +5,10 @@
     <!-- Offline SIM SMS Permissions -->
     <uses-permission android:name="android.permission.SEND_SMS"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+
+    <!-- Ensure app can be installed on devices without telephony hardware (e.g. tablets) -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <!-- On-Demand GPS Location Permissions -->
     <!-- ACCESS_FINE_LOCATION is sufficient; ACCESS_COARSE_LOCATION removed (redundant & unnecessary policy review) -->
