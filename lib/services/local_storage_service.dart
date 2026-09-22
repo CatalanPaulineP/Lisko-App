@@ -172,14 +172,18 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
     }
   }
 
-  /// Reads the Timer Expiry Alert Mode. Defaults to 'Sound & Vibrate'.
+  /// Reads the Timer Expiry Alert Mode. Defaults to 'Vibration Only'.
   Future<String> readAlertMode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_alertModeKey) ?? 'Sound & Vibrate';
+      final val = prefs.getString(_alertModeKey);
+      if (val == 'Sounds & Vibrate' || val == 'Sound & Vibrate') {
+        return 'Sounds & Vibrate';
+      }
+      return 'Vibration Only';
     } catch (e) {
-      developer.log('LocalStorageService: Failed to read alert mode, defaulting to Sound & Vibrate. Error: $e');
-      return 'Sound & Vibrate';
+      developer.log('LocalStorageService: Failed to read alert mode, defaulting to Vibration Only. Error: $e');
+      return 'Vibration Only';
     }
   }
 

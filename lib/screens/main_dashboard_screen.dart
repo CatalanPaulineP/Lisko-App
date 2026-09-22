@@ -42,6 +42,7 @@ import '../services/geofence_service.dart';
 
 import '../services/sms_alert_service.dart';
 import '../services/permission_service.dart';
+import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/set_trip_timer_bottom_sheet.dart';
 import 'active_trip_screen.dart';
@@ -390,10 +391,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
 
   void _triggerVibrationPattern(int initialElapsed) async {
-    final storage = const LocalStorageService();
-    final alertMode = await storage.readAlertMode();
-    if (alertMode == 'Silent') return;
-
     List<bool> activeSeconds = [];
     for (int sec = 0; sec < 90; sec++) {
       bool inActiveBlock = (sec >= 0 && sec < 20) || (sec >= 30 && sec < 50) || (sec >= 60 && sec < 80);
@@ -620,10 +617,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }).catchError((_) {});
 
-    final storage = const LocalStorageService();
-    final alertMode = await storage.readAlertMode();
-    if (alertMode != 'Silent') {
-    }
     NotificationService().cancelPersistentTripNotification();
     NotificationService().showTimeoutAlarm(destination);
 
@@ -698,18 +691,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     _startArrivalCountdownTimer();
 
-    final storage = const LocalStorageService();
-    final alertMode = await storage.readAlertMode();
-    
-    if (alertMode != 'Silent') {
-      // Arm the cancellation flag BEFORE starting the loop so the first
-      // guard check inside _runVibrateLoop sees an active alarm state.
-      // Pulsing vibration loop: 3 outer cycles × (20s pulse window + 10s silent) = 90s.
-      // Each 20s window is itself a rapid zz-zz-zz pulse (500ms on / 500ms off).
-      // which causes the next await in the loop to abort before the next burst.
-      // _runVibrateLoop removed; vibration handled in Timer
-    }
-
     NotificationService().cancelPersistentTripNotification();
     NotificationService().showArrivalAlarm(destinationName);
 
@@ -764,65 +745,15 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       double? acc;
       String? locError;
 
-      try {
-        debugPrint('Fetching live location for SMS dispatch...');
-        Position? position;
-        if (isManualSos && _prefetchedPositionFuture != null) {
-          try {
-            position = await _prefetchedPositionFuture;
-          } catch (e) {
-            debugPrint('Prefetch failed, retrying live location...');
-            position = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.best,
-              timeLimit: const Duration(seconds: 10),
-            );
-          }
-        } else {
-          position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.best,
-            timeLimit: const Duration(seconds: 10),
-          );
-        }
-        if (position != null && position.latitude != 0) {
-          lat = position.latitude;
-          lng = position.longitude;
-          acc = position.accuracy;
-        }
-      } on TimeoutException {
-        locError = 'GPS Timeout';
-      } on PermissionDeniedException {
-        locError = 'Permission Denied';
-      } catch (e) {
-        if (e.toString().contains('LocationServiceDisabledException') || e.toString().contains('LocationServicesDisabled')) {
-          locError = 'GPS Disabled';
-        } else {
-          locError = 'Unavailable';
-        }
-        debugPrint('Failed to fetch live GPS for emergency escalation: $e');
-      }
+      // Acquire emergency location using shared LocationService
+      final locResult = await LocationService().acquireEmergencyLocation(
+        cachedTripPosition: _cachedActiveTripPosition,
+      );
 
-      // If live location failed, attempt to fall back to the last known position
-      if (lat == null || lng == null) {
-        try {
-          final lastPosition = await Geolocator.getLastKnownPosition();
-          if (lastPosition != null) {
-            lat = lastPosition.latitude;
-            lng = lastPosition.longitude;
-            acc = lastPosition.accuracy;
-            locError = null; // Cleared because we found a fallback
-          } else if (_cachedActiveTripPosition != null) {
-            lat = _cachedActiveTripPosition!.latitude;
-            lng = _cachedActiveTripPosition!.longitude;
-            acc = _cachedActiveTripPosition!.accuracy;
-            locError = null;
-          } else {
-            locError ??= 'No Cached Loc';
-          }
-        } catch (e) {
-          // If fallback also fails (e.g., due to Permission Denied), keep the previous error string
-          debugPrint('Fallback location also failed: $e');
-        }
-      }
+      lat = locResult.latitude;
+      lng = locResult.longitude;
+      acc = locResult.accuracy;
+      locError = locResult.locationError;
 
       List<String> sentList = [];
       bool permissionDenied = (locError == 'Permission Denied');
@@ -1060,8 +991,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   bool _isPreparingSos = false;
 
-  Future<Position?>? _prefetchedPositionFuture;
-
   void _triggerEmergencyFlow({bool immediate = false}) async {
     if (_alertScreenOpen || _isPreparingSos) return;
 
@@ -1081,27 +1010,14 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _alertScreenOpen = true;
     _isPreparingSos = true; // Lock background timeouts
 
-    // Only attempt live GPS if services are actually enabled
+    // Check location service status before showing emergency countdown
     final serviceEnabled = await permService.isLocationServiceEnabled();
     if (serviceEnabled) {
-      _prefetchedPositionFuture = Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 30),
-      ).catchError((e) {
-        debugPrint('Prefetch failed: $e');
-        throw e;
-      });
-
-      // Fix: The getCurrentPosition call above may trigger the native Android
-      // "For a better experience, turn on device location..." dialog.
-      // This dialog puts the Flutter app into an inactive/paused state.
-      // We MUST wait for this flow to completely finish before showing the countdown.
+      // Small pause check if native location dialog appears
       await Future.delayed(const Duration(milliseconds: 500));
       while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
         await Future.delayed(const Duration(milliseconds: 500));
       }
-    } else {
-      _prefetchedPositionFuture = Future.error('LocationServicesDisabled');
     }
 
     if (!mounted) return;

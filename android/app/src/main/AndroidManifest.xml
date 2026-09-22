@@ -11,8 +11,8 @@
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <!-- On-Demand GPS Location Permissions -->
-    <!-- ACCESS_FINE_LOCATION is sufficient; ACCESS_COARSE_LOCATION removed (redundant & unnecessary policy review) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <!-- Haptic Vibration & Notification Permissions -->
     <uses-permission android:name="android.permission.VIBRATE"/>

@@ -26,9 +26,9 @@ import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:geolocator/geolocator.dart';
 import 'sms_alert_service.dart';
 import 'local_storage_service.dart';
+import 'location_service.dart';
 import 'firebase_service.dart' as fs;
 
 // ---------------------------------------------------------------------------
@@ -122,30 +122,16 @@ void notificationBackgroundResponseHandler(
     if (actionId == kNotifActionSos) {
       await Future.delayed(const Duration(seconds: 5));
       try {
-        double? lat;
-        double? lng;
-        try {
-          final position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
-            timeLimit: const Duration(seconds: 5),
-          );
-          lat = position.latitude;
-          lng = position.longitude;
-        } catch (e) {
-          final lastPosition = await Geolocator.getLastKnownPosition();
-          if (lastPosition != null) {
-            lat = lastPosition.latitude;
-            lng = lastPosition.longitude;
-          } else {
-            final storage = const LocalStorageService();
-            final data = await storage.readActiveTrip();
-            if (data != null) {
-              lat = (data['cachedLat'] as num?)?.toDouble();
-              lng = (data['cachedLng'] as num?)?.toDouble();
-            }
-          }
-        }
-        await SmsAlertService().sendManualSos(latitude: lat, longitude: lng);
+        final locResult = await LocationService().acquireEmergencyLocation();
+        final lat = locResult.latitude;
+        final lng = locResult.longitude;
+
+        await SmsAlertService().sendManualSos(
+          latitude: lat,
+          longitude: lng,
+          accuracy: locResult.accuracy,
+          locationError: locResult.locationError,
+        );
 
         final storage = const LocalStorageService();
         final data = await storage.readActiveTrip();
@@ -272,15 +258,13 @@ class NotificationService {
         ?.createNotificationChannel(tripChannel);
 
 
-    // Max-priority alarm channel - high importance for heads-up presentation.
-    final AndroidNotificationChannel alarmChannel = AndroidNotificationChannel(
+    // Max-priority alarm channel (Sound & Vibrate) - high importance for heads-up presentation.
+    const AndroidNotificationChannel alarmChannelSound = AndroidNotificationChannel(
       'lisko_alarm_channel_v2',
       'LisKo Travel Reminder',
-      description: 'Arrival reminders and travel safety confirmation',
+      description: 'Arrival reminders and travel safety confirmation with sound',
       importance: Importance.max,
-      // Re-enabled system vibration because Dart background timers fail to vibrate when the screen is off.
       enableVibration: false,
-
       playSound: true,
       showBadge: true,
     );
@@ -288,7 +272,23 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()
-        ?.createNotificationChannel(alarmChannel);
+        ?.createNotificationChannel(alarmChannelSound);
+
+    // Max-priority alarm channel (Vibration Only) - high importance for heads-up presentation without sound.
+    const AndroidNotificationChannel alarmChannelVibrate = AndroidNotificationChannel(
+      'lisko_alarm_vibrate_v1',
+      'LisKo Travel Reminder (Vibration Only)',
+      description: 'Arrival reminders and travel safety confirmation without sound',
+      importance: Importance.max,
+      enableVibration: false,
+      playSound: false,
+      showBadge: true,
+    );
+    await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(alarmChannelVibrate);
   }
 
   // ---------------------------------------------------------------------------
@@ -319,8 +319,12 @@ class NotificationService {
   }
 
   Future<void> showTimeoutAlarm(String destination) async {
+    final alertMode = await const LocalStorageService().readAlertMode();
+    final bool playSound = (alertMode == 'Sounds & Vibrate');
+    final String channelId = playSound ? 'lisko_alarm_channel_v2' : 'lisko_alarm_vibrate_v1';
+
     final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_alarm_channel_v2',
+      channelId,
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
@@ -328,7 +332,7 @@ class NotificationService {
       ongoing: false,
       autoCancel: false,
       enableVibration: false,
-      playSound: true,
+      playSound: playSound,
       styleInformation: BigTextStyleInformation(
         'Did you arrive safely at $destination?',
       ),
@@ -362,8 +366,12 @@ class NotificationService {
   }
 
   Future<void> showArrivalAlarm(String destination) async {
+    final alertMode = await const LocalStorageService().readAlertMode();
+    final bool playSound = (alertMode == 'Sounds & Vibrate');
+    final String channelId = playSound ? 'lisko_alarm_channel_v2' : 'lisko_alarm_vibrate_v1';
+
     final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_alarm_channel_v2',
+      channelId,
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
@@ -371,7 +379,7 @@ class NotificationService {
       ongoing: false,
       autoCancel: false,
       enableVibration: false,
-      playSound: true,
+      playSound: playSound,
       styleInformation: BigTextStyleInformation(
         'Did you arrive safely at $destination?',
       ),
@@ -409,12 +417,17 @@ class NotificationService {
     bool permissionDenied = false,
     bool isManualSos = false,
   }) async {
+    final alertMode = await const LocalStorageService().readAlertMode();
+    final bool playSound = (alertMode == 'Sounds & Vibrate');
+    final String channelId = playSound ? 'lisko_alarm_channel_v2' : 'lisko_alarm_vibrate_v1';
+
     final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_alarm_channel_v2',
+      channelId,
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
       priority: Priority.high,
+      playSound: playSound,
     );
 
     if (permissionDenied) {
@@ -464,8 +477,12 @@ class NotificationService {
   }
 
   Future<void> showSimpleTestNotification() async {
+    final alertMode = await const LocalStorageService().readAlertMode();
+    final bool playSound = (alertMode == 'Sounds & Vibrate');
+    final String channelId = playSound ? 'lisko_alarm_channel_v2' : 'lisko_alarm_vibrate_v1';
+
     final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_alarm_channel_v2',
+      channelId,
       'LisKo Travel Reminder',
       channelDescription: 'Arrival reminders and travel safety confirmation',
       importance: Importance.max,
@@ -483,7 +500,7 @@ class NotificationService {
         500,
         1000,
       ]),
-      playSound: true,
+      playSound: playSound,
     );
     await _flutterLocalNotificationsPlugin.show(
       id: 9999,

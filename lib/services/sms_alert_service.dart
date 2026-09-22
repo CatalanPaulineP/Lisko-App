@@ -58,7 +58,7 @@ class SmsAlertService {
     double? accuracy,
     String? locationError,
   }) async {
-    String coordText = locationError ?? 'Unavailable';
+    String coordText = locationError ?? 'Location Unavailable';
     String mapLink = '';
     if (latitude != null && longitude != null) {
       final latStr = latitude.toStringAsFixed(6);
@@ -67,7 +67,7 @@ class SmsAlertService {
       if (accuracy != null) {
         coordText += ' (+/-${accuracy.toStringAsFixed(0)}m)';
       }
-      mapLink = '\nMap: https://maps.google.com/?q=$latStr,$lngStr';
+      mapLink = '\nMap: https://www.google.com/maps?q=$latStr,$lngStr';
     }
         
     final alertMessage = 'LISKO SOS! Need help!\nLoc: $coordText$mapLink';
@@ -82,7 +82,7 @@ class SmsAlertService {
     String? locationError,
     String? customMessage,
   }) async {
-    String coordText = locationError ?? 'Unavailable';
+    String coordText = locationError ?? 'Location Unavailable';
     String mapLink = '';
     if (latitude != null && longitude != null) {
       final latStr = latitude.toStringAsFixed(6);
@@ -91,7 +91,7 @@ class SmsAlertService {
       if (accuracy != null) {
         coordText += ' (+/-${accuracy.toStringAsFixed(0)}m)';
       }
-      mapLink = '\nMap: https://maps.google.com/?q=$latStr,$lngStr';
+      mapLink = '\nMap: https://www.google.com/maps?q=$latStr,$lngStr';
     }
 
     String alertMessage = customMessage ?? '';

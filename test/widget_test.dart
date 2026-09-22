@@ -616,14 +616,14 @@ void main() {
 
     // Verify PUP Santa Maria Campus target
     final campusTarget = await service.resolveTarget('Campus');
-    expect(campusTarget.name, 'Campus');
+    expect(campusTarget!.name, 'Campus');
     expect(campusTarget.latitude, 14.8697);
     expect(campusTarget.longitude, 120.9991);
     expect(campusTarget.radiusMeters, 150.0);
 
     // Verify Home target
     final homeTarget = await service.resolveTarget('Home');
-    expect(homeTarget.name, 'Home');
+    expect(homeTarget!.name, 'Home');
     expect(homeTarget.latitude, 14.8192);
     expect(homeTarget.longitude, 120.9610);
     expect(homeTarget.radiusMeters, 150.0);
@@ -708,14 +708,14 @@ void main() {
 
     // Verify PUP Santa Maria Campus target
     final campusTarget = await service.resolveTarget('Campus');
-    expect(campusTarget.name, 'Campus');
+    expect(campusTarget!.name, 'Campus');
     expect(campusTarget.latitude, 14.8697);
     expect(campusTarget.longitude, 120.9991);
     expect(campusTarget.radiusMeters, 150.0);
 
     // Verify Home target
     final homeTarget = await service.resolveTarget('Home');
-    expect(homeTarget.name, 'Home');
+    expect(homeTarget!.name, 'Home');
     expect(homeTarget.latitude, 14.8192);
     expect(homeTarget.longitude, 120.9610);
     expect(homeTarget.radiusMeters, 150.0);
@@ -826,7 +826,7 @@ void main() {
       // Smart Adaptive Presets removed
 
       // Verify Section 2 Items
-      expect(find.text('Timer Expiry Alert Mode'), findsOneWidget);
+      expect(find.text('Expiry Alert Mode'), findsOneWidget);
       expect(find.text('Covert SMS Emergency Dispatch'), findsOneWidget);
 
       // Verify Section 3 Items

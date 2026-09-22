@@ -15,6 +15,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
@@ -35,7 +37,7 @@ class _SettingsTabState extends State<SettingsTab> {
   final LocalStorageService _storage = const LocalStorageService();
 
   String _defaultDuration = '45 mins';
-  String _alertMode = 'Sound & Vibrate';
+  String _alertMode = 'Vibration Only';
   // _covertSmsDispatch removed
   double? _homeLat;
   double? _homeLng;
@@ -116,6 +118,25 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
+  void _openExpiryAlertModeModal() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ExpiryAlertModeModal(
+        currentMode: _alertMode,
+        onSaved: (newMode) async {
+          await _storage.saveAlertMode(newMode);
+          if (mounted) {
+            setState(() {
+              _alertMode = newMode;
+            });
+          }
+        },
+      ),
+    );
+  }
+
   void _openPrivacyModal() {
     showModalBottomSheet<void>(
       context: context,
@@ -130,6 +151,106 @@ class _SettingsTabState extends State<SettingsTab> {
             '- Emergency SMS alerts send your last known location only to your trusted contacts.',
       ),
     );
+  }
+
+  /// Temporary diagnostic method testing Geolocator.getCurrentPosition directly on Vivo 1906.
+  Future<void> _runGpsDiagnostic() async {
+    debugPrint('\n==================================================');
+    debugPrint('[GPS-DIAGNOSTIC] STARTING VIVO 1906 DIRECT GPS TEST');
+    debugPrint('==================================================');
+
+    final startTime = DateTime.now();
+    debugPrint('[GPS-DIAGNOSTIC] Start Time: $startTime');
+
+    try {
+      // 1. Verify Permission Status
+      final permStatus = await Permission.location.status;
+      final geoPermStatus = await Geolocator.checkPermission();
+      debugPrint('[GPS-DIAGNOSTIC] Permission.location.status: $permStatus');
+      debugPrint('[GPS-DIAGNOSTIC] Geolocator.checkPermission(): $geoPermStatus');
+
+      // 2. Verify Location Service Status
+      final isEnabled = await Geolocator.isLocationServiceEnabled();
+      debugPrint('[GPS-DIAGNOSTIC] Geolocator.isLocationServiceEnabled(): $isEnabled');
+
+      if (!isEnabled) {
+        debugPrint('[GPS-DIAGNOSTIC] ABORTED: Location Service is OFF on device.');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('GPS Diagnostic Aborted: Location Service is OFF.')),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('GPS Diagnostic Started... Requesting current position (20s max)'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+
+      // 3. Call Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: 20s)
+      debugPrint('[GPS-DIAGNOSTIC] Calling Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: 20s)...');
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 20),
+      );
+
+      final endTime = DateTime.now();
+      final elapsed = endTime.difference(startTime).inMilliseconds / 1000.0;
+
+      debugPrint('--------------------------------------------------');
+      debugPrint('[GPS-DIAGNOSTIC] SUCCESS! Position Acquired!');
+      debugPrint('[GPS-DIAGNOSTIC] End Time: $endTime');
+      debugPrint('[GPS-DIAGNOSTIC] Elapsed Time: ${elapsed.toStringAsFixed(2)} seconds');
+      debugPrint('[GPS-DIAGNOSTIC] Latitude: ${position.latitude}');
+      debugPrint('[GPS-DIAGNOSTIC] Longitude: ${position.longitude}');
+      debugPrint('[GPS-DIAGNOSTIC] Accuracy: ${position.accuracy} meters');
+      debugPrint('==================================================\n');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 8),
+            content: Text(
+              'SUCCESS in ${elapsed.toStringAsFixed(1)}s!\n'
+              'Lat: ${position.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)}\n'
+              'Acc: ${position.accuracy.toStringAsFixed(0)}m',
+            ),
+          ),
+        );
+      }
+    } catch (e, st) {
+      final endTime = DateTime.now();
+      final elapsed = endTime.difference(startTime).inMilliseconds / 1000.0;
+
+      debugPrint('--------------------------------------------------');
+      debugPrint('[GPS-DIAGNOSTIC] FAILED! Exception / Error Occurred!');
+      debugPrint('[GPS-DIAGNOSTIC] End Time: $endTime');
+      debugPrint('[GPS-DIAGNOSTIC] Elapsed Time: ${elapsed.toStringAsFixed(2)} seconds');
+      debugPrint('[GPS-DIAGNOSTIC] Exception Type: ${e.runtimeType}');
+      debugPrint('[GPS-DIAGNOSTIC] Exception Details: $e');
+      debugPrint('[GPS-DIAGNOSTIC] StackTrace:\n$st');
+      debugPrint('==================================================\n');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 8),
+            content: Text(
+              'FAILED after ${elapsed.toStringAsFixed(1)}s!\n'
+              'Error [${e.runtimeType}]: $e',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -202,20 +323,14 @@ class _SettingsTabState extends State<SettingsTab> {
                     decoration: _cardDecoration(),
                     child: Column(
                       children: [
-                        _buildDropdownRow(
+                        _buildActionRow(
                           iconStr: AppIcons.vibration,
                           semanticIcon: Icons.vibration_rounded,
                           iconBg: AppColors.canvas,
                           iconColor: AppColors.body,
-                          title: 'Timer Expiry Alert Mode',
-                          value: _alertMode,
-                          items: const ['Vibrate Only', 'Sound & Vibrate', 'Silent'],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() => _alertMode = val);
-                              _storage.saveAlertMode(val);
-                            }
-                          },
+                          title: 'Expiry Alert Mode',
+                          subtitle: _alertMode,
+                          onTap: _openExpiryAlertModeModal,
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildInfoRow(
@@ -282,6 +397,15 @@ class _SettingsTabState extends State<SettingsTab> {
                               debugPrint('[TEST-SIMPLE] Notification show() completed');
                             });
                           },
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildActionRow(
+                          iconStr: AppIcons.location,
+                          semanticIcon: Icons.my_location_rounded,
+                          iconBg: const Color(0xFFFFDAD8),
+                          iconColor: AppColors.primary,
+                          title: 'TEST GPS CURRENT POSITION (DIAGNOSTIC)',
+                          onTap: _runGpsDiagnostic,
                         ),
                       ],
                     ),
@@ -575,6 +699,177 @@ class SettingsHeader extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ExpiryAlertModeModal extends StatefulWidget {
+  const ExpiryAlertModeModal({
+    super.key,
+    required this.currentMode,
+    required this.onSaved,
+  });
+
+  final String currentMode;
+  final ValueChanged<String> onSaved;
+
+  @override
+  State<ExpiryAlertModeModal> createState() => _ExpiryAlertModeModalState();
+}
+
+class _ExpiryAlertModeModalState extends State<ExpiryAlertModeModal> {
+  late String _selectedMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMode = widget.currentMode == 'Sounds & Vibrate'
+        ? 'Sounds & Vibrate'
+        : 'Vibration Only';
+  }
+
+  void _selectMode(String mode) {
+    setState(() => _selectedMode = mode);
+    widget.onSaved(mode);
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Expiry Alert Mode',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.header,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Choose alert behavior on trip timer expiry',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.body,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _buildOptionTile(
+              title: 'Vibration Only',
+              subtitle: 'Vibration alerts without notification sound.',
+              value: 'Vibration Only',
+            ),
+            const SizedBox(height: 10),
+            _buildOptionTile(
+              title: 'Sounds & Vibrate',
+              subtitle: 'Vibration alerts with notification sound.',
+              value: 'Sounds & Vibrate',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionTile({
+    required String title,
+    required String subtitle,
+    required String value,
+  }) {
+    final isSelected = _selectedMode == value;
+    return Material(
+      color: isSelected ? AppColors.primaryContainer : AppColors.card,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => _selectMode(value),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.border,
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: isSelected ? AppColors.primary : AppColors.body,
+                size: 22,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.header,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.body,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
