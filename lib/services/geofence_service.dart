@@ -72,12 +72,12 @@ class GeofenceService {
   final LocalStorageService _storage;
 
   /// PUP Santa Maria, Bulacan Campus Geofence Target.
-  /// Coordinates: 14.8697° N, 120.9991° E (Sitio Gulod, Pulong Buhangin, Santa Maria, Bulacan).
+  /// Verified Coordinates: 14.869725503304737° N, 120.9990821362761° E (Pulong Buhangin, Santa Maria, Bulacan).
   static const GeofenceTarget pupSantaMariaCampus = GeofenceTarget(
     id: 'campus',
     name: 'Campus',
-    latitude: 14.8697,
-    longitude: 120.9991,
+    latitude: 14.869725503304737,
+    longitude: 120.9990821362761,
     radiusMeters: 150.0,
   );
 

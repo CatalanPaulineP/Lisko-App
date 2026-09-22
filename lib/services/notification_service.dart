@@ -25,6 +25,7 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sms_alert_service.dart';
 import 'local_storage_service.dart';
@@ -299,6 +300,19 @@ class NotificationService {
     String destination,
     String remainingTime,
   ) async {
+    final title = 'Lisko: Active Travel Timer';
+    final content = '$destination - $remainingTime remaining';
+
+    try {
+      final bgService = FlutterBackgroundService();
+      if (await bgService.isRunning()) {
+        bgService.invoke('updateNotification', {
+          'title': title,
+          'content': content,
+        });
+      }
+    } catch (_) {}
+
     final AndroidNotificationDetails details = AndroidNotificationDetails(
       'lisko_trip_channel',
       'Lisko Trip Monitoring',
@@ -312,8 +326,8 @@ class NotificationService {
     );
     await _flutterLocalNotificationsPlugin.show(
       id: 888,
-      title: 'Lisko: Active Travel Timer',
-      body: '$destination - $remainingTime remaining',
+      title: title,
+      body: content,
       notificationDetails: NotificationDetails(android: details),
     );
   }

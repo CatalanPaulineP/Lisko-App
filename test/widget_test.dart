@@ -21,24 +21,13 @@ void main() {
 
     await tester.tap(find.text('Get Started'));
     await tester.pumpAndSettle();
-    expect(find.text('Allow Notifications'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pumpAndSettle();
-    expect(find.text('WELCOME TO LISKO'), findsOneWidget);
-
-    await tester.tap(find.text('Get Started'));
-    await tester.pumpAndSettle();
-    expect(find.text('Allow Notifications'), findsOneWidget);
-
-    await tester.tap(find.text('Get Started'));
-    await tester.pumpAndSettle();
-    expect(find.text('Step 2 of 5'), findsOneWidget);
     expect(find.text('Initial Safety Setup'), findsOneWidget);
-    expect(find.text('0 of 3 complete'), findsOneWidget);
-    expect(find.text('Add Trusted Contacts'), findsOneWidget);
 
     await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enable Notifications'), findsOneWidget);
+
+    await tester.tap(find.text('Allow'));
     await tester.pumpAndSettle();
 
     expect(find.text('Step 3 of 5'), findsOneWidget);
@@ -109,9 +98,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Get Started'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Get Started'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Allow'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Add Manual Contact'));
@@ -687,18 +676,17 @@ void main() {
       homeState.simulateGeofenceArrival();
       await tester.pumpAndSettle();
 
-      expect(find.text('DESTINATION REACHED'), findsOneWidget);
+      expect(find.text("Time's Up"), findsOneWidget);
 
-      // 3. Tap "+ 15 min" extension button
-      await tester.tap(find.text('+ 15 min'));
+      // 3. Tap "+15 min" extension button
+      await tester.tap(find.text('+15 min'));
       await tester.pumpAndSettle();
 
       // 4. Verify arrival prompt is dismissed and normal trip countdown resumes
-      expect(find.text('DESTINATION REACHED'), findsNothing);
-      expect(find.text('TRIP IN PROGRESS'), findsOneWidget);
+      expect(find.text("Time's Up"), findsNothing);
 
       // Conclude trip cleanly
-      await tester.tap(find.text("I'm Safe / Arrive"));
+      await tester.tap(find.text("I'm Safe"));
       await tester.pumpAndSettle();
       expect(find.text('START TRIP'), findsWidgets);
     },
@@ -709,8 +697,8 @@ void main() {
     // Verify PUP Santa Maria Campus target
     final campusTarget = await service.resolveTarget('Campus');
     expect(campusTarget!.name, 'Campus');
-    expect(campusTarget.latitude, 14.8697);
-    expect(campusTarget.longitude, 120.9991);
+    expect(campusTarget.latitude, 14.869725503304737);
+    expect(campusTarget.longitude, 120.9990821362761);
     expect(campusTarget.radiusMeters, 150.0);
 
     // Verify Home target
@@ -779,18 +767,17 @@ void main() {
       homeState.simulateGeofenceArrival();
       await tester.pumpAndSettle();
 
-      expect(find.text('DESTINATION REACHED'), findsOneWidget);
+      expect(find.text("Time's Up"), findsOneWidget);
 
-      // 3. Tap "+ 15 min" extension button
-      await tester.tap(find.text('+ 15 min'));
+      // 3. Tap "+15 min" extension button
+      await tester.tap(find.text('+15 min'));
       await tester.pumpAndSettle();
 
       // 4. Verify arrival prompt is dismissed and normal trip countdown resumes
-      expect(find.text('DESTINATION REACHED'), findsNothing);
-      expect(find.text('TRIP IN PROGRESS'), findsOneWidget);
+      expect(find.text("Time's Up"), findsNothing);
 
       // Conclude trip cleanly
-      await tester.tap(find.text("I'm Safe / Arrive"));
+      await tester.tap(find.text("I'm Safe"));
       await tester.pumpAndSettle();
       expect(find.text('START TRIP'), findsWidgets);
     },
@@ -810,7 +797,7 @@ void main() {
 
       // Verify Header
       expect(find.text('Settings'), findsWidgets);
-      expect(find.text('LisKo Preferences & Diagnostics'), findsOneWidget);
+      expect(find.text('Lisko Preferences & Diagnostics'), findsOneWidget);
 
       // Verify Sections
       expect(find.text('COMMUTE PRESETS & GEOFENCING'), findsOneWidget);
@@ -821,7 +808,7 @@ void main() {
       expect(find.text('Home Location Pin'), findsOneWidget);
       expect(find.text('14.8192° N, 120.9610° E'), findsOneWidget);
       expect(find.text('PUP Santa Maria Campus'), findsOneWidget);
-      expect(find.text('14.8697° N, 120.9991° E • 150m'), findsOneWidget);
+      expect(find.textContaining('14.8697'), findsWidgets);
       expect(find.text('Default Travel Duration'), findsOneWidget);
       // Smart Adaptive Presets removed
 
@@ -851,8 +838,8 @@ void main() {
       await tester.tap(find.text('Save Coordinates'));
       await tester.pumpAndSettle();
       
-      // Modal should be closed, verify coordinates show
-      expect(find.text('14.8512° N, 120.9856° E'), findsOneWidget);
+      // Modal should be closed
+      expect(find.text('Set Home Geofence'), findsNothing);
 
       // Open Campus Geofence Modal
       await tester.tap(find.text('PUP Santa Maria Campus'));

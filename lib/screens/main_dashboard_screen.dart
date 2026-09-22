@@ -243,6 +243,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _handleArrivalDetected(destination);
       } else {
         remaining = expectedArrivalAt!.difference(now);
+        FlutterBackgroundService().startService();
         _startTravelTimer();
         _geofenceService.startMonitoring(
           destination: destination,

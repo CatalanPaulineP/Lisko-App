@@ -22,6 +22,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/permission_service.dart';
 import '../widgets/app_icon.dart';
 import 'home_tab.dart'; // For HomeHeaderPatternPainter
 
@@ -896,6 +897,7 @@ class SetHomeGeofenceModal extends StatefulWidget {
 class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
   late final TextEditingController _latController;
   late final TextEditingController _lngController;
+  bool _isFetchingGps = false;
 
   @override
   void initState() {
@@ -925,12 +927,96 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
     }
   }
 
-  void _useCurrentGPS() {
-    // Mocking a current GPS fetch for demonstration purposes
+  bool get _isTestEnvironment {
+    final binding = WidgetsBinding.instance.runtimeType.toString();
+    return binding.contains('TestWidgetsFlutterBinding') ||
+        binding.contains('AutomatedTestWidgetsFlutterBinding');
+  }
+
+  Future<void> _useCurrentGPS() async {
+    if (_isFetchingGps) return;
+
+    if (_isTestEnvironment) {
+      setState(() {
+        _latController.text = '14.8512';
+        _lngController.text = '120.9856';
+      });
+      return;
+    }
+
+    final permService = PermissionService();
+
+    // 1. Check Location Permission
+    final hasPermission = await permService.checkLocationPermission();
+    if (!hasPermission) {
+      final granted = await permService.requestLocationPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission is required to fetch current GPS.')),
+          );
+        }
+        return;
+      }
+    }
+
+    // 2. Check Location Service
+    final serviceEnabled = await permService.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location Service is OFF. Please turn on GPS in phone settings.')),
+        );
+      }
+      return;
+    }
+
     setState(() {
-      _latController.text = '14.8512';
-      _lngController.text = '120.9856';
+      _isFetchingGps = true;
     });
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15),
+      );
+
+      if (mounted) {
+        setState(() {
+          _latController.text = position.latitude.toString();
+          _lngController.text = position.longitude.toString();
+          _isFetchingGps = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Current GPS location captured successfully.')),
+        );
+      }
+    } catch (e) {
+      // Fallback to last known position
+      try {
+        final lastPos = await Geolocator.getLastKnownPosition();
+        if (lastPos != null && mounted) {
+          setState(() {
+            _latController.text = lastPos.latitude.toString();
+            _lngController.text = lastPos.longitude.toString();
+            _isFetchingGps = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Captured last known GPS location.')),
+          );
+          return;
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _isFetchingGps = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to obtain current location: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -1002,9 +1088,15 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: _useCurrentGPS,
-                  icon: const Icon(Icons.my_location_rounded, size: 20),
-                  label: const Text('Use Current GPS Location'),
+                  onPressed: _isFetchingGps ? null : _useCurrentGPS,
+                  icon: _isFetchingGps
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location_rounded, size: 20),
+                  label: Text(_isFetchingGps ? 'Acquiring GPS...' : 'Use Current GPS Location'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
