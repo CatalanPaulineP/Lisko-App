@@ -807,6 +807,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             longitude: lng,
             accuracy: acc,
             locationError: locError,
+            isArrived: isArrived,
           );
         }
         debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
@@ -952,6 +953,16 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         completedAt: DateTime.now(),
         status: safe ? 'arrived' : 'cancelled', // Changed 'arrived' string to represent successfully completed trip in the DB model based on user requirement
       );
+    }
+
+    if (safe && destination.isNotEmpty) {
+      try {
+        await _smsAlertService.dispatchPrimaryArrivalSms(
+          destination: destination,
+        );
+      } catch (e) {
+        debugPrint('Primary safe arrival SMS notice: $e');
+      }
     }
     
     setState(() {

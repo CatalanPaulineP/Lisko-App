@@ -86,6 +86,13 @@ void notificationBackgroundResponseHandler(
                 status: 'Completed', timestamp: DateTime.fromMillisecondsSinceEpoch(startedMs),
               ));
               await storage.saveTripHistory(history);
+              if (dest.isNotEmpty) {
+                try {
+                  await SmsAlertService().dispatchPrimaryArrivalSms(destination: dest);
+                } catch (e) {
+                  debugPrint('[NotificationService-BG] Primary safe arrival SMS error: $e');
+                }
+              }
             }
           } else {
             debugPrint('[NotificationService-BG] "I\'m Safe" tapped before arrival in background. Active trip maintained.');

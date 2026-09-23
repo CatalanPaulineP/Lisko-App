@@ -95,7 +95,7 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
               const SizedBox(height: 16),
               ListTile(
                 leading: const AppIcon.small(AppIcons.checkCircle, color: Color(0xFF10B981)),
-                title: const Text('Safe / Completed Only'),
+                title: const Text('Arrived / Completed Only'),
                 trailing: _selectedFilter == 'Completed' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () {
                   Navigator.pop(ctx);
@@ -463,7 +463,7 @@ class SummaryMetricsCard extends StatelessWidget {
           Expanded(
             child: MetricSegment(
               value: safe.toString(),
-              label: 'Safe',
+              label: 'Arrived',
               backgroundColor: const Color(0xFFD1FAE5),
               valueColor: const Color(0xFF10B981),
               labelColor: AppColors.body,

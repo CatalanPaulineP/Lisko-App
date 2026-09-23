@@ -130,36 +130,38 @@ class SmsAlertService {
     double? accuracy,
     String? locationError,
     String? customMessage,
+    bool isArrived = true,
   }) async {
     String alertMessage;
 
-    if (latitude != null && longitude != null) {
-      final latStr = latitude.toStringAsFixed(6);
-      final lngStr = longitude.toStringAsFixed(6);
-      final accStr = accuracy != null ? ' (+/-${accuracy.toStringAsFixed(0)}m)' : '';
-      final address = await _reverseGeocode(latitude, longitude);
-
-      final header = customMessage != null && customMessage.isNotEmpty
-          ? customMessage
-          : 'LISKO ALERT: Timer expired!';
-
-      final locLine = (address != null && address.isNotEmpty) ? 'Loc: $address\n' : '';
-
-      alertMessage = '$header\n'
-          '$locLine'
-          '$latStr,$lngStr$accStr\n'
-          'Map: https://www.google.com/maps?q=$latStr,$lngStr';
+    if (customMessage != null && customMessage.isNotEmpty) {
+      alertMessage = customMessage;
     } else {
-      final header = customMessage != null && customMessage.isNotEmpty
-          ? customMessage
-          : 'LISKO ALERT: Timer expired!';
-      final err = locationError ?? 'Location Unavailable';
+      final now = DateTime.now();
+      int h = now.hour;
+      final ampm = h >= 12 ? 'PM' : 'AM';
+      if (h == 0) h = 12;
+      if (h > 12) h -= 12;
+      final hs = h.toString().padLeft(2, '0');
+      final mi = now.minute.toString().padLeft(2, '0');
+      final timeStr = '$hs:$mi $ampm';
 
-      alertMessage = '$header\n'
-          'Loc: $err';
+      final locText = (latitude != null && longitude != null)
+          ? 'https://www.google.com/maps?q=${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)}'
+          : (locationError ?? 'Location Unavailable');
+
+      final destText = destination.isNotEmpty ? destination : 'destination';
+
+      if (isArrived) {
+        alertMessage =
+            'LisKo ALERT: Student reached $destText but did not respond to the safety confirmation. Location: $locText Time: $timeStr';
+      } else {
+        alertMessage =
+            'LisKo ALERT: Student did not respond to the safety confirmation for $destText. Location: $locText Time: $timeStr';
+      }
     }
 
-    return _internalDispatch(_appendTimestamp(alertMessage));
+    return _internalDispatch(alertMessage);
   }
 
   Future<List<String>> _internalDispatch(String alertMessage) async {
@@ -236,6 +238,92 @@ class SmsAlertService {
       } else {
         dispatchedTo.add('${contact.name} ($cleanPhone)');
       }
+    }
+
+    return dispatchedTo;
+  }
+
+  /// Dispatches a safe-arrival confirmation SMS ONLY to the Primary Emergency Contact (contacts[0]).
+  /// Does NOT perform GPS acquisition or reverse geocoding.
+  Future<List<String>> dispatchPrimaryArrivalSms({
+    required String destination,
+  }) async {
+    final now = DateTime.now();
+    final mo = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    final y = (now.year % 100).toString().padLeft(2, '0');
+    int h = now.hour;
+    final ampm = h >= 12 ? 'PM' : 'AM';
+    if (h == 0) h = 12;
+    if (h > 12) h -= 12;
+    final hs = h.toString().padLeft(2, '0');
+    final mi = now.minute.toString().padLeft(2, '0');
+    final timeStr = '$mo-$d-$y $hs:$mi $ampm';
+
+    final alertMessage =
+        'LisKo: Student arrived safely at $destination. Time: $timeStr';
+
+    return _internalDispatchPrimaryOnly(alertMessage);
+  }
+
+  /// Sends SMS ONLY to the Primary Emergency Contact (contacts[0] / contacts.first).
+  Future<List<String>> _internalDispatchPrimaryOnly(String alertMessage) async {
+    developer.log('SmsAlertService: Starting Primary-only safe-arrival SMS dispatch.');
+
+    final contacts = await _storage.readContacts();
+    if (contacts.isEmpty) {
+      developer.log('SmsAlertService: No trusted contacts configured to receive safe-arrival SMS.');
+      return [];
+    }
+
+    final primaryContact = contacts.first;
+
+    if (!_isTestEnvironment) {
+      final smsStatus = await Permission.sms.status;
+      if (!smsStatus.isGranted) {
+        final requested = await Permission.sms.request();
+        if (!requested.isGranted) {
+          developer.log('SmsAlertService: SMS permission denied for safe-arrival SMS.');
+          return [];
+        }
+      }
+    }
+
+    // Phone Number Normalization
+    String digitsOnly = primaryContact.phone.replaceAll(RegExp(r'\D'), '');
+    String cleanPhone = '';
+    if (digitsOnly.startsWith('0')) {
+      cleanPhone = '+63${digitsOnly.substring(1)}';
+    } else if (digitsOnly.startsWith('63')) {
+      cleanPhone = '+$digitsOnly';
+    } else if (digitsOnly.length == 10) {
+      cleanPhone = '+63$digitsOnly';
+    } else {
+      cleanPhone = '+$digitsOnly';
+    }
+
+    if (cleanPhone.length < 10) {
+      developer.log('SmsAlertService: Invalid phone number format for primary contact (${primaryContact.name}).');
+      return [];
+    }
+
+    final dispatchedTo = <String>[];
+    if (!_isTestEnvironment) {
+      try {
+        final result = await BackgroundSms.sendMessage(
+          phoneNumber: cleanPhone,
+          message: alertMessage,
+        );
+
+        if (result == SmsStatus.sent) {
+          developer.log('SmsAlertService: Safe-arrival SMS sent to primary contact ${primaryContact.name} ($cleanPhone).');
+          dispatchedTo.add('${primaryContact.name} ($cleanPhone)');
+        }
+      } catch (e) {
+        developer.log('SmsAlertService: Exception while sending safe-arrival SMS to primary contact: $e');
+      }
+    } else {
+      dispatchedTo.add('${primaryContact.name} ($cleanPhone)');
     }
 
     return dispatchedTo;

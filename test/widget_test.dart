@@ -442,7 +442,7 @@ void main() {
 
       // Verify Summary Metrics Card 4 columns
       expect(find.text('Total'), findsOneWidget);
-      expect(find.text('Safe'), findsOneWidget);
+      expect(find.text('Arrived'), findsOneWidget);
       expect(find.text('Extended'), findsWidgets); // Column label and badge
       expect(find.text('Alerts'), findsOneWidget); // Segment 4 label
       expect(find.text('Alert'), findsOneWidget); // Trip 3 badge
@@ -685,14 +685,14 @@ void main() {
       homeState.simulateGeofenceArrival();
       await tester.pumpAndSettle();
 
-      expect(find.text("Time's Up"), findsOneWidget);
+      expect(find.text('Destination Reached'), findsOneWidget);
 
       // 3. Tap "+15 min" extension button
       await tester.tap(find.text('+15 min'));
       await tester.pumpAndSettle();
 
       // 4. Verify arrival prompt is dismissed and normal trip countdown resumes
-      expect(find.text("Time's Up"), findsNothing);
+      expect(find.text('Destination Reached'), findsNothing);
 
       // Conclude trip cleanly
       await tester.tap(find.text("I'm Safe"));
@@ -776,14 +776,14 @@ void main() {
       homeState.simulateGeofenceArrival();
       await tester.pumpAndSettle();
 
-      expect(find.text("Time's Up"), findsOneWidget);
+      expect(find.text('Destination Reached'), findsOneWidget);
 
       // 3. Tap "+15 min" extension button
       await tester.tap(find.text('+15 min'));
       await tester.pumpAndSettle();
 
       // 4. Verify arrival prompt is dismissed and normal trip countdown resumes
-      expect(find.text("Time's Up"), findsNothing);
+      expect(find.text('Destination Reached'), findsNothing);
 
       // Conclude trip cleanly
       await tester.tap(find.text("I'm Safe"));

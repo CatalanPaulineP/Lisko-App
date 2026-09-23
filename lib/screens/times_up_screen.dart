@@ -65,7 +65,7 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
               const AppIcon.standard(AppIcons.warning, color: Colors.white, size: 64),
               const SizedBox(height: 24),
               Text(
-                "Time's Up",
+                'Destination Reached',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
@@ -74,7 +74,7 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Are you safe? Emergency alerts will be dispatched in $_secondsLeft seconds.',
+                'You\'ve reached your destination. Are you safe? Emergency alerts will be dispatched in $_secondsLeft seconds.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
