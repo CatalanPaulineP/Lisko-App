@@ -16,12 +16,23 @@ class PermissionService {
 
   Future<bool> checkLocationPermission() async {
     if (_isTestEnvironment) return true;
+    final geoPerm = await geo.Geolocator.checkPermission();
+    if (geoPerm == geo.LocationPermission.whileInUse ||
+        geoPerm == geo.LocationPermission.always) {
+      return true;
+    }
     final status = await Permission.location.status;
-    return status.isGranted;
+    final whenInUse = await Permission.locationWhenInUse.status;
+    return status.isGranted || whenInUse.isGranted;
   }
 
   Future<bool> requestLocationPermission() async {
     if (_isTestEnvironment) return true;
+    final geoPerm = await geo.Geolocator.requestPermission();
+    if (geoPerm == geo.LocationPermission.whileInUse ||
+        geoPerm == geo.LocationPermission.always) {
+      return true;
+    }
     final status = await Permission.location.request();
     return status.isGranted;
   }

@@ -65,23 +65,30 @@ void notificationBackgroundResponseHandler(
         final totalSecs = data['totalDurationSeconds'] as int? ?? 0;
 
         if (actionId == kNotifActionSafe) {
-          await storage.saveActiveTrip(isActive: false);
-          if (tripId.isNotEmpty && startedMs != null) {
-            await fs.FirebaseService().saveOrUpdateTrip(
-              tripId: tripId,
-              destination: dest,
-              estimatedTravelMinutes: totalSecs ~/ 60,
-              startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
-              expectedArrivalAt: expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : null,
-              completedAt: DateTime.now(),
-              status: 'arrived',
-            );
-            final history = await storage.readTripHistory();
-            history.add(TripRecord(
-              id: tripId, destination: dest, durationMinutes: totalSecs ~/ 60,
-              status: 'Completed', timestamp: DateTime.fromMillisecondsSinceEpoch(startedMs),
-            ));
-            await storage.saveTripHistory(history);
+          final isArrived = (data['isArrived'] as bool?) ?? false;
+          final isTimeoutWarning = (data['isTimeoutWarning'] as bool?) ?? false;
+
+          if (isArrived || isTimeoutWarning) {
+            await storage.saveActiveTrip(isActive: false);
+            if (tripId.isNotEmpty && startedMs != null) {
+              await fs.FirebaseService().saveOrUpdateTrip(
+                tripId: tripId,
+                destination: dest,
+                estimatedTravelMinutes: totalSecs ~/ 60,
+                startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
+                expectedArrivalAt: expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : null,
+                completedAt: DateTime.now(),
+                status: 'arrived',
+              );
+              final history = await storage.readTripHistory();
+              history.add(TripRecord(
+                id: tripId, destination: dest, durationMinutes: totalSecs ~/ 60,
+                status: 'Completed', timestamp: DateTime.fromMillisecondsSinceEpoch(startedMs),
+              ));
+              await storage.saveTripHistory(history);
+            }
+          } else {
+            debugPrint('[NotificationService-BG] "I\'m Safe" tapped before arrival in background. Active trip maintained.');
           }
         } else if (actionId == kNotifActionExtend) {
           final now = DateTime.now();

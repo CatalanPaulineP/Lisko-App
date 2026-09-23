@@ -23,6 +23,7 @@ import '../constants/app_icons.dart';
 import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/permission_service.dart';
+import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
 import 'home_tab.dart'; // For HomeHeaderPatternPainter
 
@@ -976,38 +977,29 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
     });
 
     try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15),
+      final result = await LocationService().acquireEmergencyLocation(
+        maxWait: const Duration(seconds: 25),
       );
 
-      if (mounted) {
+      if (result.hasValidCoordinates && mounted) {
         setState(() {
-          _latController.text = position.latitude.toString();
-          _lngController.text = position.longitude.toString();
+          _latController.text = result.latitude.toString();
+          _lngController.text = result.longitude.toString();
           _isFetchingGps = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Current GPS location captured successfully.')),
         );
+      } else if (mounted) {
+        setState(() {
+          _isFetchingGps = false;
+        });
+        final err = result.locationError ?? 'Location Unavailable';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to obtain current location: $err')),
+        );
       }
     } catch (e) {
-      // Fallback to last known position
-      try {
-        final lastPos = await Geolocator.getLastKnownPosition();
-        if (lastPos != null && mounted) {
-          setState(() {
-            _latController.text = lastPos.latitude.toString();
-            _lngController.text = lastPos.longitude.toString();
-            _isFetchingGps = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Captured last known GPS location.')),
-          );
-          return;
-        }
-      } catch (_) {}
-
       if (mounted) {
         setState(() {
           _isFetchingGps = false;

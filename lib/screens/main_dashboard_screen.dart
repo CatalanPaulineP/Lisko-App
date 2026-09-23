@@ -28,6 +28,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'times_up_screen.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -312,7 +313,39 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // NotificationService.onActionReceived.
   // -------------------------------------------------------------------------
 
-  /// Marks the trip as safely completed. Cancels vibration and alarm notification.
+  /// Handles safety confirmation. Completes trip if arrived/timed out; otherwise confirms safety while keeping trip active.
+  void _handleSafePressed() {
+    if (isArrived || isTimeoutWarning) {
+      _endTrip(safe: true);
+    } else {
+      _handlePreArrivalSafeAction();
+    }
+  }
+
+  void _handlePreArrivalSafeAction() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "You're safe! Your trip to $destination remains active until you arrive.",
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: const Color(0xFF10B981),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  /// Public action handler callable from NotificationService when user taps "I'm Safe".
   void handleSafeAction() {
     if (!mounted) return;
     Vibration.cancel();
@@ -320,7 +353,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
-    _endTrip(safe: true);
+    _handleSafePressed();
   }
 
   /// Extends the trip timer by 15 minutes. Cancels current vibration loop.
@@ -1079,7 +1112,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     destination: destination,
                     remaining: remaining,
                     totalDuration: totalDuration,
-                    onSafe: () => _endTrip(safe: true),
+                    onSafe: _handleSafePressed,
                     onExtend: _extendTrip,
                     onSos: _triggerEmergencyFlow,
                     isArrived: isArrived,

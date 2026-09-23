@@ -3,6 +3,7 @@
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/local_storage_service.dart';
+import '../services/permission_service.dart';
 import 'app_icon.dart';
 
 /// Card showing current readiness status, primary contact, and default destination.
@@ -22,6 +23,7 @@ class SystemReadyCard extends StatefulWidget {
 class _SystemReadyCardState extends State<SystemReadyCard> {
   String _contactName = 'Loading...';
   String _displayDestination = 'Loading...';
+  bool _isSystemReady = true;
 
   @override
   void initState() {
@@ -31,17 +33,34 @@ class _SystemReadyCardState extends State<SystemReadyCard> {
 
   Future<void> _loadData() async {
     const storage = LocalStorageService();
+    final permService = PermissionService();
+
     final contacts = await storage.readContacts();
     final defaultMins = await storage.readDefaultTravelDuration();
+
+    final notificationsEnabled = await permService.checkNotificationPermission();
+    final contactsAdded = contacts.isNotEmpty;
+    final smsPermissionGranted = await permService.checkSmsPermission();
+    final locationPermissionGranted = await permService.checkLocationPermission();
+    final locationServiceEnabled = await permService.isLocationServiceEnabled();
+
+    final allReady = notificationsEnabled &&
+        contactsAdded &&
+        smsPermissionGranted &&
+        locationPermissionGranted &&
+        locationServiceEnabled;
+
     if (!mounted) return;
 
     setState(() {
+      _isSystemReady = allReady;
       _displayDestination = 'Campus ($defaultMins min)';
       if (contacts.isEmpty) {
-        _contactName = 'No emergency contact set';
+        _contactName = 'No contact set';
       } else {
         final primary = contacts.first;
-        _contactName = '${primary.relationship} (${primary.name})';
+        final rel = primary.relationship.isNotEmpty ? primary.relationship : 'Contact';
+        _contactName = '$rel (${primary.name})';
       }
     });
   }
@@ -69,10 +88,12 @@ class _SystemReadyCardState extends State<SystemReadyCard> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.13),
+              color: _isSystemReady
+                  ? AppColors.success.withValues(alpha: 0.13)
+                  : const Color(0xFFFEF3C7),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
@@ -80,18 +101,22 @@ class _SystemReadyCardState extends State<SystemReadyCard> {
                   height: 7,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: AppColors.success,
+                      color: _isSystemReady
+                          ? AppColors.success
+                          : const Color(0xFFD97706),
                       shape: BoxShape.circle,
                     ),
                   ),
                 ),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
-                  'System Ready',
+                  _isSystemReady ? 'System Ready' : 'Action Needed',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.successText,
+                    color: _isSystemReady
+                        ? AppColors.successText
+                        : const Color(0xFFD97706),
                   ),
                 ),
               ],
@@ -99,6 +124,7 @@ class _SystemReadyCardState extends State<SystemReadyCard> {
           ),
           const SizedBox(height: 13),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: CompactDetail(
@@ -107,7 +133,7 @@ class _SystemReadyCardState extends State<SystemReadyCard> {
                   value: _contactName,
                 ),
               ),
-              Container(width: 1, height: 46, color: AppColors.border),
+              Container(width: 1, height: 44, color: AppColors.border),
               const SizedBox(width: 12),
               Expanded(
                 child: CompactDetail(
@@ -169,7 +195,6 @@ class CompactDetail extends StatelessWidget {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 label,
@@ -179,7 +204,7 @@ class CompactDetail extends StatelessWidget {
                   color: AppColors.body,
                 ),
               ),
-              const SizedBox(height: 1),
+              const SizedBox(height: 2),
               Text(
                 value,
                 style: const TextStyle(
@@ -187,7 +212,8 @@ class CompactDetail extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                   color: AppColors.header,
                 ),
-                maxLines: 1,
+                maxLines: 2,
+                softWrap: true,
                 overflow: TextOverflow.ellipsis,
               ),
             ],

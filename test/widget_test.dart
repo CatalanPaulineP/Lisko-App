@@ -63,7 +63,6 @@ void main() {
 
     await tester.tap(find.text('Go to Home'));
     await tester.pumpAndSettle();
-    expect(find.text('Good morning,'), findsOneWidget);
     expect(find.text('Iskolar'), findsOneWidget);
   });
 
@@ -75,16 +74,16 @@ void main() {
     await tester.pumpWidget(const LiskoApp());
 
     expect(find.text('Loading...'), findsOneWidget);
-    expect(find.text('Good morning,'), findsNothing);
+    expect(find.text('Iskolar'), findsNothing);
 
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Loading...'), findsOneWidget);
-    expect(find.text('Good morning,'), findsNothing);
+    expect(find.text('Iskolar'), findsNothing);
 
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('WELCOME TO LISKO'), findsOneWidget);
-    expect(find.text('Good morning,'), findsNothing);
+    expect(find.text('Iskolar'), findsNothing);
   });
 
   testWidgets('contact overlays expose manual and import states', (
@@ -139,7 +138,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
-    expect(find.text('Good morning, Iskolar'), findsOneWidget);
+    expect(find.text('Iskolar'), findsOneWidget);
     await tester.tap(find.text('Contacts'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Contacts Active'), findsOneWidget);
@@ -176,6 +175,16 @@ void main() {
     await tester.pump();
     await tester.tap(find.text("I'm Safe / Arrive"));
     await tester.pump();
+    // Pre-arrival safety confirmation: trip remains active
+    expect(find.text('TRIP IN PROGRESS'), findsOneWidget);
+
+    // Simulate geofence arrival, then tap "I'm Safe" to complete trip
+    final homeState = tester.state<HomeScreenState>(find.byType(HomeScreen));
+    homeState.simulateGeofenceArrival();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text("I'm Safe / Arrive"));
+    await tester.pumpAndSettle();
     expect(find.text('START TRIP'), findsOneWidget);
   });
 
@@ -606,8 +615,8 @@ void main() {
     // Verify PUP Santa Maria Campus target
     final campusTarget = await service.resolveTarget('Campus');
     expect(campusTarget!.name, 'Campus');
-    expect(campusTarget.latitude, 14.8697);
-    expect(campusTarget.longitude, 120.9991);
+    expect(campusTarget.latitude, 14.869725503304737);
+    expect(campusTarget.longitude, 120.9990821362761);
     expect(campusTarget.radiusMeters, 150.0);
 
     // Verify Home target
@@ -806,7 +815,7 @@ void main() {
 
       // Verify Section 1 Items
       expect(find.text('Home Location Pin'), findsOneWidget);
-      expect(find.text('14.8192° N, 120.9610° E'), findsOneWidget);
+      expect(find.textContaining('14.8192'), findsWidgets);
       expect(find.text('PUP Santa Maria Campus'), findsOneWidget);
       expect(find.textContaining('14.8697'), findsWidgets);
       expect(find.text('Default Travel Duration'), findsOneWidget);

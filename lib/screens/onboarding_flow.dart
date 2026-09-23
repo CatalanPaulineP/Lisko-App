@@ -2820,22 +2820,59 @@ class SuccessIllustration extends StatelessWidget {
   }
 }
 
-class SetupChecklist extends StatelessWidget {
+class SetupChecklist extends StatefulWidget {
   const SetupChecklist({super.key, this.controller});
 
   final AnimationController? controller;
 
   @override
+  State<SetupChecklist> createState() => _SetupChecklistState();
+}
+
+class _SetupChecklistState extends State<SetupChecklist> {
+  bool _notifReady = true;
+  bool _contactsReady = true;
+  bool _smsReady = true;
+  bool _locReady = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSetupStatuses();
+  }
+
+  Future<void> _checkSetupStatuses() async {
+    const storage = LocalStorageService();
+    final permService = PermissionService();
+
+    final notif = await permService.checkNotificationPermission();
+    final contacts = await storage.readContacts();
+    final sms = await permService.checkSmsPermission();
+    final loc = await permService.checkLocationPermission();
+    final gps = await permService.isLocationServiceEnabled();
+
+    if (!mounted) return;
+
+    setState(() {
+      _notifReady = notif;
+      _contactsReady = contacts.isNotEmpty;
+      _smsReady = sms;
+      _locReady = loc && gps;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const items = [
-      'Notifications enabled',
-      'Trusted contacts added',
-      'SMS & Location ready',
+    final items = [
+      MapEntry('Notifications Enabled', _notifReady),
+      MapEntry('Trusted Contacts Added', _contactsReady),
+      MapEntry('SMS Enabled', _smsReady),
+      MapEntry('Location Enabled', _locReady),
     ];
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
@@ -2852,19 +2889,19 @@ class SetupChecklist extends StatelessWidget {
         children: List.generate(items.length, (index) {
           final item = items[index];
 
-          if (controller == null) {
-            return _buildCheckItem(item);
+          if (widget.controller == null) {
+            return _buildCheckItem(item.key, item.value);
           }
 
-          final startInterval = 0.35 + (index * 0.18);
-          final endInterval = (startInterval + 0.32).clamp(0.0, 1.0);
+          final startInterval = 0.25 + (index * 0.12);
+          final endInterval = (startInterval + 0.28).clamp(0.0, 1.0);
 
           final slideAnimation = Tween<Offset>(
             begin: const Offset(0.0, 0.30),
             end: Offset.zero,
           ).animate(
             CurvedAnimation(
-              parent: controller!,
+              parent: widget.controller!,
               curve: Interval(startInterval, endInterval, curve: Curves.easeOutCubic),
             ),
           );
@@ -2874,20 +2911,20 @@ class SetupChecklist extends StatelessWidget {
             end: 1.0,
           ).animate(
             CurvedAnimation(
-              parent: controller!,
+              parent: widget.controller!,
               curve: Interval(startInterval, endInterval, curve: Curves.easeOut),
             ),
           );
 
           return RepaintBoundary(
             child: AnimatedBuilder(
-              animation: controller!,
+              animation: widget.controller!,
               builder: (context, child) {
                 return FadeTransition(
                   opacity: opacityAnimation,
                   child: SlideTransition(
                     position: slideAnimation,
-                    child: _buildCheckItem(item),
+                    child: _buildCheckItem(item.key, item.value),
                   ),
                 );
               },
@@ -2898,26 +2935,48 @@ class SetupChecklist extends StatelessWidget {
     );
   }
 
-  Widget _buildCheckItem(String item) {
+  Widget _buildCheckItem(String label, bool isReady) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          const AppIcon.standard(
-            AppIcons.checkCircle,
-            color: AppColors.success,
-            semanticIcon: Icons.check_circle_rounded,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            item,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.header,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isReady ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+              color: isReady ? AppColors.success : const Color(0xFFD97706),
+              size: 20,
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: isReady ? AppColors.header : AppColors.body,
+              ),
+            ),
+            if (!isReady) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Action Needed',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFD97706),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
