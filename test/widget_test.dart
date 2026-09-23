@@ -105,7 +105,7 @@ void main() {
     await tester.tap(find.text('Add Manual Contact'));
     await tester.pumpAndSettle();
     expect(find.text('e.g., Mom'), findsOneWidget);
-    expect(find.text('Mother'), findsOneWidget);
+    expect(find.text('Parent'), findsOneWidget);
     expect(find.text('Save Contact'), findsOneWidget);
 
     await tester.tap(find.text('Import from Contacts'));
@@ -344,7 +344,7 @@ void main() {
       // Verify contact saved and manual form closed
       expect(find.text('SAVED CONTACTS'), findsOneWidget);
       expect(find.text('Pauline Santos'), findsOneWidget);
-      expect(find.text('Mother'), findsOneWidget);
+      expect(find.text('Parent'), findsOneWidget);
       expect(find.text('+63 9123456789'), findsOneWidget);
       expect(find.text('PS'), findsOneWidget);
       expect(find.byType(ManualContactExpandedForm), findsNothing);
@@ -533,7 +533,7 @@ void main() {
       // Verify Primary Emergency Contact Card
       expect(find.text('Primary Emergency Contact'), findsOneWidget);
       expect(find.text('Pauline'), findsOneWidget);
-      expect(find.text('Mother | +63 9123456789'), findsOneWidget);
+      expect(find.text('Parent | +63 9123456789'), findsOneWidget);
       expect(find.text('Import from Contacts'), findsOneWidget);
 
       // Verify Secondary Contacts List

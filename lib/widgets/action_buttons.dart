@@ -41,7 +41,7 @@ class ContactPerson {
     required this.name,
     required this.phone,
     required this.initials,
-    this.relationship = 'Mother',
+    this.relationship = 'Parent',
   });
 
   /// Full display name of the contact.
@@ -53,7 +53,7 @@ class ContactPerson {
   /// Two-letter uppercase initials used for avatar rendering (e.g. `PL`, `MS`).
   final String initials;
 
-  /// Relationship type (e.g. `Mother`, `Father`, `Guardian`, `Other`).
+  /// Relationship type (e.g. `Parent`, `Guardian`, `Others`).
   final String relationship;
 
   /// Creates a copy of this contact with updated fields.
@@ -81,11 +81,21 @@ class ContactPerson {
 
   /// Deserializes a contact person from a stored JSON map with safe defaults.
   factory ContactPerson.fromJson(Map<String, dynamic> json) {
+    final rawRel = json['relationship'] as String? ?? 'Parent';
+    String normalizedRel;
+    if (rawRel == 'Mother' || rawRel == 'Father') {
+      normalizedRel = 'Parent';
+    } else if (rawRel == 'Other') {
+      normalizedRel = 'Others';
+    } else {
+      normalizedRel = rawRel;
+    }
+
     return ContactPerson(
       name: json['name'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       initials: json['initials'] as String? ?? '??',
-      relationship: json['relationship'] as String? ?? 'Mother',
+      relationship: normalizedRel,
     );
   }
 

@@ -172,6 +172,17 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   final List<ContactPerson> savedContacts = [];
 
   Future<void> _openContactsImport() async {
+    if (savedContacts.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'You can add up to 5 emergency contacts. Remove a contact to add a new one.',
+          ),
+        ),
+      );
+      return;
+    }
+
     // 1. Show custom rationale modal first
     final allowed = await showDialog<bool>(
       context: context,
@@ -220,16 +231,34 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         builder: (_) => SelectRelationshipBottomSheet(contact: selected),
       );
       if (mounted && result != null) {
+        if (savedContacts.length >= 5) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You can add up to 5 emergency contacts.'),
+            ),
+          );
+          return;
+        }
         final finalContact = result is ContactPerson
             ? result
-            : selected.copyWith(relationship: 'Mother');
-        setState(() => savedContacts.add(finalContact));
-        
-        // Save to local storage immediately
-        final storage = const LocalStorageService();
-        final currentSaved = await storage.readContacts();
-        currentSaved.add(finalContact);
-        await storage.saveContacts(currentSaved);
+            : selected.copyWith(relationship: 'Parent');
+
+        if (!savedContacts.any((c) => c.phone == finalContact.phone)) {
+          setState(() => savedContacts.add(finalContact));
+
+          final storage = const LocalStorageService();
+          final currentSaved = await storage.readContacts();
+          if (!currentSaved.any((c) => c.phone == finalContact.phone)) {
+            currentSaved.add(finalContact);
+            await storage.saveContacts(currentSaved);
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Contact already exists in your trusted list'),
+            ),
+          );
+        }
       }
     }
   }
@@ -399,11 +428,33 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
           if (manualFormExpanded)
             ManualContactExpandedForm(
               onCancel: () => setState(() => manualFormExpanded = false),
-              onSaved: (contact) {
-                setState(() {
-                  savedContacts.add(contact);
-                  manualFormExpanded = false;
-                });
+              onSaved: (contact) async {
+                if (savedContacts.length >= 5) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('You can add up to 5 emergency contacts.'),
+                    ),
+                  );
+                  return;
+                }
+                if (!savedContacts.any((c) => c.phone == contact.phone)) {
+                  setState(() {
+                    savedContacts.add(contact);
+                    manualFormExpanded = false;
+                  });
+                  final storage = const LocalStorageService();
+                  final currentSaved = await storage.readContacts();
+                  if (!currentSaved.any((c) => c.phone == contact.phone)) {
+                    currentSaved.add(contact);
+                    await storage.saveContacts(currentSaved);
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Contact already exists in your trusted list'),
+                    ),
+                  );
+                }
               },
             )
           else
@@ -1593,7 +1644,7 @@ class SavedContactCard extends StatelessWidget {
 class RelationshipChips extends StatelessWidget {
   const RelationshipChips({
     super.key,
-    this.selected = 'Mother',
+    this.selected = 'Parent',
     this.onChanged,
   });
 
@@ -1601,10 +1652,9 @@ class RelationshipChips extends StatelessWidget {
   final ValueChanged<String>? onChanged;
 
   static const List<String> relationships = [
-    'Mother',
-    'Father',
+    'Parent',
     'Guardian',
-    'Other',
+    'Others',
   ];
 
   @override
@@ -2172,7 +2222,7 @@ class SelectRelationshipBottomSheet extends StatefulWidget {
 
 class _SelectRelationshipBottomSheetState
     extends State<SelectRelationshipBottomSheet> {
-  String relationship = 'Mother';
+  String relationship = 'Parent';
   final TextEditingController _customRelationshipController = TextEditingController();
 
   @override
@@ -2309,7 +2359,7 @@ class _SelectRelationshipBottomSheetState
               selected: relationship,
               onChanged: (value) => setState(() => relationship = value),
             ),
-            if (relationship == 'Other') ...[
+            if (relationship == 'Others' || relationship == 'Other') ...[
               const SizedBox(height: 16),
               const Text(
                 'Specify Relationship',

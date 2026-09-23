@@ -1094,7 +1094,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
-  Key _homeKey = UniqueKey();
+  static const Key _homeKey = ValueKey('home-dashboard');
 
   @override
   Widget build(BuildContext context) {
@@ -1131,7 +1131,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               onStartNewTrip: () {
                 setState(() {
                   selectedTab = 0;
-                  _homeKey = UniqueKey();
                 });
               },
             ),
@@ -1145,7 +1144,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (selectedTab == index) return;
           setState(() {
             selectedTab = index;
-            if (index == 0) _homeKey = UniqueKey(); // Force home refresh to sync settings
           });
         },
         backgroundColor: AppColors.card,

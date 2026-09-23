@@ -95,6 +95,17 @@ class _ContactsTabState extends State<ContactsTab> {
 
 
   Future<void> _openImportModal() async {
+    if (_contacts.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'You can add up to 5 emergency contacts. Remove a contact to add a new one.',
+          ),
+        ),
+      );
+      return;
+    }
+
     // 1. Show custom rationale modal first
     final allowed = await showDialog<bool>(
       context: context,
@@ -145,6 +156,14 @@ class _ContactsTabState extends State<ContactsTab> {
       );
 
       if (confirmed != null && mounted) {
+        if (_contacts.length >= 5) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You can add up to 5 emergency contacts.'),
+            ),
+          );
+          return;
+        }
         final updated = List<ContactPerson>.from(_contacts);
         if (!updated.any((c) => c.phone == confirmed.phone)) {
           updated.add(confirmed);
@@ -167,12 +186,29 @@ class _ContactsTabState extends State<ContactsTab> {
   }
 
   void _openAddContactModal() {
+    if (_contacts.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can add up to 5 emergency contacts.'),
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet<ContactPerson>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => AddNewContactBottomSheet(
         onAdded: (newContact) {
+          if (_contacts.length >= 5) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('You can add up to 5 emergency contacts.'),
+              ),
+            );
+            return;
+          }
           final updated = List<ContactPerson>.from(_contacts)..add(newContact);
           _updateContacts(updated);
         },
@@ -181,7 +217,7 @@ class _ContactsTabState extends State<ContactsTab> {
   }
 
   Future<void> _removeContact(int index) async {
-    if (index < 0 || index >= _contacts.length) return;
+    if (index <= 0 || index >= _contacts.length) return;
     
     final contact = _contacts[index];
     final bool? confirmed = await showDialog<bool>(
@@ -811,14 +847,19 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
         : rawDigits;
     _phoneController = TextEditingController(text: tenDigits);
 
-    final knownRels = ['Mother', 'Father', 'Guardian'];
-    if (knownRels.contains(widget.contact.relationship)) {
-      _relationship = widget.contact.relationship;
+    final rel = widget.contact.relationship;
+    if (rel == 'Mother' || rel == 'Father' || rel == 'Parent') {
+      _relationship = 'Parent';
+      _otherRelController = TextEditingController();
+    } else if (rel == 'Guardian') {
+      _relationship = 'Guardian';
+      _otherRelController = TextEditingController();
+    } else if (rel == 'Other' || rel == 'Others') {
+      _relationship = 'Others';
       _otherRelController = TextEditingController();
     } else {
-      _relationship = 'Other';
-      _otherRelController =
-          TextEditingController(text: widget.contact.relationship);
+      _relationship = 'Others';
+      _otherRelController = TextEditingController(text: rel);
     }
   }
 
@@ -847,9 +888,9 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
 
     if (_nameError != null || _phoneError != null) return;
 
-    final finalRel = _relationship == 'Other'
+    final finalRel = (_relationship == 'Others' || _relationship == 'Other')
         ? (_otherRelController.text.trim().isEmpty
-            ? 'Other'
+            ? 'Others'
             : _otherRelController.text.trim())
         : _relationship;
 
@@ -987,7 +1028,7 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
                 selected: _relationship,
                 onChanged: (val) => setState(() => _relationship = val),
               ),
-              if (_relationship == 'Other') ...[
+              if (_relationship == 'Others' || _relationship == 'Other') ...[
                 const SizedBox(height: 10),
                 TextField(
                   controller: _otherRelController,
@@ -1070,7 +1111,7 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otherRelController = TextEditingController();
-  String _relationship = 'Mother';
+  String _relationship = 'Parent';
   bool _isValid = false;
 
   @override
@@ -1102,9 +1143,9 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
 
     final name = _nameController.text.trim();
     final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
-    final finalRel = _relationship == 'Other'
+    final finalRel = (_relationship == 'Others' || _relationship == 'Other')
         ? (_otherRelController.text.trim().isEmpty
-            ? 'Other'
+            ? 'Others'
             : _otherRelController.text.trim())
         : _relationship;
 
@@ -1246,7 +1287,7 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
                 selected: _relationship,
                 onChanged: (val) => setState(() => _relationship = val),
               ),
-              if (_relationship == 'Other') ...[
+              if (_relationship == 'Others' || _relationship == 'Other') ...[
                 const SizedBox(height: 10),
                 TextField(
                   controller: _otherRelController,

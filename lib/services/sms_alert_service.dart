@@ -1,9 +1,10 @@
-import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:background_sms/background_sms.dart';
-
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:vibration/vibration.dart';
 
 import 'local_storage_service.dart';
@@ -40,16 +41,57 @@ class SmsAlertService {
     final now = DateTime.now();
     final mo = now.month.toString().padLeft(2, '0');
     final d = now.day.toString().padLeft(2, '0');
-    final y = now.year.toString();
+    final y = (now.year % 100).toString().padLeft(2, '0');
     int h = now.hour;
     final ampm = h >= 12 ? 'PM' : 'AM';
     if (h == 0) h = 12;
     if (h > 12) h -= 12;
     final hs = h.toString().padLeft(2, '0');
     final mi = now.minute.toString().padLeft(2, '0');
-    final s = now.second.toString().padLeft(2, '0');
-    final timestamp = '\nTime: $mo-$d-$y $hs:$mi:$s $ampm';
+    final timestamp = '\nTime: $mo-$d-$y $hs:$mi $ampm';
     return '$message$timestamp';
+  }
+
+  Future<String?> _reverseGeocode(double lat, double lng) async {
+    if (_isTestEnvironment) {
+      return 'Pulong Buhangin, Sta Maria';
+    }
+    try {
+      final placemarks = await placemarkFromCoordinates(
+        lat,
+        lng,
+      ).timeout(const Duration(seconds: 3));
+
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        final parts = <String>[];
+
+        final subLoc = p.subLocality ?? p.thoroughfare;
+        if (subLoc != null && subLoc.isNotEmpty) {
+          parts.add(subLoc);
+        }
+
+        final loc = p.locality ?? p.subAdministrativeArea;
+        if (loc != null && loc.isNotEmpty) {
+          parts.add(loc);
+        }
+
+        if (parts.isNotEmpty) {
+          var addr = parts.join(', ');
+          addr = addr
+              .replaceAll('Santa ', 'Sta ')
+              .replaceAll('Barangay ', 'Brgy ')
+              .replaceAll('Saint ', 'St ');
+          if (addr.length > 24) {
+            addr = addr.substring(0, 24);
+          }
+          return addr;
+        }
+      }
+    } catch (e) {
+      developer.log('SmsAlertService: Reverse geocoding error or timeout: $e');
+    }
+    return null;
   }
 
   Future<List<String>> sendManualSos({
@@ -58,19 +100,26 @@ class SmsAlertService {
     double? accuracy,
     String? locationError,
   }) async {
-    String coordText = locationError ?? 'Location Unavailable';
-    String mapLink = '';
+    String alertMessage;
+
     if (latitude != null && longitude != null) {
       final latStr = latitude.toStringAsFixed(6);
       final lngStr = longitude.toStringAsFixed(6);
-      coordText = '$latStr,$lngStr';
-      if (accuracy != null) {
-        coordText += ' (+/-${accuracy.toStringAsFixed(0)}m)';
-      }
-      mapLink = '\nMap: https://www.google.com/maps?q=$latStr,$lngStr';
+      final accStr = accuracy != null ? ' (+/-${accuracy.toStringAsFixed(0)}m)' : '';
+      final address = await _reverseGeocode(latitude, longitude);
+
+      final locLine = (address != null && address.isNotEmpty) ? 'Loc: $address\n' : '';
+
+      alertMessage = 'LISKO SOS! Need Help!\n'
+          '$locLine'
+          '$latStr,$lngStr$accStr\n'
+          'Map: https://www.google.com/maps?q=$latStr,$lngStr';
+    } else {
+      final err = locationError ?? 'Location Unavailable';
+      alertMessage = 'LISKO SOS! Need Help!\n'
+          'Loc: $err';
     }
-        
-    final alertMessage = 'LISKO SOS! Need help!\nLoc: $coordText$mapLink';
+
     return _internalDispatch(_appendTimestamp(alertMessage));
   }
 
@@ -82,22 +131,32 @@ class SmsAlertService {
     String? locationError,
     String? customMessage,
   }) async {
-    String coordText = locationError ?? 'Location Unavailable';
-    String mapLink = '';
+    String alertMessage;
+
     if (latitude != null && longitude != null) {
       final latStr = latitude.toStringAsFixed(6);
       final lngStr = longitude.toStringAsFixed(6);
-      coordText = '$latStr,$lngStr';
-      if (accuracy != null) {
-        coordText += ' (+/-${accuracy.toStringAsFixed(0)}m)';
-      }
-      mapLink = '\nMap: https://www.google.com/maps?q=$latStr,$lngStr';
-    }
+      final accStr = accuracy != null ? ' (+/-${accuracy.toStringAsFixed(0)}m)' : '';
+      final address = await _reverseGeocode(latitude, longitude);
 
-    String alertMessage = customMessage ?? '';
-    
-    if (alertMessage.isEmpty) {
-      alertMessage = 'LISKO ALERT: Travel timer expired!\nLoc: $coordText$mapLink';
+      final header = customMessage != null && customMessage.isNotEmpty
+          ? customMessage
+          : 'LISKO ALERT: Timer expired!';
+
+      final locLine = (address != null && address.isNotEmpty) ? 'Loc: $address\n' : '';
+
+      alertMessage = '$header\n'
+          '$locLine'
+          '$latStr,$lngStr$accStr\n'
+          'Map: https://www.google.com/maps?q=$latStr,$lngStr';
+    } else {
+      final header = customMessage != null && customMessage.isNotEmpty
+          ? customMessage
+          : 'LISKO ALERT: Timer expired!';
+      final err = locationError ?? 'Location Unavailable';
+
+      alertMessage = '$header\n'
+          'Loc: $err';
     }
 
     return _internalDispatch(_appendTimestamp(alertMessage));
@@ -112,7 +171,7 @@ class SmsAlertService {
       developer.log('SmsAlertService: No trusted contacts configured to receive SOS.');
       return [];
     }
-    
+
     if (!_isTestEnvironment) {
       developer.log('SmsAlertService: SMS permission status: checking...');
       final smsStatus = await Permission.sms.status;
@@ -155,14 +214,14 @@ class SmsAlertService {
       if (!_isTestEnvironment) {
         try {
           developer.log('SmsAlertService: Attempting SMS send to ${contact.name} ($cleanPhone)...');
-          
+
           final result = await BackgroundSms.sendMessage(
             phoneNumber: cleanPhone,
             message: alertMessage,
           );
-          
+
           developer.log('SmsAlertService: BackgroundSms result: $result');
-          
+
           if (result == SmsStatus.sent) {
             developer.log('SmsAlertService: SMS successfully handed to Android for ${contact.name} ($cleanPhone).');
             dispatchedTo.add('${contact.name} ($cleanPhone)');

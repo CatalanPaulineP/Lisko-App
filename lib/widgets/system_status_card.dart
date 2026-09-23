@@ -20,7 +20,8 @@ class SystemReadyCard extends StatefulWidget {
   State<SystemReadyCard> createState() => _SystemReadyCardState();
 }
 
-class _SystemReadyCardState extends State<SystemReadyCard> {
+class _SystemReadyCardState extends State<SystemReadyCard>
+    with WidgetsBindingObserver {
   String _contactName = 'Loading...';
   String _displayDestination = 'Loading...';
   bool _isSystemReady = true;
@@ -28,7 +29,21 @@ class _SystemReadyCardState extends State<SystemReadyCard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {

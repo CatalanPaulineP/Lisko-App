@@ -206,13 +206,13 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
       name: 'Pauline',
       phone: '+63 9123456789',
       initials: 'PL',
-      relationship: 'Mother',
+      relationship: 'Parent',
     ),
     ContactPerson(
       name: 'Maria Santos',
       phone: '+63 917 123 4567',
       initials: 'MS',
-      relationship: 'Father',
+      relationship: 'Parent',
     ),
     ContactPerson(
       name: 'Juan Dela Cruz',
