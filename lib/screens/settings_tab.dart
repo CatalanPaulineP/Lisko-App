@@ -23,6 +23,7 @@ import '../constants/app_icons.dart';
 import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/permission_service.dart';
+import 'user_guide_screen.dart';
 import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
 import 'home_tab.dart'; // For HomeHeaderPatternPainter
@@ -105,17 +106,10 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   void _openUserGuideModal() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => const InfoModalBottomSheet(
-        title: 'User Guide & Safety Protocol',
-        content: 'The Lisko safety protocol operates in 3 escalation stages:\n\n'
-            '1. Warning: 90 seconds before trip expiry, the app will notify you.\n'
-            '2. Escalation: 3-cycle haptic vibrations occur.\n'
-            '3. Emergency: Offline SMS dispatch to your trusted contacts.\n\n'
-            'Please ensure you respond to the warning prompt if you are safe.',
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const UserGuideScreen(),
       ),
     );
   }
