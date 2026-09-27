@@ -35,15 +35,46 @@ import 'trips_tab.dart';
 class HomeDashboardTab extends StatelessWidget {
   const HomeDashboardTab({
     super.key,
+    required this.onSetUpTrip,
     required this.onStartTrip,
     required this.onSos,
+    this.tripStaged = false,
+    this.stagedDestination = 'Campus',
+    this.stagedDuration = const Duration(minutes: 45),
+    this.onAdjustMinutes,
+    this.onEditSetup,
   });
 
   /// Action dispatched to open the `TripSchedulerSheet` modal.
+  final VoidCallback onSetUpTrip;
+
+  /// Action dispatched to start the staged trip timer.
   final VoidCallback onStartTrip;
 
   /// Action dispatched when SOS is triggered.
   final VoidCallback onSos;
+
+  /// Whether a trip setup is saved and waiting to be started.
+  final bool tripStaged;
+
+  /// Destination set up by student.
+  final String stagedDestination;
+
+  /// Duration set up by student.
+  final Duration stagedDuration;
+
+  /// Callback to adjust minutes directly on the card.
+  final ValueChanged<int>? onAdjustMinutes;
+
+  /// Callback to re-open setup sheet.
+  final VoidCallback? onEditSetup;
+
+  String _formatDuration(Duration d) {
+    final hh = d.inHours.toString().padLeft(2, '0');
+    final mm = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final ss = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hh:$mm:$ss';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,9 +90,19 @@ class HomeDashboardTab extends StatelessWidget {
               child: Column(
                 children: [
                   const SizedBox(height: 12),
-                  const TripTimerCard(),
+                  TripTimerCard(
+                    timeText: tripStaged ? _formatDuration(stagedDuration) : '__:__:__',
+                    statusText: tripStaged ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO ACTIVE TRIP',
+                    isActive: false,
+                    isStaged: tripStaged,
+                    onAdjustMinutes: onAdjustMinutes,
+                    onEditSetup: tripStaged ? onEditSetup : onSetUpTrip,
+                  ),
                   const SizedBox(height: 14),
-                  HomeStartButton(onPressed: onStartTrip),
+                  HomeStartButton(
+                    onPressed: tripStaged ? onStartTrip : onSetUpTrip,
+                    label: tripStaged ? 'START TRIP' : 'SET UP TRIP',
+                  ),
                   const SizedBox(height: 12),
                   SosWarningBox(
                     onTap: onSos,
@@ -209,9 +250,14 @@ class HomeHeaderPatternPainter extends CustomPainter {
 
 /// Start trip button with debounce and locking against rapid taps.
 class HomeStartButton extends StatefulWidget {
-  const HomeStartButton({super.key, required this.onPressed});
+  const HomeStartButton({
+    super.key,
+    required this.onPressed,
+    this.label = 'SET UP TRIP',
+  });
 
   final VoidCallback onPressed;
+  final String label;
 
   @override
   State<HomeStartButton> createState() => _HomeStartButtonState();
@@ -251,7 +297,7 @@ class _HomeStartButtonState extends State<HomeStartButton> {
             color: Colors.white,
             semanticIcon: Icons.navigation_rounded,
           ),
-          label: const Text('START TRIP'),
+          label: Text(widget.label),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             foregroundColor: Colors.white,
