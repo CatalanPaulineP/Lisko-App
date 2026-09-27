@@ -31,10 +31,15 @@ import 'app_icon.dart';
 
 /// Modal bottom sheet for scheduling and fine-tuning a trip timer.
 class TripSchedulerSheet extends StatefulWidget {
-  const TripSchedulerSheet({super.key, required this.onStart});
+  const TripSchedulerSheet({
+    super.key,
+    this.onStart,
+    this.onSave,
+  });
 
-  /// Callback dispatched when the user confirms and starts the scheduled trip.
-  final Future<bool> Function(String destination, Duration duration) onStart;
+  /// Callback dispatched when the user confirms and starts/saves the scheduled trip.
+  final Future<bool> Function(String destination, Duration duration)? onStart;
+  final Future<bool> Function(String destination, Duration duration)? onSave;
 
   @override
   State<TripSchedulerSheet> createState() => _TripSchedulerSheetState();
@@ -97,13 +102,15 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
     if (_startTriggered) return;
     _startTriggered = true;
 
-    bool started = await widget.onStart(selectedDestination, duration);
-    if (started && mounted && Navigator.canPop(context)) {
-      Navigator.pop(context);
-    } else {
-      // Re-enable the button if permission was denied or settings were opened
-      _startTriggered = false; 
+    final callback = widget.onSave ?? widget.onStart;
+    if (callback != null) {
+      bool saved = await callback(selectedDestination, duration);
+      if (saved && mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+        return;
+      }
     }
+    _startTriggered = false;
   }
 
   @override
@@ -290,7 +297,7 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
                     color: Colors.white,
                     semanticIcon: Icons.navigation_rounded,
                   ),
-                  label: const Text('START TRIP'),
+                  label: const Text('SAVE TRIP'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     foregroundColor: Colors.white,

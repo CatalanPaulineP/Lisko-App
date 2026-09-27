@@ -67,6 +67,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   int selectedTab = 0;
   bool tripActive = false;
+  bool tripStaged = false;
+  String stagedDestination = 'Campus';
+  Duration stagedDuration = const Duration(minutes: 45);
   bool isArrived = false;
   int arrivalCountdown = 90;
   bool isTimeoutWarning = false;
@@ -463,6 +466,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final newTripId = now.millisecondsSinceEpoch.toString();
     setState(() {
       tripActive = true;
+      tripStaged = false;
       isArrived = false;
 
       _isEscalating = false;
@@ -1055,7 +1059,16 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => TripSchedulerSheet(onStart: _startTrip),
+      builder: (_) => TripSchedulerSheet(
+        onSave: (selectedDestination, duration) async {
+          setState(() {
+            tripStaged = true;
+            stagedDestination = selectedDestination;
+            stagedDuration = duration;
+          });
+          return true;
+        },
+      ),
     ).whenComplete(() {
       if (mounted) _sheetOpen = false;
     });
@@ -1089,8 +1102,20 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   )
                 : HomeDashboardTab(
                     key: _homeKey,
-                    onStartTrip: _openTripScheduler,
+                    onSetUpTrip: _openTripScheduler,
+                    onStartTrip: () => _startTrip(stagedDestination, stagedDuration),
                     onSos: () => _triggerEmergencyFlow(immediate: false),
+                    tripStaged: tripStaged,
+                    stagedDestination: stagedDestination,
+                    stagedDuration: stagedDuration,
+                    onAdjustMinutes: (deltaMins) {
+                      setState(() {
+                        final currentMins = stagedDuration.inMinutes;
+                        final newMins = (currentMins + deltaMins).clamp(1, 1440);
+                        stagedDuration = Duration(minutes: newMins);
+                      });
+                    },
+                    onEditSetup: _openTripScheduler,
                   ),
           ),
             TripsTab(

@@ -162,6 +162,46 @@ class FirebaseService {
     return _tripsController!.stream;
   }
 
+  Future<void> deleteTripRecord(String tripId) async {
+    try {
+      await const LocalStorageService().deleteTripRecord(tripId);
+      final firestore = _firestore;
+      if (firestore != null && tripId.isNotEmpty) {
+        try {
+          await firestore.collection('trips').doc(tripId).delete();
+        } catch (_) {}
+        try {
+          await firestore.collection('emergency_events').doc(tripId).delete();
+        } catch (_) {}
+      }
+      await refreshLocalTrips();
+    } catch (e) {
+      developer.log('Failed to delete trip record: $e');
+    }
+  }
+
+  Future<void> purgeTripsOlderThan1Month() async {
+    try {
+      await const LocalStorageService().purgeTripsOlderThan1Month();
+      final firestore = _firestore;
+      if (firestore != null) {
+        final cutoff = DateTime.now().subtract(const Duration(days: 30));
+        try {
+          final oldTrips = await firestore
+              .collection('trips')
+              .where('startedAt', isLessThan: Timestamp.fromDate(cutoff))
+              .get();
+          for (final doc in oldTrips.docs) {
+            await doc.reference.delete();
+          }
+        } catch (_) {}
+      }
+      await refreshLocalTrips();
+    } catch (e) {
+      developer.log('Failed to purge trips older than 1 month: $e');
+    }
+  }
+
   /// Creates or updates a trip in Firebase.
   Future<void> saveOrUpdateTrip({
     required String tripId,

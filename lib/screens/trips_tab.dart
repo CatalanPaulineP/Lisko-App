@@ -48,6 +48,7 @@ class TripsTab extends StatefulWidget {
 class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin {
   String _selectedFilter = 'All';
   String _selectedTimeFilter = 'All';
+  DateTime? _selectedCustomDate;
   late final Stream<List<TripRecord>> _tripsStream;
 
   @override
@@ -59,72 +60,35 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
     _tripsStream = FirebaseService().getTripsStream();
   }
 
-  void _showSortBottomSheet() {
-    showModalBottomSheet<void>(
+  Future<void> _openCalendarDatePicker() async {
+    final now = DateTime.now();
+    final oneMonthAgo = now.subtract(const Duration(days: 30));
+
+    final picked = await showDatePicker(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Filter Trips',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.header,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const AppIcon.small(AppIcons.checkCircle, color: Color(0xFF10B981)),
-                title: const Text('Safe / Completed Only'),
-                trailing: _selectedFilter == 'Completed' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _selectedFilter = _selectedFilter == 'Completed' ? 'All' : 'Completed');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.update_rounded, color: Color(0xFFD97706)),
-                title: const Text('Extended Only'),
-                trailing: _selectedFilter == 'Extended' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _selectedFilter = _selectedFilter == 'Extended' ? 'All' : 'Extended');
-                },
-              ),
-              ListTile(
-                leading: const AppIcon.small(AppIcons.warning, color: AppColors.primary),
-                title: const Text('Alerts Triggered'),
-                trailing: _selectedFilter == 'Alert' ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _selectedFilter = _selectedFilter == 'Alert' ? 'All' : 'Alert');
-                },
-              ),
-            ],
+      initialDate: _selectedCustomDate ?? now,
+      firstDate: oneMonthAgo,
+      lastDate: now,
+      helpText: 'SELECT TRIP DATE (LAST 30 DAYS)',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.header,
+            ),
           ),
-        ),
-      ),
+          child: child!,
+        );
+      },
     );
+
+    if (picked != null) {
+      setState(() {
+        _selectedCustomDate = picked;
+      });
+    }
   }
 
   @override
@@ -141,6 +105,11 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
         final now = DateTime.now();
 
         final timeFilteredTrips = trips.where((t) {
+          if (_selectedCustomDate != null) {
+            return t.timestamp.year == _selectedCustomDate!.year &&
+                t.timestamp.month == _selectedCustomDate!.month &&
+                t.timestamp.day == _selectedCustomDate!.day;
+          }
           if (_selectedTimeFilter == 'This Week') {
             final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
             final startOfWeekMidnight = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
@@ -170,6 +139,8 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
               safeCount: safeCount,
               extendedCount: extendedCount,
               alertsCount: alertsCount,
+              selectedFilter: _selectedFilter,
+              onFilterChanged: (filter) => setState(() => _selectedFilter = filter),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -179,9 +150,12 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
                   children: [
                     const SizedBox(height: 14),
                     TripFilterChips(
-                      selectedFilter: _selectedTimeFilter,
+                      selectedFilter: _selectedCustomDate != null ? '' : _selectedTimeFilter,
                       onFilterSelected: (filter) =>
-                          setState(() => _selectedTimeFilter = filter),
+                          setState(() {
+                            _selectedTimeFilter = filter;
+                            _selectedCustomDate = null;
+                          }),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
@@ -189,7 +163,10 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                       RecentTripsSectionHeader(
-                        onFilterTap: _showSortBottomSheet,
+                        selectedFilter: _selectedFilter,
+                        selectedCustomDate: _selectedCustomDate,
+                        onFilterTap: _openCalendarDatePicker,
+                        onClearCustomDate: () => setState(() => _selectedCustomDate = null),
                       ),
                       const SizedBox(height: 12),
                       RecentTripsList(
@@ -277,9 +254,30 @@ class TripFilterChips extends StatelessWidget {
 
 /// Header row for the Recent Trips section with section title and filter icon.
 class RecentTripsSectionHeader extends StatelessWidget {
-  const RecentTripsSectionHeader({super.key, this.onFilterTap});
+  const RecentTripsSectionHeader({
+    super.key,
+    this.onFilterTap,
+    this.selectedFilter = 'All',
+    this.selectedCustomDate,
+    this.onClearCustomDate,
+  });
 
   final VoidCallback? onFilterTap;
+  final String selectedFilter;
+  final DateTime? selectedCustomDate;
+  final VoidCallback? onClearCustomDate;
+
+  String get _titleText {
+    if (selectedCustomDate != null) {
+      final months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      final m = months[selectedCustomDate!.month - 1];
+      return 'TRIPS ON $m ${selectedCustomDate!.day}, ${selectedCustomDate!.year}';
+    }
+    if (selectedFilter == 'Completed') return 'RECENT TRIPS (ARRIVED)';
+    if (selectedFilter == 'Extended') return 'RECENT TRIPS (EXTENDED)';
+    if (selectedFilter == 'Alert') return 'RECENT TRIPS (ALERTS)';
+    return 'RECENT TRIPS';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -287,25 +285,56 @@ class RecentTripsSectionHeader extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          'RECENT TRIPS',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: AppColors.body,
-            letterSpacing: 1.1,
-          ),
+        Row(
+          children: [
+            Text(
+              _titleText,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.body,
+                letterSpacing: 1.1,
+              ),
+            ),
+            if (selectedCustomDate != null) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: onClearCustomDate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'ALL DATES',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.close_rounded, size: 12, color: AppColors.primary),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         IconButton(
           onPressed: onFilterTap,
-          tooltip: 'Filter trips',
+          tooltip: 'Select date from calendar',
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-          icon: const AppIcon.standard(
-            AppIcons.filter,
-            size: 18,
-            color: AppColors.header,
-            semanticIcon: Icons.filter_list_rounded,
+          icon: Icon(
+            Icons.filter_alt_rounded,
+            size: 20,
+            color: selectedCustomDate != null ? AppColors.primary : AppColors.header,
           ),
         ),
       ],
@@ -321,12 +350,16 @@ class TripsHeader extends StatelessWidget {
     required this.safeCount,
     required this.extendedCount,
     required this.alertsCount,
+    required this.selectedFilter,
+    required this.onFilterChanged,
   });
 
   final int tripCount;
   final int safeCount;
   final int extendedCount;
   final int alertsCount;
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -405,6 +438,8 @@ class TripsHeader extends StatelessWidget {
                 safe: safeCount,
                 extended: extendedCount,
                 alerts: alertsCount,
+                selectedFilter: selectedFilter,
+                onFilterChanged: onFilterChanged,
               ),
             ),
           ],
@@ -422,15 +457,24 @@ class SummaryMetricsCard extends StatelessWidget {
     required this.safe,
     required this.extended,
     required this.alerts,
+    required this.selectedFilter,
+    required this.onFilterChanged,
   });
 
   final int total;
   final int safe;
   final int extended;
   final int alerts;
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
 
   @override
   Widget build(BuildContext context) {
+    final isTotalSelected = selectedFilter == 'All';
+    final isSafeSelected = selectedFilter == 'Completed';
+    final isExtendedSelected = selectedFilter == 'Extended';
+    final isAlertsSelected = selectedFilter == 'Alert';
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -444,7 +488,6 @@ class SummaryMetricsCard extends StatelessWidget {
           ),
         ],
       ),
-      clipBehavior: Clip.antiAlias,
       child: Row(
         children: [
           Expanded(
@@ -454,7 +497,9 @@ class SummaryMetricsCard extends StatelessWidget {
               backgroundColor: Colors.white,
               valueColor: AppColors.header,
               labelColor: AppColors.body,
-              borderRadius: const BorderRadius.only(
+              isSelected: isTotalSelected,
+              onTap: () => onFilterChanged('All'),
+              defaultBorderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 bottomLeft: Radius.circular(16),
               ),
@@ -463,10 +508,12 @@ class SummaryMetricsCard extends StatelessWidget {
           Expanded(
             child: MetricSegment(
               value: safe.toString(),
-              label: 'Safe',
+              label: 'Arrived',
               backgroundColor: const Color(0xFFD1FAE5),
               valueColor: const Color(0xFF10B981),
               labelColor: AppColors.body,
+              isSelected: isSafeSelected,
+              onTap: () => onFilterChanged(isSafeSelected ? 'All' : 'Completed'),
             ),
           ),
           Expanded(
@@ -476,6 +523,8 @@ class SummaryMetricsCard extends StatelessWidget {
               backgroundColor: const Color(0xFFFEF3C7),
               valueColor: const Color(0xFFD97706),
               labelColor: AppColors.body,
+              isSelected: isExtendedSelected,
+              onTap: () => onFilterChanged(isExtendedSelected ? 'All' : 'Extended'),
             ),
           ),
           Expanded(
@@ -485,7 +534,9 @@ class SummaryMetricsCard extends StatelessWidget {
               backgroundColor: const Color(0xFFFFDAD8),
               valueColor: const Color(0xFFDB2B38),
               labelColor: AppColors.body,
-              borderRadius: const BorderRadius.only(
+              isSelected: isAlertsSelected,
+              onTap: () => onFilterChanged(isAlertsSelected ? 'All' : 'Alert'),
+              defaultBorderRadius: const BorderRadius.only(
                 topRight: Radius.circular(16),
                 bottomRight: Radius.circular(16),
               ),
@@ -506,7 +557,9 @@ class MetricSegment extends StatelessWidget {
     required this.backgroundColor,
     required this.valueColor,
     required this.labelColor,
-    this.borderRadius,
+    required this.isSelected,
+    required this.onTap,
+    this.defaultBorderRadius,
   });
 
   final String value;
@@ -514,41 +567,69 @@ class MetricSegment extends StatelessWidget {
   final Color backgroundColor;
   final Color valueColor;
   final Color labelColor;
-  final BorderRadius? borderRadius;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final BorderRadius? defaultBorderRadius;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: borderRadius,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: valueColor,
-              height: 1.1,
-            ),
+    final effectiveRadius = isSelected
+        ? BorderRadius.circular(16)
+        : (defaultBorderRadius ?? BorderRadius.zero);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: effectiveRadius,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: effectiveRadius,
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: valueColor.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+            border: isSelected
+                ? Border.all(color: valueColor.withValues(alpha: 0.5), width: 1.5)
+                : null,
           ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: labelColor,
-              height: 1.1,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                value,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: valueColor,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: labelColor,
+                  height: 1.1,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

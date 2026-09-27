@@ -31,7 +31,7 @@ import '../widgets/action_buttons.dart';
 /// zero-overhead instantiation across UI state controllers.
 class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
 
-  Future<List<TripRecord>> readTripHistory() async {
+  Future<List<TripRecord>> readTripHistory({bool autoPurge1Month = true}) async {
     try {
       final preferences = await SharedPreferences.getInstance();
       final raw = preferences.getString(_tripHistoryKey);
@@ -39,13 +39,37 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
         return [];
       }
       final decoded = jsonDecode(raw) as List<dynamic>;
-      return decoded
+      final list = decoded
           .map((item) => TripRecord.fromJson(item as Map<String, dynamic>))
           .toList();
+
+      if (autoPurge1Month) {
+        final now = DateTime.now();
+        final filtered = list.where((t) => now.difference(t.timestamp).inDays < 30).toList();
+        if (filtered.length < list.length) {
+          await saveTripHistory(filtered);
+        }
+        return filtered;
+      }
+
+      return list;
     } catch (e, st) {
       developer.log('Failed to read trip history', error: e, stackTrace: st);
       return [];
     }
+  }
+
+  Future<bool> deleteTripRecord(String id) async {
+    final history = await readTripHistory(autoPurge1Month: false);
+    final updated = history.where((t) => t.id != id).toList();
+    return await saveTripHistory(updated);
+  }
+
+  Future<bool> purgeTripsOlderThan1Month() async {
+    final history = await readTripHistory(autoPurge1Month: false);
+    final now = DateTime.now();
+    final updated = history.where((t) => now.difference(t.timestamp).inDays < 30).toList();
+    return await saveTripHistory(updated);
   }
 
   Future<bool> saveTripHistory(List<TripRecord> trips) async {
