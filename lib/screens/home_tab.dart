@@ -43,12 +43,13 @@ class HomeDashboardTab extends StatelessWidget {
     this.stagedDuration = const Duration(minutes: 45),
     this.onAdjustMinutes,
     this.onEditSetup,
-    this.onCancelSetup,
-    this.selectedTab = 0,
+    this.setUpTripKey,
+    this.sosKey,
   });
 
-  /// Active tab index for targeted component updates.
-  final int selectedTab;
+  /// Global keys for runtime spotlight rect calculations
+  final GlobalKey? setUpTripKey;
+  final GlobalKey? sosKey;
 
   /// Action dispatched to open the `TripSchedulerSheet` modal.
   final VoidCallback onSetUpTrip;
@@ -74,9 +75,6 @@ class HomeDashboardTab extends StatelessWidget {
   /// Callback to re-open setup sheet.
   final VoidCallback? onEditSetup;
 
-  /// Callback to cancel/reset staged trip setup.
-  final VoidCallback? onCancelSetup;
-
   String _formatDuration(Duration d) {
     final hh = d.inHours.toString().padLeft(2, '0');
     final mm = (d.inMinutes % 60).toString().padLeft(2, '0');
@@ -89,7 +87,7 @@ class HomeDashboardTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        HomeHeader(selectedTab: selectedTab),
+        const HomeHeader(),
         Expanded(
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
@@ -99,21 +97,22 @@ class HomeDashboardTab extends StatelessWidget {
                 children: [
                   const SizedBox(height: 12),
                   TripTimerCard(
-                    timeText: tripStaged ? _formatDuration(stagedDuration) : '--:--:--',
-                    statusText: tripStaged ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO TRIP SET UP',
+                    timeText: tripStaged ? _formatDuration(stagedDuration) : '__:__:__',
+                    statusText: tripStaged ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO ACTIVE TRIP',
                     isActive: false,
                     isStaged: tripStaged,
                     onAdjustMinutes: onAdjustMinutes,
                     onEditSetup: tripStaged ? onEditSetup : onSetUpTrip,
-                    onCancelSetup: onCancelSetup,
                   ),
                   const SizedBox(height: 14),
                   HomeStartButton(
+                    key: setUpTripKey,
                     onPressed: tripStaged ? onStartTrip : onSetUpTrip,
                     label: tripStaged ? 'START TRIP' : 'SET UP TRIP',
                   ),
                   const SizedBox(height: 12),
                   SosWarningBox(
+                    key: sosKey,
                     onTap: onSos,
                     onLongPress: onSos,
                     onDoubleTap: onSos,
@@ -132,9 +131,7 @@ class HomeDashboardTab extends StatelessWidget {
 
 /// Header with patterned background, greeting, and system ready card.
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key, this.selectedTab = 0});
-
-  final int selectedTab;
+  const HomeHeader({super.key});
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -233,9 +230,9 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28), // Explicit spacing to perfectly prevent text overlap
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SystemReadyCard(selectedTab: selectedTab),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: SystemReadyCard(),
             ),
           ],
         ),
@@ -426,7 +423,7 @@ class _TodayActivityState extends State<TodayActivity> {
             // If there are trips today, take the most recent one (since the list is already newest-first)
             final trip = todaysTrips.first;
             final statusLower = trip.status.toLowerCase();
-
+            
             String displayStatus;
             String displayTitle;
             String? displayDuration;
@@ -469,13 +466,12 @@ class _TodayActivityState extends State<TodayActivity> {
               }
             }
 
-            final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             final h = trip.timestamp.hour;
             final min = trip.timestamp.minute.toString().padLeft(2, '0');
             final amPm = h >= 12 ? 'PM' : 'AM';
             final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-            final displayDate = '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year}\n$hour12:$min $amPm';
-
+            final displayDate = '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year} • $hour12:$min $amPm';
 
             Color bBgColor;
             Color bTextColor;

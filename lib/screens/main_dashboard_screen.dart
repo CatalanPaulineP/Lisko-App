@@ -28,7 +28,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'times_up_screen.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -46,6 +45,7 @@ import '../services/permission_service.dart';
 import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/set_trip_timer_bottom_sheet.dart';
+import '../widgets/walkthrough_overlay.dart';
 import 'active_trip_screen.dart';
 import 'contacts_tab.dart';
 import 'home_tab.dart';
@@ -65,10 +65,18 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GeofenceService _geofenceService = GeofenceService();
   final SmsAlertService _smsAlertService = SmsAlertService();
 
+  final GlobalKey _setUpTripKey = GlobalKey();
+  final GlobalKey _sosKey = GlobalKey();
+  final GlobalKey _tripsTabKey = GlobalKey();
+  final GlobalKey _tripsSummaryKey = GlobalKey();
+  final GlobalKey _tripsFilterChipsKey = GlobalKey();
+  final GlobalKey _tripsCalendarIconKey = GlobalKey();
+  final GlobalKey _contactsTabKey = GlobalKey();
 
   int selectedTab = 0;
   bool tripActive = false;
   bool tripStaged = false;
+  bool showWalkthrough = false;
   String stagedDestination = 'Campus';
   Duration stagedDuration = const Duration(minutes: 45);
   bool isArrived = false;
@@ -87,12 +95,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? tripTimer;
   Timer? _arrivalTimer;
 
-  bool get _isTestEnvironment {
-    final binding = WidgetsBinding.instance.runtimeType.toString();
-    return binding.contains('TestWidgetsFlutterBinding') ||
-        binding.contains('AutomatedTestWidgetsFlutterBinding');
-  }
-
   // Global cancellation flag for the vibration alarm loop.
   // Set true when the alarm fires; set false INSTANTLY by any action button so
   // every pending await in _runVibrateLoop aborts before its next vibration burst.
@@ -109,6 +111,18 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     NotificationService.onActionReceived = _routeNotificationAction;
     _restoreActiveTrip();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkWalkthroughStatus();
+    });
+  }
+
+  Future<void> _checkWalkthroughStatus() async {
+    final completed = await const LocalStorageService().readWalkthroughCompleted();
+    if (!completed && mounted) {
+      setState(() {
+        showWalkthrough = true;
+      });
+    }
   }
 
   @override
@@ -253,7 +267,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _handleArrivalDetected(destination);
       } else {
         remaining = expectedArrivalAt!.difference(now);
-        if (!_isTestEnvironment) FlutterBackgroundService().startService();
+        FlutterBackgroundService().startService();
         _startTravelTimer();
         _geofenceService.startMonitoring(
           destination: destination,
@@ -322,39 +336,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // NotificationService.onActionReceived.
   // -------------------------------------------------------------------------
 
-  /// Handles safety confirmation. Completes trip if arrived/timed out; otherwise confirms safety while keeping trip active.
-  void _handleSafePressed() {
-    if (isArrived || isTimeoutWarning) {
-      _endTrip(safe: true);
-    } else {
-      _handlePreArrivalSafeAction();
-    }
-  }
-
-  void _handlePreArrivalSafeAction() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "You're safe! Your trip to $destination remains active until you arrive.",
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xFF10B981),
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
-
-  /// Public action handler callable from NotificationService when user taps "I'm Safe".
+  /// Marks the trip as safely completed. Cancels vibration and alarm notification.
   void handleSafeAction() {
     if (!mounted) return;
     Vibration.cancel();
@@ -362,7 +344,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
-    _handleSafePressed();
+    _endTrip(safe: true);
   }
 
   /// Extends the trip timer by 15 minutes. Cancels current vibration loop.
@@ -521,7 +503,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       selectedTab = 0;
     });
 
-    if (!_isTestEnvironment) FlutterBackgroundService().startService();
+    FlutterBackgroundService().startService();
 
     const LocalStorageService().saveActiveTrip(
       isActive: true,
@@ -570,17 +552,15 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // 2. Start Travel Countdown Timer using Timestamp Comparison
     _startTravelTimer();
 
-    if (!_isTestEnvironment) {
-      Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 10),
-      ).then((pos) {
-        if (mounted) {
-          _cachedActiveTripPosition = pos;
-          const LocalStorageService().updateCachedLocation(pos.latitude, pos.longitude);
-        }
-      }).catchError((_) {});
-    }
+    Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.best,
+      timeLimit: const Duration(seconds: 10),
+    ).then((pos) {
+      if (mounted) {
+        _cachedActiveTripPosition = pos;
+        const LocalStorageService().updateCachedLocation(pos.latitude, pos.longitude);
+      }
+    }).catchError((_) {});
 
   }
 
@@ -673,7 +653,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           opaque: false,
           fullscreenDialog: true,
           pageBuilder: (context, _, __) => TimesUpScreen(
-            isTimeoutWarning: true,
             onSafe: () {
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
@@ -749,7 +728,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           opaque: false,
           fullscreenDialog: true,
           pageBuilder: (context, _, __) => TimesUpScreen(
-            isTimeoutWarning: false,
             onSafe: () {
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
@@ -821,7 +799,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             longitude: lng,
             accuracy: acc,
             locationError: locError,
-            isArrived: isArrived,
           );
         }
         debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
@@ -928,7 +905,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           tripStartedAt = null;
         });
       }
-      if (!_isTestEnvironment) FlutterBackgroundService().invoke('stopService');
+      FlutterBackgroundService().invoke('stopService');
     }
   }
 
@@ -968,16 +945,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         status: safe ? 'arrived' : 'cancelled', // Changed 'arrived' string to represent successfully completed trip in the DB model based on user requirement
       );
     }
-
-    if (safe && destination.isNotEmpty) {
-      try {
-        await _smsAlertService.dispatchPrimaryArrivalSms(
-          destination: destination,
-        );
-      } catch (e) {
-        debugPrint('Primary safe arrival SMS notice: $e');
-      }
-    }
     
     setState(() {
       tripActive = false;
@@ -993,7 +960,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tripStartedAt = null;
     });
 
-    if (!_isTestEnvironment) FlutterBackgroundService().invoke('stopService');
+    FlutterBackgroundService().invoke('stopService');
   }
 
   void _extendTrip() {
@@ -1038,15 +1005,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    // Re-enable travel countdown & restart geofence monitoring
-    _geofenceService.startMonitoring(
-      destination: destination,
-      onArrival: (target, distance) {
-        if (!mounted) return;
-        _handleArrivalDetected(target.name);
-      },
-    );
-
+    // Re-enable travel countdown
     _startTravelTimer();
 
 
@@ -1122,8 +1081,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => TripSchedulerSheet(
-        initialDestination: tripStaged ? stagedDestination : null,
-        initialDuration: tripStaged ? stagedDuration : null,
         onSave: (selectedDestination, duration) async {
           setState(() {
             tripStaged = true;
@@ -1138,14 +1095,16 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
-  static const Key _homeKey = ValueKey('home-dashboard');
+  Key _homeKey = UniqueKey();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: null,
-      body: IndexedStack(
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.canvas,
+          appBar: null,
+          body: IndexedStack(
         index: selectedTab,
         children: [
           AnimatedSwitcher(
@@ -1156,15 +1115,18 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     destination: destination,
                     remaining: remaining,
                     totalDuration: totalDuration,
-                    onSafe: _handleSafePressed,
+                    onSafe: () => _endTrip(safe: true),
                     onExtend: _extendTrip,
                     onSos: _triggerEmergencyFlow,
                     isArrived: isArrived,
                     arrivalRemainingSeconds: arrivalCountdown,
+                    
+                    
                   )
                 : HomeDashboardTab(
                     key: _homeKey,
-                    selectedTab: selectedTab,
+                    setUpTripKey: _setUpTripKey,
+                    sosKey: _sosKey,
                     onSetUpTrip: _openTripScheduler,
                     onStartTrip: () => _startTrip(stagedDestination, stagedDuration),
                     onSos: () => _triggerEmergencyFlow(immediate: false),
@@ -1179,23 +1141,20 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       });
                     },
                     onEditSetup: _openTripScheduler,
-                    onCancelSetup: () {
-                      setState(() {
-                        tripStaged = false;
-                        stagedDestination = 'Campus';
-                        stagedDuration = const Duration(minutes: 45);
-                      });
-                    },
                   ),
           ),
-          TripsTab(
-            key: const ValueKey('trips'),
-            onStartNewTrip: () {
-              setState(() {
-                selectedTab = 0;
-              });
-            },
-          ),
+            TripsTab(
+              key: const ValueKey('trips'),
+              summaryKey: _tripsSummaryKey,
+              filterChipsKey: _tripsFilterChipsKey,
+              calendarIconKey: _tripsCalendarIconKey,
+              onStartNewTrip: () {
+                setState(() {
+                  selectedTab = 0;
+                  _homeKey = UniqueKey();
+                });
+              },
+            ),
           const ContactsTab(key: ValueKey('contacts')),
           const SettingsTab(key: ValueKey('settings')),
         ],
@@ -1206,6 +1165,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (selectedTab == index) return;
           setState(() {
             selectedTab = index;
+            if (index == 0) _homeKey = UniqueKey(); // Force home refresh to sync settings
           });
         },
         backgroundColor: AppColors.card,
@@ -1218,7 +1178,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         unselectedFontSize: 11,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-        items: const [
+        items: [
           BottomNavigationBarItem(
             icon: AppIcon.standard(
               AppIcons.homeOutline,
@@ -1233,28 +1193,40 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: AppIcon.standard(
-              AppIcons.mapOutline,
-              color: AppColors.body,
-              semanticIcon: Icons.map_outlined,
+            icon: KeyedSubtree(
+              key: _tripsTabKey,
+              child: const AppIcon.standard(
+                AppIcons.mapOutline,
+                color: AppColors.body,
+                semanticIcon: Icons.map_outlined,
+              ),
             ),
-            activeIcon: AppIcon.standard(
-              AppIcons.map,
-              color: AppColors.primary,
-              semanticIcon: Icons.map_rounded,
+            activeIcon: KeyedSubtree(
+              key: _tripsTabKey,
+              child: const AppIcon.standard(
+                AppIcons.map,
+                color: AppColors.primary,
+                semanticIcon: Icons.map_rounded,
+              ),
             ),
             label: 'Trips',
           ),
           BottomNavigationBarItem(
-            icon: AppIcon.standard(
-              AppIcons.peopleOutline,
-              color: AppColors.body,
-              semanticIcon: Icons.people_outline_rounded,
+            icon: KeyedSubtree(
+              key: _contactsTabKey,
+              child: const AppIcon.standard(
+                AppIcons.peopleOutline,
+                color: AppColors.body,
+                semanticIcon: Icons.people_outline_rounded,
+              ),
             ),
-            activeIcon: AppIcon.standard(
-              AppIcons.people,
-              color: AppColors.primary,
-              semanticIcon: Icons.people_rounded,
+            activeIcon: KeyedSubtree(
+              key: _contactsTabKey,
+              child: const AppIcon.standard(
+                AppIcons.people,
+                color: AppColors.primary,
+                semanticIcon: Icons.people_rounded,
+              ),
             ),
             label: 'Contacts',
           ),
@@ -1273,6 +1245,30 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+    ),
+    if (showWalkthrough)
+      Positioned.fill(
+        child: WalkthroughOverlay(
+          setUpTripKey: _setUpTripKey,
+          sosKey: _sosKey,
+          tripsTabKey: _tripsTabKey,
+          tripsSummaryKey: _tripsSummaryKey,
+          tripsFilterChipsKey: _tripsFilterChipsKey,
+          tripsCalendarIconKey: _tripsCalendarIconKey,
+          contactsTabKey: _contactsTabKey,
+          onTabChangeRequested: (tabIndex) {
+            setState(() {
+              selectedTab = tabIndex;
+            });
+          },
+          onDismiss: () {
+            setState(() {
+              showWalkthrough = false;
+            });
+          },
+        ),
+      ),
+    ],
     );
   }
 }
