@@ -93,6 +93,30 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
+  void _setAsPrimaryContact(ContactPerson selectedContact) {
+    // 1. Create a fresh list instance from your current contacts state
+    final List<ContactPerson> updated = List<ContactPerson>.from(_contacts);
+
+    // 2. Locate and remove the selected secondary contact from the temporary array
+    updated.removeWhere((c) => c.name == selectedContact.name && c.phone == selectedContact.phone);
+
+    // 3. Insert them straight back into the very top spot (Index 0) to make them the primary card
+    updated.insert(0, selectedContact);
+
+    // 4. Commit the new reordered sequence globally across your views
+    _updateContacts(updated);
+
+    // 5. Send a clean confirmation alert feedback message box toast
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${selectedContact.name} is now your Primary Emergency Contact.'),
+          backgroundColor: const Color(0xFF4CAF50), // Matches your Figma safety green theme color
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   Future<void> _openImportModal() async {
     if (_contacts.length >= 5) {
@@ -414,6 +438,7 @@ class _ContactsTabState extends State<ContactsTab> {
                               contact: secondaryContacts[i],
                               onEdit: () => _openEditContactModal(secondaryContacts[i], i + 1),
                               onRemove: () => _removeContact(i + 1),
+                              onSetPrimary: () => _setAsPrimaryContact(secondaryContacts[i]),
                             ),
                             if (i < secondaryContacts.length - 1)
                               const Divider(
@@ -708,11 +733,13 @@ class SecondaryContactListItem extends StatelessWidget {
     required this.contact,
     required this.onEdit,
     required this.onRemove,
+    required this.onSetPrimary
   });
 
   final ContactPerson contact;
   final VoidCallback onEdit;
   final VoidCallback onRemove;
+  final VoidCallback onSetPrimary;
 
   @override
   Widget build(BuildContext context) {
@@ -765,11 +792,29 @@ class SecondaryContactListItem extends StatelessWidget {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded, color: AppColors.body),
             onSelected: (value) {
+              if (value == 'setPrimary') onSetPrimary();
               if (value == 'edit') onEdit();
               if (value == 'remove') onRemove();
             },
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'setPrimary',
+                child: Row(
+                  children: [
+                    Icon(Icons.star_rounded, size: 20, color: Colors.amber),
+                    SizedBox(width: 12),
+                    Text(
+                      'Set as Primary',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.header,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'edit',
                 child: Row(

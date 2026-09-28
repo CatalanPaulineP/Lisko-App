@@ -66,6 +66,7 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
               const SizedBox(height: 24),
               Text(
                 'Destination Reached',
+                textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
@@ -125,7 +126,7 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                         ),
                       ),
                       child: Text(
-                        "+15 min",
+                        "+15 mins Extra Travel Time",
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -150,9 +151,10 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                         ),
                       ),
                       child: Text(
-                        "NEED HELP",
+                        "NEED HELP! DISPATCH SOS ALERT TO EMERGENCY CONTACTS",
+                        textAlign: TextAlign.center,
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                         ),

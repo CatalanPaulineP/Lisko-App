@@ -171,38 +171,48 @@ class SosWarningBox extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,
-        height: 62,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: AppColors.primaryContainer.withValues(alpha: 0.28),
           border: Border.all(color: AppColors.primary.withValues(alpha: 0.65)),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppIcon.standard(
-              AppIcons.warning,
-              color: AppColors.primary,
-              semanticIcon: Icons.warning_rounded,
-            ),
-            SizedBox(width: 10),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // --- TOP LAYER: Centered Logo & Title Group ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center, // Centers the icon and title line perfectly together
               children: [
+                AppIcon.standard(
+                  AppIcons.warning,
+                  color: AppColors.primary,
+                  semanticIcon: Icons.warning_rounded,
+                ),
+                SizedBox(width: 8),
                 Text(
-                  'SOS',
+                  'Send Distress Signal',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                     color: AppColors.primary,
                   ),
                 ),
-                Text(
-                  'Hold 3s or Double Tap',
-                  style: TextStyle(fontSize: 11, color: AppColors.body),
-                ),
               ],
+            ),
+
+            SizedBox(height: 8),
+
+            // --- BOTTOM LAYER: Left-Aligned Description Text ---
+            Text(
+              'Hold for 3s or Double Tap to send your live location coordinates to your trusted contacts via offline SMS.',
+              textAlign: TextAlign.justify, // Forces sentence wrapping to snap cleanly to the left edge
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.body,
+                height: 1.35,
+              ),
             ),
           ],
         ),
@@ -210,4 +220,5 @@ class SosWarningBox extends StatelessWidget {
     );
   }
 }
+
 

@@ -168,7 +168,7 @@ class _HeadsUpAlarmBannerState extends State<HeadsUpAlarmBanner> with SingleTick
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: Text(
-                          "+15 mins",
+                          "+15 mins Extra Travel Time",
                           style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -200,8 +200,9 @@ class _HeadsUpAlarmBannerState extends State<HeadsUpAlarmBanner> with SingleTick
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
-                      "Need Help / SOS",
-                      style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold),
+                      "NEED HELP! DISPATCH SOS ALERT TO EMERGENCY CONTACTS",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),

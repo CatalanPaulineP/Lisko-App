@@ -91,13 +91,12 @@ class _SettingsTabState extends State<SettingsTab> {
       builder: (ctx) => AlertDialog(
         title: const Text('Campus Geofence'),
         content: const Text(
-            'PUP Santa Maria Campus coordinates are fixed at 14.8697� N, 120.9991� E.\n\n'
-            'The arrival perimeter is set to 150 meters. When your device enters this radius, '
-            'the arrival timer triggers automatically.'),
+          'PUP Santa Maria Campus coordinates are locked at 14.8697° N, 120.9991° E.\n\n'
+              'The safe arrival boundary is set to 150 meters. Your travel timer stops automatically when your phone enters this area.',),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Understood'),
+            child: const Text('I understand.'),
           ),
         ],
       ),
@@ -109,13 +108,27 @@ class _SettingsTabState extends State<SettingsTab> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const InfoModalBottomSheet(
-        title: 'User Guide & Safety Protocol',
-        content: 'The Lisko safety protocol operates in 3 escalation stages:\n\n'
-            '1. Warning: 90 seconds before trip expiry, the app will notify you.\n'
-            '2. Escalation: 3-cycle haptic vibrations occur.\n'
-            '3. Emergency: Offline SMS dispatch to your trusted contacts.\n\n'
-            'Please ensure you respond to the warning prompt if you are safe.',
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.70,
+        maxChildSize: 0.90,
+        minChildSize: 0.5,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF4F6F8), // Matches design light-grey background tint
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              children: [
+                Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 24),
+                buildUserGuideSection(context),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -144,13 +157,27 @@ class _SettingsTabState extends State<SettingsTab> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const InfoModalBottomSheet(
-        title: 'Privacy Policy & GPS Usage',
-        content: 'Lisko uses a Zero-Surveillance Architecture:\n\n'
-            '- GPS is only tracked during active trips.\n'
-            '- Geofence monitoring runs 100% locally on your device.\n'
-            '- Your location data is NEVER uploaded to any cloud server.\n'
-            '- Emergency SMS alerts send your last known location only to your trusted contacts.',
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.70,
+        maxChildSize: 0.90,
+        minChildSize: 0.5,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF4F6F8),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              children: [
+                Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 24),
+                buildPrivacySection(context),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -283,7 +310,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconColor: AppColors.primary,
                           title: 'Home Location Pin',
                           subtitle: _homeLat != null
-                              ? '${_homeLat!.toStringAsFixed(4)}� N, ${_homeLng!.toStringAsFixed(4)}� E'
+                              ? '${_homeLat!.toStringAsFixed(4)}° N, ${_homeLng!.toStringAsFixed(4)}° E'
                               : 'Tap to set home coordinates',
                           onTap: _openHomeGeofenceModal,
                         ),
@@ -1228,4 +1255,197 @@ class InfoModalBottomSheet extends StatelessWidget {
   }
 }
 
+// ==============================================================================
+// MODULAR COMPONENT ELEMENTS FOR USER GUIDE AND DATA PRIVACY
+// ==============================================================================
+
+Widget buildUserGuideSection(BuildContext context) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Text(
+        'User Guide & Safety Protocol',
+        style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF192231),
+            letterSpacing: -0.5
+        ),
+      ),
+      const SizedBox(height: 16),
+      const ExpandableProtocolCard(
+        stepNumber: '1',
+        title: 'Non-Surveillance Travel Timer',
+        description: 'Lisko operates dynamically. The application initiates an automated safety countdown only during your active trip sequences to maintain absolute user privacy.',
+        icon: Icons.timer_outlined,
+      ),
+      const SizedBox(height: 12),
+      const ExpandableProtocolCard(
+        stepNumber: '2',
+        title: 'Covert Silent SOS & Offline SMS',
+        description: 'If you fail to dismiss the final alert, Lisko secures your coordinates and sends an emergency offline SMS payload directly to your trusted guardians—even with zero internet access.',
+        icon: Icons.sms_outlined,
+      ),
+    ],
+  );
+}
+
+Widget buildPrivacySection(BuildContext context) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Text(
+        'Data Privacy & GPS Rules',
+        style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF192231),
+            letterSpacing: -0.5
+        ),
+      ),
+      const SizedBox(height: 4),
+      const Text(
+        'Lisko uses a Zero-Surveillance Architecture:',
+        style: TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4A5568),
+            height: 1.5
+        ),
+      ),
+      const SizedBox(height: 16),
+      const ExpandablePrivacyCard(
+        title: 'Zero Continuous Tracking',
+        description: 'Your physical locations are strictly local. Lisko never logs, uploads, or tracks coordinates outside active trip boundaries.',
+        icon: Icons.location_off_outlined,
+      ),
+      const SizedBox(height: 12),
+      const ExpandablePrivacyCard(
+        title: 'Emergency-Only GPS Access',
+        description: 'Your coordinates are unlocked, decrypted, and parsed only if the triple-cycle escalation timer triggers completely unaddressed.',
+        icon: Icons.gpp_maybe_outlined,
+      ),
+      const SizedBox(height: 12),
+      const ExpandablePrivacyCard(
+        title: 'Local SIM Dispatch',
+        description: 'All safety messages route directly via your local native SIM hardware, eliminating third-party cloud data leak vulnerabilities.',
+        icon: Icons.sim_card_outlined,
+      ),
+    ],
+  );
+}
+
+class ExpandableProtocolCard extends StatefulWidget {
+  final String stepNumber;
+  final String title;
+  final String description;
+  final IconData icon;
+
+  const ExpandableProtocolCard({
+    super.key,
+    required this.stepNumber,
+    required this.title,
+    required this.description,
+    required this.icon,
+  });
+
+  @override
+  State<ExpandableProtocolCard> createState() => _ExpandableProtocolCardState();
+}
+
+class _ExpandableProtocolCardState extends State<ExpandableProtocolCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const iconColor = Color(0xFF4CAF50);
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: const Color(0xFF192231).withOpacity(0.1)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          onExpansionChanged: (expanded) => setState(() => _isExpanded = expanded),
+          trailing: AnimatedRotation(
+            turns: _isExpanded ? 0.5 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.expand_more_rounded, color: Colors.grey, size: 20),
+          ),
+          leading: Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: iconColor.withOpacity(0.12), shape: BoxShape.circle),
+            child: Icon(widget.icon, color: iconColor, size: 14),
+          ),
+          title: Text(
+            '${widget.stepNumber}. ${widget.title}',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF192231)),
+          ),
+          childrenPadding: const EdgeInsets.only(left: 58, right: 18, bottom: 18),
+          children: [
+            Text(
+                widget.description,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF4A5568), height: 1.5)
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ExpandablePrivacyCard extends StatefulWidget {
+  final String title;
+  final String description;
+  final IconData icon;
+
+  const ExpandablePrivacyCard({super.key, required this.title, required this.description, required this.icon});
+
+  @override
+  State<ExpandablePrivacyCard> createState() => _ExpandablePrivacyCardState();
+}
+
+class _ExpandablePrivacyCardState extends State<ExpandablePrivacyCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const iconColor = Color(0xFF4CAF50);
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: const Color(0xFF192231).withOpacity(0.1)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          onExpansionChanged: (expanded) => setState(() => _isExpanded = expanded),
+          trailing: AnimatedRotation(
+            turns: _isExpanded ? 0.5 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.expand_more_rounded, color: Colors.grey, size: 20),
+          ),
+          leading: Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+            child: Icon(widget.icon, color: iconColor, size: 16),
+          ),
+          title: Text(widget.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF192231))),
+          childrenPadding: const EdgeInsets.only(left: 56, right: 18, bottom: 18),
+          children: [
+            Text(widget.description, style: const TextStyle(fontSize: 13, color: Color(0xFF4A5568), height: 1.5)),
+          ],
+        ),
+      ),
+    );
+  }
+}
 

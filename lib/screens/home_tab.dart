@@ -369,7 +369,7 @@ class _TodayActivityState extends State<TodayActivity> {
             // If there are trips today, take the most recent one (since the list is already newest-first)
             final trip = todaysTrips.first;
             final statusLower = trip.status.toLowerCase();
-            
+
             String displayStatus;
             String displayTitle;
             String? displayDuration;
@@ -417,7 +417,8 @@ class _TodayActivityState extends State<TodayActivity> {
             final min = trip.timestamp.minute.toString().padLeft(2, '0');
             final amPm = h >= 12 ? 'PM' : 'AM';
             final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-            final displayDate = '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year} • $hour12:$min $amPm';
+            final displayDate = '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year}\n$hour12:$min $amPm';
+
 
             Color bBgColor;
             Color bTextColor;
