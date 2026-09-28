@@ -10,11 +10,15 @@ import 'app_icon.dart';
 class SystemReadyCard extends StatefulWidget {
   const SystemReadyCard({
     super.key,
-    this.destination = 'Campus (45 min)',
+    this.destination = 'Campus',
+    this.selectedTab = 0,
   });
 
   /// Default trip destination label and estimated duration.
   final String destination;
+
+  /// Active tab index in bottom navigation bar to trigger targeted refreshes on return.
+  final int selectedTab;
 
   @override
   State<SystemReadyCard> createState() => _SystemReadyCardState();
@@ -23,7 +27,9 @@ class SystemReadyCard extends StatefulWidget {
 class _SystemReadyCardState extends State<SystemReadyCard>
     with WidgetsBindingObserver {
   String _contactName = 'Loading...';
-  String _displayDestination = 'Loading...';
+  String _contactRel = '';
+  String _displayDestination = 'Campus';
+  String _displayDuration = '45 min';
   bool _isSystemReady = true;
 
   @override
@@ -42,6 +48,14 @@ class _SystemReadyCardState extends State<SystemReadyCard>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant SystemReadyCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedTab == 0) {
       _loadData();
     }
   }
@@ -67,17 +81,24 @@ class _SystemReadyCardState extends State<SystemReadyCard>
 
     if (!mounted) return;
 
-    setState(() {
-      _isSystemReady = allReady;
-      _displayDestination = 'Campus ($defaultMins min)';
-      if (contacts.isEmpty) {
-        _contactName = 'No contact set';
-      } else {
-        final primary = contacts.first;
-        final rel = primary.relationship.isNotEmpty ? primary.relationship : 'Contact';
-        _contactName = '$rel (${primary.name})';
-      }
-    });
+    final newRel = contacts.isNotEmpty
+        ? (contacts.first.relationship.isNotEmpty ? contacts.first.relationship : 'Primary Contact')
+        : '';
+    final newName = contacts.isNotEmpty ? contacts.first.name : 'No contact set';
+    final newDur = '$defaultMins min';
+
+    if (_isSystemReady != allReady ||
+        _contactName != newName ||
+        _contactRel != newRel ||
+        _displayDuration != newDur) {
+      setState(() {
+        _isSystemReady = allReady;
+        _displayDestination = 'Campus';
+        _displayDuration = newDur;
+        _contactName = newName;
+        _contactRel = newRel;
+      });
+    }
   }
 
   @override
@@ -146,6 +167,7 @@ class _SystemReadyCardState extends State<SystemReadyCard>
                   icon: Icons.person_outline_rounded,
                   label: 'Emergency Contact',
                   value: _contactName,
+                  secondaryValue: _contactRel,
                 ),
               ),
               Container(width: 1, height: 44, color: AppColors.border),
@@ -155,6 +177,7 @@ class _SystemReadyCardState extends State<SystemReadyCard>
                   icon: Icons.location_on_outlined,
                   label: 'Default Destination',
                   value: _displayDestination,
+                  secondaryValue: _displayDuration,
                 ),
               ),
             ],
@@ -172,12 +195,14 @@ class CompactDetail extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.secondaryValue,
     this.iconifyIcon,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final String? secondaryValue;
   final String? iconifyIcon;
 
   @override
@@ -214,7 +239,7 @@ class CompactDetail extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w600,
                   color: AppColors.body,
                 ),
@@ -227,10 +252,24 @@ class CompactDetail extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                   color: AppColors.header,
                 ),
-                maxLines: 2,
+                maxLines: 1,
                 softWrap: true,
                 overflow: TextOverflow.ellipsis,
               ),
+              if (secondaryValue != null && secondaryValue!.isNotEmpty) ...[
+                const SizedBox(height: 1),
+                Text(
+                  secondaryValue!,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.body,
+                  ),
+                  maxLines: 1,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),

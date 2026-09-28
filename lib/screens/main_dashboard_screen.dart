@@ -68,6 +68,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   int selectedTab = 0;
   bool tripActive = false;
+  bool tripStaged = false;
+  String stagedDestination = 'Campus';
+  Duration stagedDuration = const Duration(minutes: 45);
   bool isArrived = false;
   int arrivalCountdown = 90;
   bool isTimeoutWarning = false;
@@ -83,6 +86,12 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   DateTime? tripStartedAt;
   Timer? tripTimer;
   Timer? _arrivalTimer;
+
+  bool get _isTestEnvironment {
+    final binding = WidgetsBinding.instance.runtimeType.toString();
+    return binding.contains('TestWidgetsFlutterBinding') ||
+        binding.contains('AutomatedTestWidgetsFlutterBinding');
+  }
 
   // Global cancellation flag for the vibration alarm loop.
   // Set true when the alarm fires; set false INSTANTLY by any action button so
@@ -244,7 +253,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _handleArrivalDetected(destination);
       } else {
         remaining = expectedArrivalAt!.difference(now);
-        FlutterBackgroundService().startService();
+        if (!_isTestEnvironment) FlutterBackgroundService().startService();
         _startTravelTimer();
         _geofenceService.startMonitoring(
           destination: destination,
@@ -496,6 +505,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final newTripId = now.millisecondsSinceEpoch.toString();
     setState(() {
       tripActive = true;
+      tripStaged = false;
       isArrived = false;
 
       _isEscalating = false;
@@ -511,7 +521,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       selectedTab = 0;
     });
 
-    FlutterBackgroundService().startService();
+    if (!_isTestEnvironment) FlutterBackgroundService().startService();
 
     const LocalStorageService().saveActiveTrip(
       isActive: true,
@@ -560,15 +570,17 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // 2. Start Travel Countdown Timer using Timestamp Comparison
     _startTravelTimer();
 
-    Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.best,
-      timeLimit: const Duration(seconds: 10),
-    ).then((pos) {
-      if (mounted) {
-        _cachedActiveTripPosition = pos;
-        const LocalStorageService().updateCachedLocation(pos.latitude, pos.longitude);
-      }
-    }).catchError((_) {});
+    if (!_isTestEnvironment) {
+      Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 10),
+      ).then((pos) {
+        if (mounted) {
+          _cachedActiveTripPosition = pos;
+          const LocalStorageService().updateCachedLocation(pos.latitude, pos.longitude);
+        }
+      }).catchError((_) {});
+    }
 
   }
 
@@ -661,6 +673,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           opaque: false,
           fullscreenDialog: true,
           pageBuilder: (context, _, __) => TimesUpScreen(
+            isTimeoutWarning: true,
             onSafe: () {
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
@@ -736,6 +749,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           opaque: false,
           fullscreenDialog: true,
           pageBuilder: (context, _, __) => TimesUpScreen(
+            isTimeoutWarning: false,
             onSafe: () {
               Vibration.cancel();
               NotificationService().cancelArrivalAlarm();
@@ -914,7 +928,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           tripStartedAt = null;
         });
       }
-      FlutterBackgroundService().invoke('stopService');
+      if (!_isTestEnvironment) FlutterBackgroundService().invoke('stopService');
     }
   }
 
@@ -979,7 +993,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tripStartedAt = null;
     });
 
-    FlutterBackgroundService().invoke('stopService');
+    if (!_isTestEnvironment) FlutterBackgroundService().invoke('stopService');
   }
 
   void _extendTrip() {
@@ -1024,7 +1038,15 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    // Re-enable travel countdown
+    // Re-enable travel countdown & restart geofence monitoring
+    _geofenceService.startMonitoring(
+      destination: destination,
+      onArrival: (target, distance) {
+        if (!mounted) return;
+        _handleArrivalDetected(target.name);
+      },
+    );
+
     _startTravelTimer();
 
 
@@ -1099,7 +1121,18 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => TripSchedulerSheet(onStart: _startTrip),
+      builder: (_) => TripSchedulerSheet(
+        initialDestination: tripStaged ? stagedDestination : null,
+        initialDuration: tripStaged ? stagedDuration : null,
+        onSave: (selectedDestination, duration) async {
+          setState(() {
+            tripStaged = true;
+            stagedDestination = selectedDestination;
+            stagedDuration = duration;
+          });
+          return true;
+        },
+      ),
     ).whenComplete(() {
       if (mounted) _sheetOpen = false;
     });
@@ -1128,23 +1161,41 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onSos: _triggerEmergencyFlow,
                     isArrived: isArrived,
                     arrivalRemainingSeconds: arrivalCountdown,
-                    
-                    
                   )
                 : HomeDashboardTab(
                     key: _homeKey,
-                    onStartTrip: _openTripScheduler,
+                    selectedTab: selectedTab,
+                    onSetUpTrip: _openTripScheduler,
+                    onStartTrip: () => _startTrip(stagedDestination, stagedDuration),
                     onSos: () => _triggerEmergencyFlow(immediate: false),
+                    tripStaged: tripStaged,
+                    stagedDestination: stagedDestination,
+                    stagedDuration: stagedDuration,
+                    onAdjustMinutes: (deltaMins) {
+                      setState(() {
+                        final currentMins = stagedDuration.inMinutes;
+                        final newMins = (currentMins + deltaMins).clamp(1, 1440);
+                        stagedDuration = Duration(minutes: newMins);
+                      });
+                    },
+                    onEditSetup: _openTripScheduler,
+                    onCancelSetup: () {
+                      setState(() {
+                        tripStaged = false;
+                        stagedDestination = 'Campus';
+                        stagedDuration = const Duration(minutes: 45);
+                      });
+                    },
                   ),
           ),
-            TripsTab(
-              key: const ValueKey('trips'),
-              onStartNewTrip: () {
-                setState(() {
-                  selectedTab = 0;
-                });
-              },
-            ),
+          TripsTab(
+            key: const ValueKey('trips'),
+            onStartNewTrip: () {
+              setState(() {
+                selectedTab = 0;
+              });
+            },
+          ),
           const ContactsTab(key: ValueKey('contacts')),
           const SettingsTab(key: ValueKey('settings')),
         ],

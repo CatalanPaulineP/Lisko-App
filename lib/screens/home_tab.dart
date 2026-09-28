@@ -35,22 +35,61 @@ import 'trips_tab.dart';
 class HomeDashboardTab extends StatelessWidget {
   const HomeDashboardTab({
     super.key,
+    required this.onSetUpTrip,
     required this.onStartTrip,
     required this.onSos,
+    this.tripStaged = false,
+    this.stagedDestination = 'Campus',
+    this.stagedDuration = const Duration(minutes: 45),
+    this.onAdjustMinutes,
+    this.onEditSetup,
+    this.onCancelSetup,
+    this.selectedTab = 0,
   });
 
+  /// Active tab index for targeted component updates.
+  final int selectedTab;
+
   /// Action dispatched to open the `TripSchedulerSheet` modal.
+  final VoidCallback onSetUpTrip;
+
+  /// Action dispatched to start the staged trip timer.
   final VoidCallback onStartTrip;
 
   /// Action dispatched when SOS is triggered.
   final VoidCallback onSos;
+
+  /// Whether a trip setup is saved and waiting to be started.
+  final bool tripStaged;
+
+  /// Destination set up by student.
+  final String stagedDestination;
+
+  /// Duration set up by student.
+  final Duration stagedDuration;
+
+  /// Callback to adjust minutes directly on the card.
+  final ValueChanged<int>? onAdjustMinutes;
+
+  /// Callback to re-open setup sheet.
+  final VoidCallback? onEditSetup;
+
+  /// Callback to cancel/reset staged trip setup.
+  final VoidCallback? onCancelSetup;
+
+  String _formatDuration(Duration d) {
+    final hh = d.inHours.toString().padLeft(2, '0');
+    final mm = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final ss = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hh:$mm:$ss';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeHeader(),
+        HomeHeader(selectedTab: selectedTab),
         Expanded(
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
@@ -59,9 +98,20 @@ class HomeDashboardTab extends StatelessWidget {
               child: Column(
                 children: [
                   const SizedBox(height: 12),
-                  const TripTimerCard(),
+                  TripTimerCard(
+                    timeText: tripStaged ? _formatDuration(stagedDuration) : '--:--:--',
+                    statusText: tripStaged ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO TRIP SET UP',
+                    isActive: false,
+                    isStaged: tripStaged,
+                    onAdjustMinutes: onAdjustMinutes,
+                    onEditSetup: tripStaged ? onEditSetup : onSetUpTrip,
+                    onCancelSetup: onCancelSetup,
+                  ),
                   const SizedBox(height: 14),
-                  HomeStartButton(onPressed: onStartTrip),
+                  HomeStartButton(
+                    onPressed: tripStaged ? onStartTrip : onSetUpTrip,
+                    label: tripStaged ? 'START TRIP' : 'SET UP TRIP',
+                  ),
                   const SizedBox(height: 12),
                   SosWarningBox(
                     onTap: onSos,
@@ -82,7 +132,9 @@ class HomeDashboardTab extends StatelessWidget {
 
 /// Header with patterned background, greeting, and system ready card.
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key});
+  const HomeHeader({super.key, this.selectedTab = 0});
+
+  final int selectedTab;
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -181,9 +233,9 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28), // Explicit spacing to perfectly prevent text overlap
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: SystemReadyCard(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SystemReadyCard(selectedTab: selectedTab),
             ),
           ],
         ),
@@ -209,9 +261,14 @@ class HomeHeaderPatternPainter extends CustomPainter {
 
 /// Start trip button with debounce and locking against rapid taps.
 class HomeStartButton extends StatefulWidget {
-  const HomeStartButton({super.key, required this.onPressed});
+  const HomeStartButton({
+    super.key,
+    required this.onPressed,
+    this.label = 'SET UP TRIP',
+  });
 
   final VoidCallback onPressed;
+  final String label;
 
   @override
   State<HomeStartButton> createState() => _HomeStartButtonState();
@@ -251,7 +308,7 @@ class _HomeStartButtonState extends State<HomeStartButton> {
             color: Colors.white,
             semanticIcon: Icons.navigation_rounded,
           ),
-          label: const Text('START TRIP'),
+          label: Text(widget.label),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             foregroundColor: Colors.white,
@@ -412,7 +469,7 @@ class _TodayActivityState extends State<TodayActivity> {
               }
             }
 
-            final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             final h = trip.timestamp.hour;
             final min = trip.timestamp.minute.toString().padLeft(2, '0');
             final amPm = h >= 12 ? 'PM' : 'AM';

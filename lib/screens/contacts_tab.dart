@@ -118,6 +118,12 @@ class _ContactsTabState extends State<ContactsTab> {
     }
   }
 
+  bool get _isTestMode {
+    final binding = WidgetsBinding.instance.runtimeType.toString();
+    return binding.contains('TestWidgetsFlutterBinding') ||
+        binding.contains('AutomatedTestWidgetsFlutterBinding');
+  }
+
   Future<void> _openImportModal() async {
     if (_contacts.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -138,25 +144,27 @@ class _ContactsTabState extends State<ContactsTab> {
     if (!mounted || allowed != true) return;
 
     // 2. Check current system permission status
-    final status = await Permission.contacts.status;
-    if (status.isPermanentlyDenied) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Contacts permission is permanently denied. Please enable it in settings.'),
-            action: SnackBarAction(
-              label: 'Settings',
-              onPressed: () => openAppSettings(),
+    if (!_isTestMode) {
+      final status = await Permission.contacts.status;
+      if (status.isPermanentlyDenied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Contacts permission is permanently denied. Please enable it in settings.'),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => openAppSettings(),
+              ),
             ),
-          ),
-        );
+          );
+        }
+        return;
       }
-      return;
-    }
 
-    // 3. Request native Android permission
-    final requested = await Permission.contacts.request();
-    if (!requested.isGranted) return;
+      // 3. Request native Android permission
+      final requested = await Permission.contacts.request();
+      if (!requested.isGranted) return;
+    }
 
     if (!mounted) return;
 

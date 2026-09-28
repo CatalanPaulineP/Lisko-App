@@ -12,12 +12,14 @@ class TimesUpScreen extends StatefulWidget {
     required this.onExtend,
     required this.onHelp,
     required this.deadline,
+    this.isTimeoutWarning = false,
   });
 
   final VoidCallback onSafe;
   final VoidCallback onExtend;
   final VoidCallback onHelp;
   final DateTime deadline;
+  final bool isTimeoutWarning;
 
   @override
   State<TimesUpScreen> createState() => _TimesUpScreenState();
@@ -53,6 +55,11 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.isTimeoutWarning ? 'Travel Time Ended' : 'Destination Reached';
+    final subtitle = widget.isTimeoutWarning
+        ? 'Your estimated travel time has ended, but your destination has not been detected. Are you safe? Emergency alerts will be dispatched in $_secondsLeft seconds.'
+        : 'You\'ve reached your destination. Are you safe? Emergency alerts will be dispatched in $_secondsLeft seconds.';
+
     return Scaffold(
       backgroundColor: AppColors.header, // Dark navy
       body: SafeArea(
@@ -65,7 +72,7 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
               const AppIcon.standard(AppIcons.warning, color: Colors.white, size: 64),
               const SizedBox(height: 24),
               Text(
-                'Destination Reached',
+                title,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 32,
@@ -75,67 +82,73 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'You\'ve reached your destination. Are you safe? Emergency alerts will be dispatched in $_secondsLeft seconds.',
+                subtitle,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w500,
                   color: Colors.white70,
+                  height: 1.4,
                 ),
               ),
               const Spacer(),
               Column(
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onSafe();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  // DESTINATION REACHED: Show "I'm Safe" and "NEED HELP"
+                  // TRAVEL TIME ENDED: Show "+15 min" and "NEED HELP"
+                  if (!widget.isTimeoutWarning) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onSafe();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.success,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        "I'm Safe",
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onExtend();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD97706),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        "+15 mins Extra Travel Time",
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                        child: Text(
+                          "I'm Safe",
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ] else ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onExtend();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD97706),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          "+15 min",
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -151,10 +164,9 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                         ),
                       ),
                       child: Text(
-                        "NEED HELP! DISPATCH SOS ALERT TO EMERGENCY CONTACTS",
-                        textAlign: TextAlign.center,
+                        "NEED HELP",
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                         ),
@@ -170,4 +182,3 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
     );
   }
 }
-

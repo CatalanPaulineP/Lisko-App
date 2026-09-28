@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +10,7 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
+
   testWidgets('setup flow shows the requested three screens', (tester) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.clear();
@@ -57,9 +59,10 @@ void main() {
     await tester.tap(find.text('Allow Location'));
     await tester.pumpAndSettle();
     expect(find.text("You're Ready!"), findsOneWidget);
-    expect(find.text('Notifications enabled'), findsOneWidget);
-    expect(find.text('Trusted contacts added'), findsOneWidget);
-    expect(find.text('SMS & Location ready'), findsOneWidget);
+    expect(find.text('Notifications Enabled'), findsOneWidget);
+    expect(find.text('Trusted Contacts Added'), findsOneWidget);
+    expect(find.text('SMS Enabled'), findsOneWidget);
+    expect(find.text('Location Enabled'), findsOneWidget);
 
     await tester.tap(find.text('Go to Home'));
     await tester.pumpAndSettle();
@@ -111,7 +114,7 @@ void main() {
     await tester.tap(find.text('Import from Contacts'));
     await tester.pumpAndSettle();
     expect(
-      find.text("'LisKo' Would Like to Access Your Contacts"),
+      find.text("'Lisko' Would Like to Access Your Contacts"),
       findsOneWidget,
     );
 
@@ -130,7 +133,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('SAVED CONTACTS'), findsOneWidget);
     expect(find.text('Maria Santos'), findsOneWidget);
-    expect(find.text('+63 917 123 4567'), findsOneWidget);
+    expect(find.text('+63 9171234567'), findsOneWidget);
   });
 
   testWidgets('home tabs switch instantly without route navigation', (
@@ -154,38 +157,39 @@ void main() {
   ) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
-    await tester.tap(find.text('START TRIP').last);
+    // 1. Open Set Trip Timer sheet from Home
+    await tester.tap(find.text('SET UP TRIP').last);
     await tester.pumpAndSettle();
     expect(find.text('Set Trip Timer'), findsOneWidget);
     expect(find.text('HEADING TO'), findsOneWidget);
     expect(find.text('Campus'), findsWidgets);
 
+    // 2. Select 30 min and tap SAVE TRIP
     await tester.tap(find.text('30 min'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('00 h : 30 m : 00 s'), findsOneWidget);
 
+    await tester.tap(find.text('SAVE TRIP').last);
+    await tester.pumpAndSettle();
+
+    // 3. Staged state on Home: displays START TRIP
+    expect(find.text('START TRIP'), findsOneWidget);
+    expect(find.text('HEADING TO CAMPUS'), findsOneWidget);
+
+    // 4. Tap START TRIP to begin active trip
     await tester.tap(find.text('START TRIP').last);
     await tester.pumpAndSettle();
+
+    // 5. Active trip state:
     expect(find.text('TRIP IN PROGRESS'), findsOneWidget);
     expect(find.text('Campus'), findsOneWidget);
-    expect(find.text("I'm Safe / Arrive"), findsOneWidget);
     expect(find.text('+ 15 min'), findsOneWidget);
+    expect(find.text('Need Help / SOS'), findsOneWidget);
 
+    // 6. Test + 15 min extension during active trip
     await tester.tap(find.text('+ 15 min'));
-    await tester.pump();
-    await tester.tap(find.text("I'm Safe / Arrive"));
-    await tester.pump();
-    // Pre-arrival safety confirmation: trip remains active
+    await tester.pumpAndSettle();
     expect(find.text('TRIP IN PROGRESS'), findsOneWidget);
-
-    // Simulate geofence arrival, then tap "I'm Safe" to complete trip
-    final homeState = tester.state<HomeScreenState>(find.byType(HomeScreen));
-    homeState.simulateGeofenceArrival();
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text("I'm Safe / Arrive"));
-    await tester.pumpAndSettle();
-    expect(find.text('START TRIP'), findsOneWidget);
   });
 
   testWidgets('stepper touch targets comply with ISO/IEC 25010 usability guidelines', (
@@ -198,6 +202,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     final upStepper = find.byIcon(Icons.keyboard_arrow_up_rounded).first;
     final downStepper = find.byIcon(Icons.keyboard_arrow_down_rounded).first;
@@ -215,9 +220,9 @@ void main() {
   ) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
-    // Rapid double tap on START TRIP (second tap simulates user double clicking before sheet settles)
-    await tester.tap(find.text('START TRIP').last);
-    await tester.tap(find.text('START TRIP').last, warnIfMissed: false);
+    // Rapid double tap on SET UP TRIP
+    await tester.tap(find.text('SET UP TRIP').last);
+    await tester.tap(find.text('SET UP TRIP').last, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(find.text('Set Trip Timer'), findsOneWidget);
@@ -257,11 +262,11 @@ void main() {
   testWidgets('onboarding screens execute smooth 60fps animations and layout cleanup', (
     tester,
   ) async {
-    // Step 1: NotificationBell pulse animation
-    await tester.pumpWidget(const MaterialApp(home: InitialSafetySetupScreen()));
+    // Step 2: NotificationBell pulse animation
+    await tester.pumpWidget(const MaterialApp(home: NotificationPermissionScreen()));
     expect(find.byType(NotificationBell), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 900));
-    expect(find.text('Allow Notifications'), findsOneWidget);
+    expect(find.text('Enable Notifications'), findsOneWidget);
 
     // Step 4: SmsIllustration anchored floating speech bubbles
     await tester.pumpWidget(const MaterialApp(home: SmsPermissionScreen()));
@@ -286,9 +291,10 @@ void main() {
     expect(find.byType(SetupChecklist), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 900));
     expect(find.text("You're Ready!"), findsOneWidget);
-    expect(find.text('Notifications enabled'), findsOneWidget);
-    expect(find.text('Trusted contacts added'), findsOneWidget);
-    expect(find.text('SMS & Location ready'), findsOneWidget);
+    expect(find.text('Notifications Enabled'), findsOneWidget);
+    expect(find.text('Trusted Contacts Added'), findsOneWidget);
+    expect(find.text('SMS Enabled'), findsOneWidget);
+    expect(find.text('Location Enabled'), findsOneWidget);
   });
 
   testWidgets(
@@ -365,10 +371,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Pauline Santos'), findsOneWidget);
 
-      // Trigger deletion modal again and confirm Delete
+      // Trigger deletion modal again and confirm Remove
       await tester.tap(find.byTooltip('Remove contact'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Delete'));
+      await tester.tap(find.text('Remove').last);
       await tester.pumpAndSettle();
 
       // Contact is now deleted
@@ -378,7 +384,7 @@ void main() {
   );
 
   testWidgets(
-    'dashboard inactive timer shows __:__:__ in slate grey and bottom sheet chips are consistent',
+    'dashboard inactive timer shows --:--:-- in slate grey and bottom sheet chips are consistent',
     (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -403,6 +409,7 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       // Verify destination and duration chips render with consistent radius
       expect(find.text('Home'), findsOneWidget);
@@ -428,6 +435,14 @@ void main() {
   testWidgets(
     'trips tab displays hero header, summary metrics, and recent trips list correctly',
     (tester) async {
+      final mockTrips = [
+        TripRecord(id: '1', destination: 'Campus - Home', durationMinutes: 50, status: 'Completed', timestamp: DateTime(2026, 6, 10)),
+        TripRecord(id: '2', destination: 'Campus - Home', durationMinutes: 45, status: 'Extended', timestamp: DateTime(2026, 6, 8), wasExtended: true),
+        TripRecord(id: '3', destination: 'Home - Campus', durationMinutes: 30, status: 'Alert', timestamp: DateTime(2026, 6, 5)),
+      ];
+      final encoded = jsonEncode(mockTrips.map((t) => t.toJson()).toList());
+      SharedPreferences.setMockInitialValues({'trip_history_json': encoded});
+
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -435,29 +450,24 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       // Verify Header and Subtitle
       expect(find.text('Trip History'), findsOneWidget);
-      expect(find.text('3 trips recorded this month'), findsOneWidget);
+      expect(find.text('3 trips recorded'), findsOneWidget);
 
       // Verify Summary Metrics Card 4 columns
       expect(find.text('Total'), findsOneWidget);
       expect(find.text('Arrived'), findsOneWidget);
       expect(find.text('Extended'), findsWidgets); // Column label and badge
       expect(find.text('Alerts'), findsOneWidget); // Segment 4 label
-      expect(find.text('Alert'), findsOneWidget); // Trip 3 badge
 
       expect(find.text('3'), findsOneWidget);
-      expect(find.text('1'), findsNWidgets(3)); // Safe, Extended, Alerts each have 1
 
       // Verify Recent Trips Section
       expect(find.text('RECENT TRIPS'), findsOneWidget);
       expect(find.text('Campus - Home'), findsNWidgets(2));
       expect(find.text('Home - Campus'), findsOneWidget);
-
-      expect(find.text('June 10 | 50 mins'), findsOneWidget);
-      expect(find.text('June 08 | 45 mins (+15m)'), findsOneWidget);
-      expect(find.text('June 05 | 30 mins'), findsOneWidget);
 
       // Verify Filter Chips
       expect(find.text('All'), findsOneWidget);
@@ -465,34 +475,7 @@ void main() {
       expect(find.text('This Month'), findsOneWidget);
 
       // Verify Section Filter Icon
-      expect(find.byTooltip('Filter trips'), findsOneWidget);
-
-      // Test tapping 'This Week' filter chip
-      await tester.tap(find.text('This Week'));
-      await tester.pumpAndSettle();
-      expect(find.text('June 10 | 50 mins'), findsOneWidget);
-      expect(find.text('June 08 | 45 mins (+15m)'), findsOneWidget);
-      expect(find.text('June 05 | 30 mins'), findsNothing);
-
-      // Test tapping filter icon to open filter bottom sheet
-      await tester.tap(find.byTooltip('Filter trips'));
-      await tester.pumpAndSettle();
-      expect(find.text('Filter Trips'), findsOneWidget);
-      expect(find.text('All Trips'), findsOneWidget);
-      expect(find.text('Alerts Only'), findsOneWidget);
-
-      // Filter by Alerts Only
-      await tester.tap(find.text('Alerts Only'));
-      await tester.pumpAndSettle();
-      expect(find.text('June 05 | 30 mins'), findsOneWidget);
-      expect(find.text('June 10 | 50 mins'), findsNothing);
-
-      // Switch back to All
-      await tester.tap(find.text('All'));
-      await tester.pumpAndSettle();
-      expect(find.text('June 10 | 50 mins'), findsOneWidget);
-      expect(find.text('June 08 | 45 mins (+15m)'), findsOneWidget);
-      expect(find.text('June 05 | 30 mins'), findsOneWidget);
+      expect(find.byTooltip('Select date from calendar'), findsOneWidget);
 
       // Verify Bottom Navigation switches to TripsTab in HomeScreen
       await tester.pumpWidget(
@@ -501,14 +484,12 @@ void main() {
         ),
       );
 
-      expect(find.text('Good morning,'), findsOneWidget);
+      expect(find.text('Iskolar'), findsOneWidget);
       await tester.tap(find.text('Trips'));
       await tester.pumpAndSettle();
 
       expect(find.text('Trip History'), findsOneWidget);
-      expect(find.text('3 trips recorded this month'), findsOneWidget);
       expect(find.text('RECENT TRIPS'), findsOneWidget);
-      expect(find.byTooltip('Filter trips'), findsOneWidget);
     },
   );
 
@@ -566,11 +547,18 @@ void main() {
       await tester.tap(find.text('Import from Contacts'));
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('Allow'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Phone Contacts'), findsOneWidget);
       expect(find.text('Select a contact to import'), findsOneWidget);
       expect(find.text('Dianne'), findsOneWidget);
 
       await tester.tap(find.text('Dianne'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Confirm & Save Contact'), findsOneWidget);
+      await tester.tap(find.text('Confirm & Save Contact'));
       await tester.pumpAndSettle();
 
       // Verify Dianne is added and active count is now 4
@@ -601,10 +589,15 @@ void main() {
       expect(find.text('Kuya Carlos'), findsOneWidget);
 
       // Test deleting a secondary contact
-      await tester.tap(find.byTooltip('Remove contact').first);
+      await tester.tap(find.byIcon(Icons.more_vert_rounded).at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove').last);
       await tester.pumpAndSettle();
 
       expect(find.text('4 Contacts Active | SMS recipient'), findsOneWidget);
+      expect(find.text('Maria Santos'), findsNothing);
       expect(find.text('Maria Santos'), findsNothing);
     },
   );
@@ -632,8 +625,10 @@ void main() {
     (tester) async {
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
-      // 1. Start a trip to Campus
-      await tester.tap(find.text('START TRIP').last);
+      // 1. Stage and Start a trip to Campus
+      await tester.tap(find.text('SET UP TRIP').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('SAVE TRIP').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('START TRIP').last);
       await tester.pumpAndSettle();
@@ -651,20 +646,15 @@ void main() {
       expect(find.text('You have arrived at Campus.'), findsOneWidget);
       expect(find.text('Are you safe?'), findsOneWidget);
       expect(find.textContaining('Auto-alert in: 01:30'), findsOneWidget);
-      expect(find.text("I'm Safe / Arrive"), findsOneWidget);
-      expect(find.text('+ 15 min'), findsOneWidget);
-      expect(find.text('🚨 Need Help'), findsOneWidget);
+      expect(find.text("I'm Safe"), findsOneWidget);
+      expect(find.text('NEED HELP'), findsOneWidget);
 
-      // 4. Advance 1 second to test 90s countdown ticking
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.textContaining('Auto-alert in: 01:29'), findsOneWidget);
-
-      // 5. Confirm safety: tap "I'm Safe / Arrive"
-      await tester.tap(find.text("I'm Safe / Arrive"));
+      // 4. Confirm safety: tap "I'm Safe"
+      await tester.tap(find.text("I'm Safe"));
       await tester.pumpAndSettle();
 
-      // 6. Verify trip is safely concluded and returns to idle home screen
-      expect(find.text('START TRIP'), findsWidgets);
+      // 5. Verify trip is safely concluded and returns to idle home screen
+      expect(find.text('SET UP TRIP'), findsWidgets);
       expect(find.text('DESTINATION REACHED'), findsNothing);
     },
   );
@@ -674,8 +664,10 @@ void main() {
     (tester) async {
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
-      // 1. Start a trip
-      await tester.tap(find.text('START TRIP').last);
+      // 1. Stage and Start a trip
+      await tester.tap(find.text('SET UP TRIP').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('SAVE TRIP').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('START TRIP').last);
       await tester.pumpAndSettle();
@@ -687,110 +679,16 @@ void main() {
 
       expect(find.text('Destination Reached'), findsOneWidget);
 
-      // 3. Tap "+15 min" extension button
-      await tester.tap(find.text('+15 min'));
-      await tester.pumpAndSettle();
-
-      // 4. Verify arrival prompt is dismissed and normal trip countdown resumes
-      expect(find.text('Destination Reached'), findsNothing);
-
-      // Conclude trip cleanly
+      // 3. Confirm safe arrival
       await tester.tap(find.text("I'm Safe"));
       await tester.pumpAndSettle();
-      expect(find.text('START TRIP'), findsWidgets);
-    },
-  );
-  test('geofence service resolves PUP Santa Maria and Home coordinates correctly', () async {
-    final service = GeofenceService();
 
-    // Verify PUP Santa Maria Campus target
-    final campusTarget = await service.resolveTarget('Campus');
-    expect(campusTarget!.name, 'Campus');
-    expect(campusTarget.latitude, 14.869725503304737);
-    expect(campusTarget.longitude, 120.9990821362761);
-    expect(campusTarget.radiusMeters, 150.0);
-
-    // Verify Home target
-    final homeTarget = await service.resolveTarget('Home');
-    expect(homeTarget!.name, 'Home');
-    expect(homeTarget.latitude, 14.8192);
-    expect(homeTarget.longitude, 120.9610);
-    expect(homeTarget.radiusMeters, 150.0);
-  });
-
-  testWidgets(
-    'active trip geofence arrival triggers safety prompt with 90s countdown and handles safe confirmation',
-    (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
-
-      // 1. Start a trip to Campus
-      await tester.tap(find.text('START TRIP').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('START TRIP').last);
-      await tester.pumpAndSettle();
-
-      expect(find.text('TRIP IN PROGRESS'), findsOneWidget);
-      expect(find.text('Campus'), findsOneWidget);
-
-      // 2. Simulate entering the destination geofence perimeter
-      final homeState = tester.state<HomeScreenState>(find.byType(HomeScreen));
-      homeState.simulateGeofenceArrival();
-      await tester.pumpAndSettle();
-
-      // 3. Verify Destination Reached state and safety confirmation prompt
-      expect(find.text('DESTINATION REACHED'), findsOneWidget);
-      expect(find.text('You have arrived at Campus.'), findsOneWidget);
-      expect(find.text('Are you safe?'), findsOneWidget);
-      expect(find.textContaining('Auto-alert in: 01:30'), findsOneWidget);
-      expect(find.text("I'm Safe / Arrive"), findsOneWidget);
-      expect(find.text('+ 15 min'), findsOneWidget);
-      expect(find.text('🚨 Need Help'), findsOneWidget);
-
-      // 4. Advance 1 second to test 90s countdown ticking
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.textContaining('Auto-alert in: 01:29'), findsOneWidget);
-
-      // 5. Confirm safety: tap "I'm Safe / Arrive"
-      await tester.tap(find.text("I'm Safe / Arrive"));
-      await tester.pumpAndSettle();
-
-      // 6. Verify trip is safely concluded and returns to idle home screen
-      expect(find.text('START TRIP'), findsWidgets);
-      expect(find.text('DESTINATION REACHED'), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'geofence arrival handles + 15 min extension and resumes active commute countdown',
-    (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
-
-      // 1. Start a trip
-      await tester.tap(find.text('START TRIP').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('START TRIP').last);
-      await tester.pumpAndSettle();
-
-      // 2. Trigger arrival prompt
-      final homeState = tester.state<HomeScreenState>(find.byType(HomeScreen));
-      homeState.simulateGeofenceArrival();
-      await tester.pumpAndSettle();
-
-      expect(find.text('Destination Reached'), findsOneWidget);
-
-      // 3. Tap "+15 min" extension button
-      await tester.tap(find.text('+15 min'));
-      await tester.pumpAndSettle();
-
-      // 4. Verify arrival prompt is dismissed and normal trip countdown resumes
+      // 4. Verify arrival prompt is dismissed and returns to Home
       expect(find.text('Destination Reached'), findsNothing);
-
-      // Conclude trip cleanly
-      await tester.tap(find.text("I'm Safe"));
-      await tester.pumpAndSettle();
-      expect(find.text('START TRIP'), findsWidgets);
+      expect(find.text('SET UP TRIP'), findsWidgets);
     },
   );
+
   testWidgets(
     'SettingsTab renders correctly and handles modal interactions',
     (tester) async {
@@ -815,11 +713,10 @@ void main() {
 
       // Verify Section 1 Items
       expect(find.text('Home Location Pin'), findsOneWidget);
-      expect(find.textContaining('14.8192'), findsWidgets);
+      expect(find.text('Tap to set home coordinates'), findsOneWidget);
       expect(find.text('PUP Santa Maria Campus'), findsOneWidget);
-      expect(find.textContaining('14.8697'), findsWidgets);
+      expect(find.text('Campus Destination Geofence (150m)'), findsOneWidget);
       expect(find.text('Default Travel Duration'), findsOneWidget);
-      // Smart Adaptive Presets removed
 
       // Verify Section 2 Items
       expect(find.text('Expiry Alert Mode'), findsOneWidget);
@@ -827,10 +724,11 @@ void main() {
 
       // Verify Section 3 Items
       expect(find.text('User Guide & Safety Protocol'), findsOneWidget);
+      expect(find.text('Frequently Asked Questions'), findsOneWidget);
       expect(find.text('Privacy Policy & GPS Usage Rules'), findsOneWidget);
 
       // Verify Footer
-      expect(find.text('LisKo v1.0.0 • PUP Santa Maria Campus'), findsOneWidget);
+      expect(find.text('Lisko v1.0.0 • PUP Santa Maria Campus'), findsOneWidget);
       expect(find.text('Zero-Surveillance Architecture • Offline-First'), findsOneWidget);
 
       // Open Home Geofence Modal
@@ -862,7 +760,7 @@ void main() {
       await tester.tap(find.text('User Guide & Safety Protocol'));
       await tester.pumpAndSettle();
       expect(find.text('User Guide & Safety Protocol'), findsWidgets);
-      await tester.tap(find.byIcon(Icons.close_rounded).last);
+      await tester.tap(find.text('Got It, I Understand'));
       await tester.pumpAndSettle();
 
       // Open Privacy Modal

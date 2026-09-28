@@ -14,12 +14,14 @@
 
 export 'active_trip_screen.dart';
 export 'contacts_tab.dart';
+export 'faq_screen.dart';
 export 'home_tab.dart';
 export 'main_dashboard_screen.dart';
 export 'onboarding_flow.dart';
 export 'settings_tab.dart';
 export 'splash_screen.dart';
 export 'trips_tab.dart';
+export 'user_guide_screen.dart';
 export 'welcome_screen.dart';
 
 
