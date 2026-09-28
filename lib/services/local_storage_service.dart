@@ -246,6 +246,28 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
     ),
   ];
 
+  static const _walkthroughKey = 'walkthrough_completed_v2';
+
+  Future<bool> readWalkthroughCompleted() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return preferences.getBool(_walkthroughKey) ?? false;
+    } catch (e, st) {
+      developer.log('Failed to read walkthrough state', error: e, stackTrace: st);
+      return false;
+    }
+  }
+
+  Future<bool> saveWalkthroughCompleted(bool completed) async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return await preferences.setBool(_walkthroughKey, completed);
+    } catch (e, st) {
+      developer.log('Failed to write walkthrough state', error: e, stackTrace: st);
+      return false;
+    }
+  }
+
   /// Reads whether the user has completed the initial onboarding setup.
   ///
   /// **Boot Check & Lockout Logic:**

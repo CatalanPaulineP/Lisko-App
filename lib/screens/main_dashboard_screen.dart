@@ -45,6 +45,7 @@ import '../services/permission_service.dart';
 import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/set_trip_timer_bottom_sheet.dart';
+import '../widgets/walkthrough_overlay.dart';
 import 'active_trip_screen.dart';
 import 'contacts_tab.dart';
 import 'home_tab.dart';
@@ -64,10 +65,18 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GeofenceService _geofenceService = GeofenceService();
   final SmsAlertService _smsAlertService = SmsAlertService();
 
+  final GlobalKey _setUpTripKey = GlobalKey();
+  final GlobalKey _sosKey = GlobalKey();
+  final GlobalKey _tripsTabKey = GlobalKey();
+  final GlobalKey _tripsSummaryKey = GlobalKey();
+  final GlobalKey _tripsFilterChipsKey = GlobalKey();
+  final GlobalKey _tripsCalendarIconKey = GlobalKey();
+  final GlobalKey _contactsTabKey = GlobalKey();
 
   int selectedTab = 0;
   bool tripActive = false;
   bool tripStaged = false;
+  bool showWalkthrough = false;
   String stagedDestination = 'Campus';
   Duration stagedDuration = const Duration(minutes: 45);
   bool isArrived = false;
@@ -102,6 +111,18 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     NotificationService.onActionReceived = _routeNotificationAction;
     _restoreActiveTrip();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkWalkthroughStatus();
+    });
+  }
+
+  Future<void> _checkWalkthroughStatus() async {
+    final completed = await const LocalStorageService().readWalkthroughCompleted();
+    if (!completed && mounted) {
+      setState(() {
+        showWalkthrough = true;
+      });
+    }
   }
 
   @override
@@ -1078,10 +1099,12 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: null,
-      body: IndexedStack(
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.canvas,
+          appBar: null,
+          body: IndexedStack(
         index: selectedTab,
         children: [
           AnimatedSwitcher(
@@ -1102,6 +1125,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   )
                 : HomeDashboardTab(
                     key: _homeKey,
+                    setUpTripKey: _setUpTripKey,
+                    sosKey: _sosKey,
                     onSetUpTrip: _openTripScheduler,
                     onStartTrip: () => _startTrip(stagedDestination, stagedDuration),
                     onSos: () => _triggerEmergencyFlow(immediate: false),
@@ -1120,6 +1145,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
             TripsTab(
               key: const ValueKey('trips'),
+              summaryKey: _tripsSummaryKey,
+              filterChipsKey: _tripsFilterChipsKey,
+              calendarIconKey: _tripsCalendarIconKey,
               onStartNewTrip: () {
                 setState(() {
                   selectedTab = 0;
@@ -1150,7 +1178,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         unselectedFontSize: 11,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-        items: const [
+        items: [
           BottomNavigationBarItem(
             icon: AppIcon.standard(
               AppIcons.homeOutline,
@@ -1165,28 +1193,40 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: AppIcon.standard(
-              AppIcons.mapOutline,
-              color: AppColors.body,
-              semanticIcon: Icons.map_outlined,
+            icon: KeyedSubtree(
+              key: _tripsTabKey,
+              child: const AppIcon.standard(
+                AppIcons.mapOutline,
+                color: AppColors.body,
+                semanticIcon: Icons.map_outlined,
+              ),
             ),
-            activeIcon: AppIcon.standard(
-              AppIcons.map,
-              color: AppColors.primary,
-              semanticIcon: Icons.map_rounded,
+            activeIcon: KeyedSubtree(
+              key: _tripsTabKey,
+              child: const AppIcon.standard(
+                AppIcons.map,
+                color: AppColors.primary,
+                semanticIcon: Icons.map_rounded,
+              ),
             ),
             label: 'Trips',
           ),
           BottomNavigationBarItem(
-            icon: AppIcon.standard(
-              AppIcons.peopleOutline,
-              color: AppColors.body,
-              semanticIcon: Icons.people_outline_rounded,
+            icon: KeyedSubtree(
+              key: _contactsTabKey,
+              child: const AppIcon.standard(
+                AppIcons.peopleOutline,
+                color: AppColors.body,
+                semanticIcon: Icons.people_outline_rounded,
+              ),
             ),
-            activeIcon: AppIcon.standard(
-              AppIcons.people,
-              color: AppColors.primary,
-              semanticIcon: Icons.people_rounded,
+            activeIcon: KeyedSubtree(
+              key: _contactsTabKey,
+              child: const AppIcon.standard(
+                AppIcons.people,
+                color: AppColors.primary,
+                semanticIcon: Icons.people_rounded,
+              ),
             ),
             label: 'Contacts',
           ),
@@ -1205,6 +1245,30 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+    ),
+    if (showWalkthrough)
+      Positioned.fill(
+        child: WalkthroughOverlay(
+          setUpTripKey: _setUpTripKey,
+          sosKey: _sosKey,
+          tripsTabKey: _tripsTabKey,
+          tripsSummaryKey: _tripsSummaryKey,
+          tripsFilterChipsKey: _tripsFilterChipsKey,
+          tripsCalendarIconKey: _tripsCalendarIconKey,
+          contactsTabKey: _contactsTabKey,
+          onTabChangeRequested: (tabIndex) {
+            setState(() {
+              selectedTab = tabIndex;
+            });
+          },
+          onDismiss: () {
+            setState(() {
+              showWalkthrough = false;
+            });
+          },
+        ),
+      ),
+    ],
     );
   }
 }

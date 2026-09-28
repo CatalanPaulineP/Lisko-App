@@ -43,7 +43,13 @@ class HomeDashboardTab extends StatelessWidget {
     this.stagedDuration = const Duration(minutes: 45),
     this.onAdjustMinutes,
     this.onEditSetup,
+    this.setUpTripKey,
+    this.sosKey,
   });
+
+  /// Global keys for runtime spotlight rect calculations
+  final GlobalKey? setUpTripKey;
+  final GlobalKey? sosKey;
 
   /// Action dispatched to open the `TripSchedulerSheet` modal.
   final VoidCallback onSetUpTrip;
@@ -100,11 +106,13 @@ class HomeDashboardTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   HomeStartButton(
+                    key: setUpTripKey,
                     onPressed: tripStaged ? onStartTrip : onSetUpTrip,
                     label: tripStaged ? 'START TRIP' : 'SET UP TRIP',
                   ),
                   const SizedBox(height: 12),
                   SosWarningBox(
+                    key: sosKey,
                     onTap: onSos,
                     onLongPress: onSos,
                     onDoubleTap: onSos,

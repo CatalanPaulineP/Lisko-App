@@ -364,6 +364,26 @@ class _SettingsTabState extends State<SettingsTab> {
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildActionRow(
+                          iconStr: AppIcons.book,
+                          semanticIcon: Icons.help_outline_rounded,
+                          iconBg: const Color(0xFFD1FAE5),
+                          iconColor: const Color(0xFF10B981),
+                          title: 'Replay App Walkthrough Tutorial',
+                          subtitle: 'Reset and view the 4-step Home Tab walkthrough',
+                          onTap: () async {
+                            await _storage.saveWalkthroughCompleted(false);
+                            if (!mounted) return;
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Tutorial reset! Return to Home or restart app.'),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildActionRow(
                           iconStr: AppIcons.shield,
                           semanticIcon: Icons.privacy_tip_rounded,
                           iconBg: AppColors.canvas,
