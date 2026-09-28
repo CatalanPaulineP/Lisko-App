@@ -93,6 +93,23 @@ class _ContactsTabState extends State<ContactsTab> {
     );
   }
 
+  void _setAsPrimaryContact(ContactPerson selectedContact) {
+    final List<ContactPerson> updated = List<ContactPerson>.from(_contacts);
+    updated.removeWhere((c) => c.name == selectedContact.name && c.phone == selectedContact.phone);
+    updated.insert(0, selectedContact);
+    _updateContacts(updated);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${selectedContact.name} is now your Primary Emergency Contact.'),
+          backgroundColor: const Color(0xFF4CAF50),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
 
   bool get _isTestMode {
     final binding = WidgetsBinding.instance.runtimeType.toString();
@@ -422,6 +439,7 @@ class _ContactsTabState extends State<ContactsTab> {
                               contact: secondaryContacts[i],
                               onEdit: () => _openEditContactModal(secondaryContacts[i], i + 1),
                               onRemove: () => _removeContact(i + 1),
+                              onSetPrimary: () => _setAsPrimaryContact(secondaryContacts[i]),
                             ),
                             if (i < secondaryContacts.length - 1)
                               const Divider(
@@ -716,11 +734,13 @@ class SecondaryContactListItem extends StatelessWidget {
     required this.contact,
     required this.onEdit,
     required this.onRemove,
+    required this.onSetPrimary,
   });
 
   final ContactPerson contact;
   final VoidCallback onEdit;
   final VoidCallback onRemove;
+  final VoidCallback onSetPrimary;
 
   @override
   Widget build(BuildContext context) {
@@ -773,11 +793,29 @@ class SecondaryContactListItem extends StatelessWidget {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded, color: AppColors.body),
             onSelected: (value) {
+              if (value == 'setPrimary') onSetPrimary();
               if (value == 'edit') onEdit();
               if (value == 'remove') onRemove();
             },
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'setPrimary',
+                child: Row(
+                  children: [
+                    Icon(Icons.star_rounded, size: 20, color: Colors.amber),
+                    SizedBox(width: 12),
+                    Text(
+                      'Set as Primary',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.header,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'edit',
                 child: Row(
