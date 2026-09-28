@@ -14,6 +14,7 @@
 
 export 'active_trip_screen.dart';
 export 'contacts_tab.dart';
+export 'faq_screen.dart';
 export 'home_tab.dart';
 export 'main_dashboard_screen.dart';
 export 'onboarding_flow.dart';

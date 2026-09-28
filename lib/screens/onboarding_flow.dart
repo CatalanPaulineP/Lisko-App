@@ -191,25 +191,27 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     if (!mounted || allowed != true) return;
 
     // 2. Check current system permission status
-    final status = await Permission.contacts.status;
-    if (status.isPermanentlyDenied) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Contacts permission is permanently denied. Please enable it in settings.'),
-            action: SnackBarAction(
-              label: 'Settings',
-              onPressed: () => openAppSettings(),
+    if (!_isTestMode) {
+      final status = await Permission.contacts.status;
+      if (status.isPermanentlyDenied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Contacts permission is permanently denied. Please enable it in settings.'),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => openAppSettings(),
+              ),
             ),
-          ),
-        );
+          );
+        }
+        return;
       }
-      return;
-    }
 
-    // 3. Request native Android permission
-    final requested = await Permission.contacts.request();
-    if (!requested.isGranted) return;
+      // 3. Request native Android permission
+      final requested = await Permission.contacts.request();
+      if (!requested.isGranted) return;
+    }
 
     if (!mounted) return;
 
@@ -1154,7 +1156,7 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
   late final TextEditingController nameController;
   late final TextEditingController phoneController;
   late final TextEditingController otherRelationshipController;
-  String relationship = 'Mother';
+  String relationship = 'Parent';
   String? nameError;
   String? phoneError;
   String? otherRelationshipError;

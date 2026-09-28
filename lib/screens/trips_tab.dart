@@ -752,7 +752,7 @@ class RecentTripsList extends StatelessWidget {
                         }
                       }
 
-                      final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                       final h = trip.timestamp.hour;
                       final min = trip.timestamp.minute.toString().padLeft(2, '0');
                       final amPm = h >= 12 ? 'PM' : 'AM';
@@ -834,12 +834,17 @@ class TripListItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.body,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    subtitle,
+                    maxLines: 1,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                    ),
                   ),
                 ),
                 if (durationOrSos != null) ...[

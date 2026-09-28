@@ -37,6 +37,7 @@ class TripTimerCard extends StatelessWidget {
     this.isStaged = false,
     this.onAdjustMinutes,
     this.onEditSetup,
+    this.onCancelSetup,
   });
 
   /// Countdown string to display (e.g., `__:__:__` or `00:45:00`).
@@ -57,30 +58,33 @@ class TripTimerCard extends StatelessWidget {
   /// Callback to re-open setup sheet when staged or set up timer when tapped.
   final VoidCallback? onEditSetup;
 
+  /// Callback to cancel/reset staged trip setup.
+  final VoidCallback? onCancelSetup;
+
   @override
   Widget build(BuildContext context) {
     const mutedSlate = Color(0xFF64748B);
 
-    return DashboardCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'TRIP TIMER',
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 1.4,
-              fontWeight: FontWeight.w800,
-              color: AppColors.body,
+    return InkWell(
+      onTap: onEditSetup,
+      borderRadius: BorderRadius.circular(16),
+      child: DashboardCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'TRIP TIMER',
+              style: TextStyle(
+                fontSize: 11,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+                color: AppColors.body,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          // Circular Trip Timer Display Widget (Tappable to edit/configure)
-          GestureDetector(
-            onTap: onEditSetup,
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
+            const SizedBox(height: 10),
+            // Circular Trip Timer Display Widget
+            SizedBox(
               width: 136,
               height: 136,
               child: Stack(
@@ -96,7 +100,7 @@ class TripTimerCard extends StatelessWidget {
                         color: isActive
                             ? AppColors.success
                             : isStaged
-                                ? AppColors.primary
+                                ? AppColors.header
                                 : const Color(0xFFE2E8F0),
                         width: 6,
                       ),
@@ -129,7 +133,7 @@ class TripTimerCard extends StatelessWidget {
                             color: isActive
                                 ? AppColors.successText
                                 : isStaged
-                                    ? AppColors.primary
+                                    ? AppColors.header
                                     : mutedSlate,
                           ),
                         ),
@@ -139,54 +143,72 @@ class TripTimerCard extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-          if (isStaged) ...[
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton(
-                  onPressed: () => onAdjustMinutes?.call(-5),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.header,
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            if (isStaged) ...[
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => onAdjustMinutes?.call(-5),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.header,
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('- 5m', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
-                  child: const Text('- 5m', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: onEditSetup,
-                  icon: const Icon(Icons.edit_outlined, size: 14),
-                  label: const Text('Change'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: onEditSetup,
+                    icon: const Icon(Icons.edit_outlined, size: 14),
+                    label: const Text('Change'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () => onAdjustMinutes?.call(5),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.header,
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () => onAdjustMinutes?.call(5),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.header,
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('+ 5m', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
-                  child: const Text('+ 5m', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                ],
+              ),
+              if (onCancelSetup != null) ...[
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: onCancelSetup,
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    child: Text(
+                      'Cancel setup',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.body,
+                      ),
+                    ),
+                  ),
                 ),
               ],
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -347,15 +369,15 @@ class SosWarningBox extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'SOS',
+                  'SEND DISTRESS SIGNAL',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
                   ),
                 ),
                 Text(
-                  'Hold 3s or Double Tap',
+                  'Tap once to alert your trusted contacts',
                   style: TextStyle(fontSize: 11, color: AppColors.body),
                 ),
               ],

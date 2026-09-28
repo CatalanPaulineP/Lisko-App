@@ -312,6 +312,16 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
 
   /// Reads the saved Home geofence coordinates from local storage.
   ///
+  /// Returns `true` if an explicit custom Home Location has been saved in SharedPreferences.
+  Future<bool> hasSavedHomeCoordinates() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return preferences.containsKey(_homeLatKey) && preferences.containsKey(_homeLngKey);
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Returns a map containing `'latitude'`, `'longitude'`, and `'radius'`.
   /// If unconfigured, safely defaults to the Santa Maria residential baseline
   /// (`14.8192, 120.9610, 150.0m`).

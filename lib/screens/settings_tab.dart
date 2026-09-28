@@ -16,13 +16,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/local_storage_service.dart';
-import '../services/notification_service.dart';
 import '../services/permission_service.dart';
+import 'faq_screen.dart';
 import 'user_guide_screen.dart';
 import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
@@ -41,7 +40,6 @@ class _SettingsTabState extends State<SettingsTab> {
 
   String _defaultDuration = '45 mins';
   String _alertMode = 'Vibration Only';
-  // _covertSmsDispatch removed
   double? _homeLat;
   double? _homeLng;
 
@@ -52,13 +50,19 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   Future<void> _loadSettings() async {
+    final hasHome = await _storage.hasSavedHomeCoordinates();
     final homeCoords = await _storage.readHomeCoordinates();
     final alertMode = await _storage.readAlertMode();
     final defaultMins = await _storage.readDefaultTravelDuration();
     if (mounted) {
       setState(() {
-        _homeLat = homeCoords['latitude'];
-        _homeLng = homeCoords['longitude'];
+        if (hasHome) {
+          _homeLat = homeCoords['latitude'];
+          _homeLng = homeCoords['longitude'];
+        } else {
+          _homeLat = null;
+          _homeLng = null;
+        }
         _alertMode = alertMode;
         _defaultDuration = '$defaultMins mins';
       });
@@ -87,21 +91,192 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   void _openCampusGeofenceModal() {
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Campus Geofence'),
-        content: const Text(
-            'PUP Santa Maria Campus coordinates are fixed at 14.8697� N, 120.9991� E.\n\n'
-            'The arrival perimeter is set to 150 meters. When your device enters this radius, '
-            'the arrival timer triggers automatically.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Understood'),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Campus Geofence',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.header,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'PUP Santa Maria Campus',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    _buildModalInfoRow(
+                      icon: Icons.location_on_rounded,
+                      label: 'Location',
+                      value: 'PUP Santa Maria, Bulacan',
+                    ),
+                    const Divider(height: 16, thickness: 1, color: AppColors.border),
+                    _buildModalInfoRow(
+                      icon: Icons.my_location_rounded,
+                      label: 'Coordinates',
+                      value: 'Latitude: 14.869726° N\nLongitude: 120.999082° E',
+                    ),
+                    const Divider(height: 16, thickness: 1, color: AppColors.border),
+                    _buildModalInfoRow(
+                      icon: Icons.radar_rounded,
+                      label: 'Geofence Radius',
+                      value: '150 meters',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFFC0BD)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'When your device enters this 150-meter perimeter, LisKo automatically detects your arrival and triggers the safety check.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.header,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.header,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Understood',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  static Widget _buildModalInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.body, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.body,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.header,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -110,6 +285,15 @@ class _SettingsTabState extends State<SettingsTab> {
       context,
       MaterialPageRoute<void>(
         builder: (context) => const UserGuideScreen(),
+      ),
+    );
+  }
+
+  void _openFaqScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const FaqScreen(),
       ),
     );
   }
@@ -149,28 +333,18 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
-  /// Temporary diagnostic method testing Geolocator.getCurrentPosition directly on Vivo 1906.
+  /// Temporary diagnostic method testing Geolocator.getCurrentPosition directly.
   Future<void> _runGpsDiagnostic() async {
     debugPrint('\n==================================================');
-    debugPrint('[GPS-DIAGNOSTIC] STARTING VIVO 1906 DIRECT GPS TEST');
+    debugPrint('[GPS-DIAGNOSTIC] STARTING DIRECT GPS TEST');
     debugPrint('==================================================');
 
     final startTime = DateTime.now();
-    debugPrint('[GPS-DIAGNOSTIC] Start Time: $startTime');
 
     try {
-      // 1. Verify Permission Status
-      final permStatus = await Permission.location.status;
-      final geoPermStatus = await Geolocator.checkPermission();
-      debugPrint('[GPS-DIAGNOSTIC] Permission.location.status: $permStatus');
-      debugPrint('[GPS-DIAGNOSTIC] Geolocator.checkPermission(): $geoPermStatus');
-
-      // 2. Verify Location Service Status
       final isEnabled = await Geolocator.isLocationServiceEnabled();
-      debugPrint('[GPS-DIAGNOSTIC] Geolocator.isLocationServiceEnabled(): $isEnabled');
 
       if (!isEnabled) {
-        debugPrint('[GPS-DIAGNOSTIC] ABORTED: Location Service is OFF on device.');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('GPS Diagnostic Aborted: Location Service is OFF.')),
@@ -188,9 +362,6 @@ class _SettingsTabState extends State<SettingsTab> {
         );
       }
 
-      // 3. Call Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: 20s)
-      debugPrint('[GPS-DIAGNOSTIC] Calling Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: 20s)...');
-
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 20),
@@ -198,15 +369,6 @@ class _SettingsTabState extends State<SettingsTab> {
 
       final endTime = DateTime.now();
       final elapsed = endTime.difference(startTime).inMilliseconds / 1000.0;
-
-      debugPrint('--------------------------------------------------');
-      debugPrint('[GPS-DIAGNOSTIC] SUCCESS! Position Acquired!');
-      debugPrint('[GPS-DIAGNOSTIC] End Time: $endTime');
-      debugPrint('[GPS-DIAGNOSTIC] Elapsed Time: ${elapsed.toStringAsFixed(2)} seconds');
-      debugPrint('[GPS-DIAGNOSTIC] Latitude: ${position.latitude}');
-      debugPrint('[GPS-DIAGNOSTIC] Longitude: ${position.longitude}');
-      debugPrint('[GPS-DIAGNOSTIC] Accuracy: ${position.accuracy} meters');
-      debugPrint('==================================================\n');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -221,18 +383,9 @@ class _SettingsTabState extends State<SettingsTab> {
           ),
         );
       }
-    } catch (e, st) {
+    } catch (e) {
       final endTime = DateTime.now();
       final elapsed = endTime.difference(startTime).inMilliseconds / 1000.0;
-
-      debugPrint('--------------------------------------------------');
-      debugPrint('[GPS-DIAGNOSTIC] FAILED! Exception / Error Occurred!');
-      debugPrint('[GPS-DIAGNOSTIC] End Time: $endTime');
-      debugPrint('[GPS-DIAGNOSTIC] Elapsed Time: ${elapsed.toStringAsFixed(2)} seconds');
-      debugPrint('[GPS-DIAGNOSTIC] Exception Type: ${e.runtimeType}');
-      debugPrint('[GPS-DIAGNOSTIC] Exception Details: $e');
-      debugPrint('[GPS-DIAGNOSTIC] StackTrace:\n$st');
-      debugPrint('==================================================\n');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -277,7 +430,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconColor: AppColors.primary,
                           title: 'Home Location Pin',
                           subtitle: _homeLat != null
-                              ? '${_homeLat!.toStringAsFixed(4)}� N, ${_homeLng!.toStringAsFixed(4)}� E'
+                              ? 'Your saved home location'
                               : 'Tap to set home coordinates',
                           onTap: _openHomeGeofenceModal,
                         ),
@@ -288,7 +441,7 @@ class _SettingsTabState extends State<SettingsTab> {
                           iconBg: AppColors.canvas,
                           iconColor: AppColors.body,
                           title: 'PUP Santa Maria Campus',
-                          subtitle: '14.8697° N, 120.9991° E • 150m',
+                          subtitle: 'Campus Destination Geofence (150m)',
                           onTap: _openCampusGeofenceModal,
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
@@ -301,12 +454,11 @@ class _SettingsTabState extends State<SettingsTab> {
                           value: _defaultDuration,
                           items: const ['15 mins', '30 mins', '45 mins', '60 mins'],
                           onChanged: (val) {
-                              setState(() => _defaultDuration = val!);
-                              final mins = int.tryParse(val!.replaceAll(' mins', '')) ?? 45;
-                              _storage.saveDefaultTravelDuration(mins);
-                            },
+                            setState(() => _defaultDuration = val!);
+                            final mins = int.tryParse(val!.replaceAll(' mins', '')) ?? 45;
+                            _storage.saveDefaultTravelDuration(mins);
+                          },
                         ),
-                        // End of Commute Presets
                       ],
                     ),
                   ),
@@ -359,40 +511,21 @@ class _SettingsTabState extends State<SettingsTab> {
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildActionRow(
+                          iconStr: AppIcons.infoOutline,
+                          semanticIcon: Icons.quiz_rounded,
+                          iconBg: AppColors.canvas,
+                          iconColor: AppColors.body,
+                          title: 'Frequently Asked Questions',
+                          onTap: _openFaqScreen,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildActionRow(
                           iconStr: AppIcons.shield,
                           semanticIcon: Icons.privacy_tip_rounded,
                           iconBg: AppColors.canvas,
                           iconColor: AppColors.body,
                           title: 'Privacy Policy & GPS Usage Rules',
                           onTap: _openPrivacyModal,
-                        ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
-                        _buildActionRow(
-                          iconStr: AppIcons.warning,
-                          semanticIcon: Icons.bug_report_rounded,
-                          iconBg: const Color(0xFFFFDAD8),
-                          iconColor: AppColors.primary,
-                          title: 'TEST HEADS-UP NOTIFICATION',
-                          onTap: () {
-                            debugPrint('[TEST] Calling NotificationService.showArrivalAlarm()');
-                            NotificationService().showArrivalAlarm('PUP Santa Maria').then((_) {
-                              debugPrint('[TEST] showArrivalAlarm() completed');
-                            });
-                          },
-                        ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
-                        _buildActionRow(
-                          iconStr: AppIcons.warning,
-                          semanticIcon: Icons.bug_report_rounded,
-                          iconBg: const Color(0xFFFFDAD8),
-                          iconColor: AppColors.primary,
-                          title: 'TEST SIMPLE HEADS-UP',
-                          onTap: () {
-                            debugPrint('[TEST-SIMPLE] Showing simple max-priority notification');
-                            NotificationService().showSimpleTestNotification().then((_) {
-                              debugPrint('[TEST-SIMPLE] Notification show() completed');
-                            });
-                          },
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildActionRow(
@@ -422,7 +555,7 @@ class _SettingsTabState extends State<SettingsTab> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Zero-Surveillance Architecture � Offline-First',
+                          'Zero-Surveillance Architecture • Offline-First',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -941,7 +1074,6 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
 
     final permService = PermissionService();
 
-    // 1. Check Location Permission
     final hasPermission = await permService.checkLocationPermission();
     if (!hasPermission) {
       final granted = await permService.requestLocationPermission();
@@ -955,7 +1087,6 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
       }
     }
 
-    // 2. Check Location Service
     final serviceEnabled = await permService.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted) {
@@ -1054,7 +1185,9 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Auto-arrival trigger at home',
+                          widget.currentLat != null
+                              ? 'Auto-arrival trigger at home'
+                              : 'No home location set',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -1100,6 +1233,7 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
                         labelText: 'Latitude',
+                        hintText: 'e.g. 14.8512',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1113,6 +1247,7 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
                         labelText: 'Longitude',
+                        hintText: 'e.g. 120.9856',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1221,5 +1356,3 @@ class InfoModalBottomSheet extends StatelessWidget {
     );
   }
 }
-
-

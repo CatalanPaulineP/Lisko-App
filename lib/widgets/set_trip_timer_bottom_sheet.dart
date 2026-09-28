@@ -35,11 +35,15 @@ class TripSchedulerSheet extends StatefulWidget {
     super.key,
     this.onStart,
     this.onSave,
+    this.initialDestination,
+    this.initialDuration,
   });
 
   /// Callback dispatched when the user confirms and starts/saves the scheduled trip.
   final Future<bool> Function(String destination, Duration duration)? onStart;
   final Future<bool> Function(String destination, Duration duration)? onSave;
+  final String? initialDestination;
+  final Duration? initialDuration;
 
   @override
   State<TripSchedulerSheet> createState() => _TripSchedulerSheetState();
@@ -57,7 +61,18 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
   @override
   void initState() {
     super.initState();
-    _loadDefaultDuration();
+    if (widget.initialDestination != null) {
+      selectedDestination = widget.initialDestination!;
+    }
+    if (widget.initialDuration != null) {
+      final totalMins = widget.initialDuration!.inMinutes;
+      selectedMinutes = totalMins;
+      hours = totalMins ~/ 60;
+      minutes = totalMins % 60;
+      _isLoading = false;
+    } else {
+      _loadDefaultDuration();
+    }
   }
 
   Future<void> _loadDefaultDuration() async {

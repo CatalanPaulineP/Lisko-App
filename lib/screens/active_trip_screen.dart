@@ -164,18 +164,13 @@ class ActiveTripTab extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Expanded(child: SafeButton(onPressed: onSafe)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlineAction(
-                        label: '+ 15 min',
-                        icon: Icons.access_time_rounded,
-                        onPressed: onExtend,
-                      ),
-                    ),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlineAction(
+                    label: '+ 15 min',
+                    icon: Icons.access_time_rounded,
+                    onPressed: onExtend,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 PrimaryButton(
@@ -346,7 +341,7 @@ class ActiveTripTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          // Action Buttons: I'm Safe, Extend Time, Need Help
+          // Action Buttons: I'm Safe, Need Help
           SizedBox(
             width: double.infinity,
             child: SafeButton(
@@ -354,23 +349,12 @@ class ActiveTripTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlineAction(
-                  label: '+ 15 min',
-                  icon: Icons.access_time_rounded,
-                  onPressed: onExtend,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: PrimaryButton(
-                  label: 'Need Help / SOS',
-                  onPressed: onSos,
-                ),
-              ),
-            ],
+          SizedBox(
+            width: double.infinity,
+            child: PrimaryButton(
+              label: 'Need Help / SOS',
+              onPressed: onSos,
+            ),
           ),
         ],
       ),

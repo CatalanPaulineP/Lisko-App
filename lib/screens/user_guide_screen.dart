@@ -18,6 +18,19 @@ import '../constants/app_icons.dart';
 class UserGuideScreen extends StatelessWidget {
   const UserGuideScreen({super.key});
 
+  // Semantic Design System Palette Tokens
+  static const _greenAccent = AppColors.successText; // #047857
+  static const _greenBg = AppColors.successContainer; // #DDF7ED
+
+  static const _amberAccent = Color(0xFFD97706); // Amber 600
+  static const _amberBg = Color(0xFFFEF3C7); // Amber 100
+
+  static const _redAccent = AppColors.primary; // #DB2B38
+  static const _redBg = AppColors.primaryContainer; // #FFDAD8
+
+  static const _navyAccent = AppColors.header; // #1E293B
+  static const _navyBg = AppColors.canvas; // #F8FAFC
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,110 +70,132 @@ class UserGuideScreen extends StatelessWidget {
                   _HeaderIntroBanner(),
                   SizedBox(height: 16),
                   
-                  // 1. Getting Started
+                  // 1. Getting Started (GREEN)
                   _GuideSectionCard(
-                    iconStr: AppIcons.book,
+                    iconStr: AppIcons.checkCircle,
                     title: '1. Getting Started',
+                    accentColor: _greenAccent,
+                    iconBgColor: _greenBg,
                     child: _GettingStartedContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 2. Start a Trip
+                  // 2. Start a Trip (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.navigation,
                     title: '2. Start a Trip',
+                    accentColor: _navyAccent,
+                    iconBgColor: _navyBg,
                     child: _StartTripContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 3. During Your Trip
+                  // 3. During Your Trip (AMBER)
                   _GuideSectionCard(
                     iconStr: AppIcons.schedule,
                     title: '3. During Your Trip',
+                    accentColor: _amberAccent,
+                    iconBgColor: _amberBg,
                     child: _DuringTripContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 4. Destination Reached
+                  // 4. Destination Reached (GREEN)
                   _GuideSectionCard(
                     iconStr: AppIcons.checkCircle,
                     title: '4. Destination Reached',
+                    accentColor: _greenAccent,
+                    iconBgColor: _greenBg,
                     child: _DestinationReachedContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 5. If You Don't Respond
+                  // 5. If You Don't Respond (AMBER - WARNING)
                   _GuideSectionCard(
                     iconStr: AppIcons.warning,
                     title: "5. If You Don't Respond",
-                    accentColor: AppColors.primary,
+                    accentColor: _amberAccent,
+                    iconBgColor: _amberBg,
                     child: _NoResponseContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 6. Emergency SOS
+                  // 6. Emergency SOS (RED - STRONGEST EMERGENCY)
                   _GuideSectionCard(
                     iconStr: AppIcons.warning,
                     title: '6. Emergency SOS',
-                    accentColor: AppColors.primary,
+                    accentColor: _redAccent,
+                    iconBgColor: _redBg,
                     child: _EmergencySosContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 7. Need Help
+                  // 7. Need Help (AMBER - ASSISTANCE)
                   _GuideSectionCard(
                     iconStr: AppIcons.infoOutline,
                     title: '7. Need Help',
-                    accentColor: Color(0xFFD97706),
+                    accentColor: _amberAccent,
+                    iconBgColor: _amberBg,
                     child: _NeedHelpContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 8. Trusted Contacts
+                  // 8. Trusted Contacts (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.people,
                     title: '8. Trusted Contacts',
+                    accentColor: _navyAccent,
+                    iconBgColor: _navyBg,
                     child: _TrustedContactsContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 9. Set Your Home Location
+                  // 9. Set Your Home Location (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.home,
                     title: '9. Set Your Home Location',
+                    accentColor: _navyAccent,
+                    iconBgColor: _navyBg,
                     child: _HomeLocationContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 10. Emergency SMS & Location
+                  // 10. Emergency SMS & Location (AMBER)
                   _GuideSectionCard(
                     iconStr: AppIcons.chat,
                     title: '10. Emergency SMS & Location',
+                    accentColor: _amberAccent,
+                    iconBgColor: _amberBg,
                     child: _SmsLocationContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 11. Notifications
+                  // 11. Notifications (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.notifications,
                     title: '11. Notifications',
+                    accentColor: _navyAccent,
+                    iconBgColor: _navyBg,
                     child: _NotificationsContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 12. Privacy & Non-Surveillance
+                  // 12. Privacy & Non-Surveillance (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.shield,
                     title: '12. Privacy & Non-Surveillance',
+                    accentColor: _navyAccent,
+                    iconBgColor: _navyBg,
                     child: _PrivacyContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 13. Safety Reminders
+                  // 13. Safety Reminders (GREEN)
                   _GuideSectionCard(
                     iconStr: AppIcons.check,
                     title: '13. Safety Reminders',
-                    accentColor: AppColors.successText,
+                    accentColor: _greenAccent,
+                    iconBgColor: _greenBg,
                     child: _SafetyRemindersContent(),
                   ),
                   SizedBox(height: 16),
@@ -278,12 +313,14 @@ class _GuideSectionCard extends StatefulWidget {
     required this.title,
     required this.child,
     this.accentColor,
+    this.iconBgColor,
   });
 
   final String iconStr;
   final String title;
   final Widget child;
   final Color? accentColor;
+  final Color? iconBgColor;
 
   @override
   State<_GuideSectionCard> createState() => _GuideSectionCardState();
@@ -295,13 +332,14 @@ class _GuideSectionCardState extends State<_GuideSectionCard> {
   @override
   Widget build(BuildContext context) {
     final themeColor = widget.accentColor ?? AppColors.header;
+    final bgContainerColor = widget.iconBgColor ?? (widget.accentColor ?? AppColors.body).withValues(alpha: 0.1);
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isExpanded ? themeColor.withValues(alpha: 0.3) : AppColors.border,
+          color: _isExpanded ? themeColor.withValues(alpha: 0.4) : AppColors.border,
           width: _isExpanded ? 1.5 : 1,
         ),
         boxShadow: const [
@@ -324,7 +362,7 @@ class _GuideSectionCardState extends State<_GuideSectionCard> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (widget.accentColor ?? AppColors.body).withValues(alpha: 0.1),
+                      color: bgContainerColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Iconify(

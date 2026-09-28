@@ -43,7 +43,12 @@ class HomeDashboardTab extends StatelessWidget {
     this.stagedDuration = const Duration(minutes: 45),
     this.onAdjustMinutes,
     this.onEditSetup,
+    this.onCancelSetup,
+    this.selectedTab = 0,
   });
+
+  /// Active tab index for targeted component updates.
+  final int selectedTab;
 
   /// Action dispatched to open the `TripSchedulerSheet` modal.
   final VoidCallback onSetUpTrip;
@@ -69,6 +74,9 @@ class HomeDashboardTab extends StatelessWidget {
   /// Callback to re-open setup sheet.
   final VoidCallback? onEditSetup;
 
+  /// Callback to cancel/reset staged trip setup.
+  final VoidCallback? onCancelSetup;
+
   String _formatDuration(Duration d) {
     final hh = d.inHours.toString().padLeft(2, '0');
     final mm = (d.inMinutes % 60).toString().padLeft(2, '0');
@@ -81,7 +89,7 @@ class HomeDashboardTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeHeader(),
+        HomeHeader(selectedTab: selectedTab),
         Expanded(
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
@@ -91,12 +99,13 @@ class HomeDashboardTab extends StatelessWidget {
                 children: [
                   const SizedBox(height: 12),
                   TripTimerCard(
-                    timeText: tripStaged ? _formatDuration(stagedDuration) : '__:__:__',
-                    statusText: tripStaged ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO ACTIVE TRIP',
+                    timeText: tripStaged ? _formatDuration(stagedDuration) : '--:--:--',
+                    statusText: tripStaged ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO TRIP SET UP',
                     isActive: false,
                     isStaged: tripStaged,
                     onAdjustMinutes: onAdjustMinutes,
                     onEditSetup: tripStaged ? onEditSetup : onSetUpTrip,
+                    onCancelSetup: onCancelSetup,
                   ),
                   const SizedBox(height: 14),
                   HomeStartButton(
@@ -123,7 +132,9 @@ class HomeDashboardTab extends StatelessWidget {
 
 /// Header with patterned background, greeting, and system ready card.
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key});
+  const HomeHeader({super.key, this.selectedTab = 0});
+
+  final int selectedTab;
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -222,9 +233,9 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28), // Explicit spacing to perfectly prevent text overlap
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: SystemReadyCard(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SystemReadyCard(selectedTab: selectedTab),
             ),
           ],
         ),
@@ -458,7 +469,7 @@ class _TodayActivityState extends State<TodayActivity> {
               }
             }
 
-            final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             final h = trip.timestamp.hour;
             final min = trip.timestamp.minute.toString().padLeft(2, '0');
             final amPm = h >= 12 ? 'PM' : 'AM';
