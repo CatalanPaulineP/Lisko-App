@@ -16,6 +16,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
@@ -42,7 +43,7 @@ class SettingsTab extends StatefulWidget {
   State<SettingsTab> createState() => _SettingsTabState();
 }
 
-class _SettingsTabState extends State<SettingsTab> {
+class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
   final LocalStorageService _storage = const LocalStorageService();
 
   String _defaultDuration = '45 mins';
@@ -50,10 +51,47 @@ class _SettingsTabState extends State<SettingsTab> {
   double? _homeLat;
   double? _homeLng;
 
+  bool _hasContacts = false;
+  bool _hasNotifications = false;
+  bool _hasSms = false;
+  bool _hasLocation = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
+    _checkPermissions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissions();
+    }
+  }
+
+  Future<void> _checkPermissions() async {
+    final ps = PermissionService();
+    final contacts = await ps.checkContactsPermission();
+    final notifs = await ps.checkNotificationPermission();
+    final sms = await ps.checkSmsPermission();
+    final loc = await ps.checkLocationPermission();
+
+    if (mounted) {
+      setState(() {
+        _hasContacts = contacts;
+        _hasNotifications = notifs;
+        _hasSms = sms;
+        _hasLocation = loc;
+      });
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -496,7 +534,59 @@ class _SettingsTabState extends State<SettingsTab> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Section 3: Information & Support Card
+                  // Section 3: Permissions Card
+                  _buildSectionTitle('PERMISSIONS'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Manage the permissions used by LisKo for its safety features.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: _cardDecoration(),
+                    child: Column(
+                      children: [
+                        _buildPermissionRow(
+                          semanticIcon: Icons.contacts_rounded,
+                          title: 'Contacts',
+                          subtitle: 'Used to import contacts from your phone.',
+                          isAllowed: _hasContacts,
+                          onTap: openAppSettings,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildPermissionRow(
+                          semanticIcon: Icons.notifications_active_rounded,
+                          title: 'Notifications',
+                          subtitle: 'Used for travel reminders and safety alerts.',
+                          isAllowed: _hasNotifications,
+                          onTap: openAppSettings,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildPermissionRow(
+                          semanticIcon: Icons.sms_rounded,
+                          title: 'SMS',
+                          subtitle: 'Used for safety and emergency alerts.',
+                          isAllowed: _hasSms,
+                          onTap: openAppSettings,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildPermissionRow(
+                          semanticIcon: Icons.location_on_rounded,
+                          title: 'Location',
+                          subtitle: 'Used for arrival detection and emergency location.',
+                          isAllowed: _hasLocation,
+                          onTap: openAppSettings,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Section 4: Information & Support Card
                   _buildSectionTitle('INFORMATION & SUPPORT'),
                   const SizedBox(height: 12),
                   Container(
@@ -585,6 +675,89 @@ class _SettingsTabState extends State<SettingsTab> {
         fontWeight: FontWeight.w700,
         color: AppColors.body,
         letterSpacing: 1.1,
+      ),
+    );
+  }
+
+  Widget _buildPermissionRow({
+    required IconData semanticIcon,
+    required String title,
+    required String subtitle,
+    required bool isAllowed,
+    required VoidCallback onTap,
+  }) {
+    final statusColor = isAllowed ? AppColors.success : AppColors.body;
+    final statusBg = isAllowed ? AppColors.successContainer : AppColors.canvas;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: statusBg,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Icon(
+                  semanticIcon,
+                  color: isAllowed ? AppColors.success : AppColors.header,
+                  size: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.header,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+              decoration: BoxDecoration(
+                color: statusBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isAllowed ? AppColors.success.withValues(alpha: 0.3) : AppColors.border,
+                ),
+              ),
+              child: Text(
+                isAllowed ? 'Allowed' : 'Not allowed',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 18),
+          ],
+        ),
       ),
     );
   }
