@@ -43,7 +43,14 @@ import 'onboarding_flow.dart';
 /// Tab displaying the user's trusted contacts directory with real-time state synchronization,
 /// primary emergency card, edit popup menu, and modal bottom sheets.
 class ContactsTab extends StatefulWidget {
-  const ContactsTab({super.key});
+  final GlobalKey? addContactKey;
+  final GlobalKey? importContactsKey;
+
+  const ContactsTab({
+    super.key,
+    this.addContactKey,
+    this.importContactsKey,
+  });
 
   @override
   State<ContactsTab> createState() => _ContactsTabState();
@@ -363,6 +370,7 @@ class _ContactsTabState extends State<ContactsTab> {
         ContactsHeader(
           contactCount: _contacts.length,
           onAddTap: _openAddContactModal,
+          addKey: widget.addContactKey,
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -380,6 +388,7 @@ class _ContactsTabState extends State<ContactsTab> {
                   const SizedBox(height: 16),
                   // Outline Import from Contacts Button
                   SizedBox(
+                    key: widget.importContactsKey,
                     width: double.infinity,
                     height: 50,
                     child: OutlinedButton.icon(
@@ -468,10 +477,12 @@ class ContactsHeader extends StatelessWidget {
     super.key,
     required this.contactCount,
     required this.onAddTap,
+    this.addKey,
   });
 
   final int contactCount;
   final VoidCallback onAddTap;
+  final Key? addKey;
 
   @override
   Widget build(BuildContext context) {
@@ -530,6 +541,7 @@ class ContactsHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Material(
+                  key: addKey,
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(20),
                   child: InkWell(

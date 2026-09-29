@@ -45,7 +45,12 @@ class HomeDashboardTab extends StatelessWidget {
     this.onEditSetup,
     this.onCancelSetup,
     this.selectedTab = 0,
+    this.setUpTripKey,
+    this.sosKey,
   });
+
+  final GlobalKey? setUpTripKey;
+  final GlobalKey? sosKey;
 
   /// Active tab index for targeted component updates.
   final int selectedTab;
@@ -109,11 +114,13 @@ class HomeDashboardTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   HomeStartButton(
+                    key: setUpTripKey,
                     onPressed: tripStaged ? onStartTrip : onSetUpTrip,
                     label: tripStaged ? 'START TRIP' : 'SET UP TRIP',
                   ),
                   const SizedBox(height: 12),
                   SosWarningBox(
+                    key: sosKey,
                     onTap: onSos,
                     onLongPress: onSos,
                     onDoubleTap: onSos,

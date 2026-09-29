@@ -29,7 +29,14 @@ import 'home_tab.dart'; // For HomeHeaderPatternPainter
 
 /// Tab for managing Lisko preferences, notifications, and permissions.
 class SettingsTab extends StatefulWidget {
-  const SettingsTab({super.key});
+  const SettingsTab({
+    super.key,
+    this.homeLocationKey,
+    this.expiryAlertKey,
+  });
+
+  final GlobalKey? homeLocationKey;
+  final GlobalKey? expiryAlertKey;
 
   @override
   State<SettingsTab> createState() => _SettingsTabState();
@@ -417,6 +424,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     child: Column(
                       children: [
                         _buildActionRow(
+                          rowKey: widget.homeLocationKey,
                           iconStr: AppIcons.home,
                           semanticIcon: Icons.home_rounded,
                           iconBg: const Color(0xFFFFDAD8),
@@ -465,6 +473,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     child: Column(
                       children: [
                         _buildActionRow(
+                          rowKey: widget.expiryAlertKey,
                           iconStr: AppIcons.vibration,
                           semanticIcon: Icons.vibration_rounded,
                           iconBg: AppColors.canvas,
@@ -659,8 +668,10 @@ class _SettingsTabState extends State<SettingsTab> {
     required String title,
     String? subtitle,
     required VoidCallback onTap,
+    Key? rowKey,
   }) {
     return InkWell(
+      key: rowKey,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

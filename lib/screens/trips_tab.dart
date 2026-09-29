@@ -37,9 +37,18 @@ import 'home_tab.dart';
 
 /// Tab displaying the user's trip history, metrics summary, and past trip log.
 class TripsTab extends StatefulWidget {
-  const TripsTab({super.key, this.onStartNewTrip});
+  const TripsTab({
+    super.key,
+    this.onStartNewTrip,
+    this.summaryKey,
+    this.filterChipsKey,
+    this.calendarIconKey,
+  });
 
   final VoidCallback? onStartNewTrip;
+  final GlobalKey? summaryKey;
+  final GlobalKey? filterChipsKey;
+  final GlobalKey? calendarIconKey;
 
   @override
   State<TripsTab> createState() => _TripsTabState();
@@ -135,6 +144,7 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TripsHeader(
+              summaryKey: widget.summaryKey,
               tripCount: timeFilteredTrips.length,
               safeCount: safeCount,
               extendedCount: extendedCount,
@@ -150,6 +160,7 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
                   children: [
                     const SizedBox(height: 14),
                     TripFilterChips(
+                      key: widget.filterChipsKey,
                       selectedFilter: _selectedCustomDate != null ? '' : _selectedTimeFilter,
                       onFilterSelected: (filter) =>
                           setState(() {
@@ -163,6 +174,7 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                       RecentTripsSectionHeader(
+                        filterIconKey: widget.calendarIconKey,
                         selectedFilter: _selectedFilter,
                         selectedCustomDate: _selectedCustomDate,
                         onFilterTap: _openCalendarDatePicker,
@@ -260,12 +272,14 @@ class RecentTripsSectionHeader extends StatelessWidget {
     this.selectedFilter = 'All',
     this.selectedCustomDate,
     this.onClearCustomDate,
+    this.filterIconKey,
   });
 
   final VoidCallback? onFilterTap;
   final String selectedFilter;
   final DateTime? selectedCustomDate;
   final VoidCallback? onClearCustomDate;
+  final GlobalKey? filterIconKey;
 
   String get _titleText {
     if (selectedCustomDate != null) {
@@ -327,6 +341,7 @@ class RecentTripsSectionHeader extends StatelessWidget {
           ],
         ),
         IconButton(
+          key: filterIconKey,
           onPressed: onFilterTap,
           tooltip: 'Select date from calendar',
           padding: EdgeInsets.zero,
@@ -352,8 +367,10 @@ class TripsHeader extends StatelessWidget {
     required this.alertsCount,
     required this.selectedFilter,
     required this.onFilterChanged,
+    this.summaryKey,
   });
 
+  final GlobalKey? summaryKey;
   final int tripCount;
   final int safeCount;
   final int extendedCount;
@@ -434,6 +451,7 @@ class TripsHeader extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SummaryMetricsCard(
+                key: summaryKey,
                 total: tripCount,
                 safe: safeCount,
                 extended: extendedCount,

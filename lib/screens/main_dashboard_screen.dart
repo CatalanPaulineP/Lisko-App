@@ -43,6 +43,7 @@ import '../services/geofence_service.dart';
 
 import '../services/sms_alert_service.dart';
 import '../services/permission_service.dart';
+import '../widgets/walkthrough_overlay.dart';
 import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/set_trip_timer_bottom_sheet.dart';
@@ -87,10 +88,35 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? tripTimer;
   Timer? _arrivalTimer;
 
+  // Walkthrough Target Key Anchors
+  final GlobalKey _setUpTripKey = GlobalKey();
+  final GlobalKey _sosKey = GlobalKey();
+  final GlobalKey _tripsTabKey = GlobalKey();
+  final GlobalKey _tripsSummaryKey = GlobalKey();
+  final GlobalKey _tripsFilterChipsKey = GlobalKey();
+  final GlobalKey _tripsCalendarIconKey = GlobalKey();
+  final GlobalKey _contactsTabKey = GlobalKey();
+  final GlobalKey _addContactKey = GlobalKey();
+  final GlobalKey _importContactsKey = GlobalKey();
+  final GlobalKey _settingsTabKey = GlobalKey();
+  final GlobalKey _homeLocationKey = GlobalKey();
+  final GlobalKey _expiryAlertKey = GlobalKey();
+
+  bool showWalkthrough = false;
+
   bool get _isTestEnvironment {
     final binding = WidgetsBinding.instance.runtimeType.toString();
     return binding.contains('TestWidgetsFlutterBinding') ||
         binding.contains('AutomatedTestWidgetsFlutterBinding');
+  }
+
+  Future<void> _checkWalkthroughStatus() async {
+    final completed = await const LocalStorageService().readWalkthroughCompleted();
+    if (!completed && mounted) {
+      setState(() {
+        showWalkthrough = true;
+      });
+    }
   }
 
   // Global cancellation flag for the vibration alarm loop.
@@ -109,6 +135,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     NotificationService.onActionReceived = _routeNotificationAction;
     _restoreActiveTrip();
+    _checkWalkthroughStatus();
   }
 
   @override
@@ -1142,137 +1169,199 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: null,
-      body: IndexedStack(
-        index: selectedTab,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: tripActive
-                ? ActiveTripTab(
-                    key: const ValueKey('active-trip'),
-                    destination: destination,
-                    remaining: remaining,
-                    totalDuration: totalDuration,
-                    onSafe: _handleSafePressed,
-                    onExtend: _extendTrip,
-                    onSos: _triggerEmergencyFlow,
-                    isArrived: isArrived,
-                    arrivalRemainingSeconds: arrivalCountdown,
-                  )
-                : HomeDashboardTab(
-                    key: _homeKey,
-                    selectedTab: selectedTab,
-                    onSetUpTrip: _openTripScheduler,
-                    onStartTrip: () => _startTrip(stagedDestination, stagedDuration),
-                    onSos: () => _triggerEmergencyFlow(immediate: false),
-                    tripStaged: tripStaged,
-                    stagedDestination: stagedDestination,
-                    stagedDuration: stagedDuration,
-                    onAdjustMinutes: (deltaMins) {
-                      setState(() {
-                        final currentMins = stagedDuration.inMinutes;
-                        final newMins = (currentMins + deltaMins).clamp(1, 1440);
-                        stagedDuration = Duration(minutes: newMins);
-                      });
-                    },
-                    onEditSetup: _openTripScheduler,
-                    onCancelSetup: () {
-                      setState(() {
-                        tripStaged = false;
-                        stagedDestination = 'Campus';
-                        stagedDuration = const Duration(minutes: 45);
-                      });
-                    },
-                  ),
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.canvas,
+          appBar: null,
+          body: IndexedStack(
+            index: selectedTab,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: tripActive
+                    ? ActiveTripTab(
+                        key: const ValueKey('active-trip'),
+                        destination: destination,
+                        remaining: remaining,
+                        totalDuration: totalDuration,
+                        onSafe: _handleSafePressed,
+                        onExtend: _extendTrip,
+                        onSos: _triggerEmergencyFlow,
+                        isArrived: isArrived,
+                        arrivalRemainingSeconds: arrivalCountdown,
+                      )
+                    : HomeDashboardTab(
+                        key: _homeKey,
+                        selectedTab: selectedTab,
+                        setUpTripKey: _setUpTripKey,
+                        sosKey: _sosKey,
+                        onSetUpTrip: _openTripScheduler,
+                        onStartTrip: () => _startTrip(stagedDestination, stagedDuration),
+                        onSos: () => _triggerEmergencyFlow(immediate: false),
+                        tripStaged: tripStaged,
+                        stagedDestination: stagedDestination,
+                        stagedDuration: stagedDuration,
+                        onAdjustMinutes: (deltaMins) {
+                          setState(() {
+                            final currentMins = stagedDuration.inMinutes;
+                            final newMins = (currentMins + deltaMins).clamp(1, 1440);
+                            stagedDuration = Duration(minutes: newMins);
+                          });
+                        },
+                        onEditSetup: _openTripScheduler,
+                        onCancelSetup: () {
+                          setState(() {
+                            tripStaged = false;
+                            stagedDestination = 'Campus';
+                            stagedDuration = const Duration(minutes: 45);
+                          });
+                        },
+                      ),
+              ),
+              TripsTab(
+                key: const ValueKey('trips'),
+                summaryKey: _tripsSummaryKey,
+                filterChipsKey: _tripsFilterChipsKey,
+                calendarIconKey: _tripsCalendarIconKey,
+                onStartNewTrip: () {
+                  setState(() {
+                    selectedTab = 0;
+                  });
+                },
+              ),
+              ContactsTab(
+                key: const ValueKey('contacts'),
+                addContactKey: _addContactKey,
+                importContactsKey: _importContactsKey,
+              ),
+              SettingsTab(
+                key: const ValueKey('settings'),
+                homeLocationKey: _homeLocationKey,
+                expiryAlertKey: _expiryAlertKey,
+              ),
+            ],
           ),
-          TripsTab(
-            key: const ValueKey('trips'),
-            onStartNewTrip: () {
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: selectedTab,
+            onTap: (index) {
+              if (selectedTab == index) return;
               setState(() {
-                selectedTab = 0;
+                selectedTab = index;
               });
             },
+            backgroundColor: AppColors.card,
+            selectedItemColor: AppColors.primary,
+            unselectedItemColor: AppColors.body,
+            type: BottomNavigationBarType.fixed,
+            elevation: 16,
+            iconSize: 22,
+            selectedFontSize: 11,
+            unselectedFontSize: 11,
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+            items: [
+              const BottomNavigationBarItem(
+                icon: AppIcon.standard(
+                  AppIcons.homeOutline,
+                  color: AppColors.body,
+                  semanticIcon: Icons.home_outlined,
+                ),
+                activeIcon: AppIcon.standard(
+                  AppIcons.home,
+                  color: AppColors.primary,
+                  semanticIcon: Icons.home_rounded,
+                ),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: KeyedSubtree(
+                  key: _tripsTabKey,
+                  child: const AppIcon.standard(
+                    AppIcons.mapOutline,
+                    color: AppColors.body,
+                    semanticIcon: Icons.map_outlined,
+                  ),
+                ),
+                activeIcon: KeyedSubtree(
+                  key: _tripsTabKey,
+                  child: const AppIcon.standard(
+                    AppIcons.map,
+                    color: AppColors.primary,
+                    semanticIcon: Icons.map_rounded,
+                  ),
+                ),
+                label: 'Trips',
+              ),
+              BottomNavigationBarItem(
+                icon: KeyedSubtree(
+                  key: _contactsTabKey,
+                  child: const AppIcon.standard(
+                    AppIcons.peopleOutline,
+                    color: AppColors.body,
+                    semanticIcon: Icons.people_outline_rounded,
+                  ),
+                ),
+                activeIcon: KeyedSubtree(
+                  key: _contactsTabKey,
+                  child: const AppIcon.standard(
+                    AppIcons.people,
+                    color: AppColors.primary,
+                    semanticIcon: Icons.people_rounded,
+                  ),
+                ),
+                label: 'Contacts',
+              ),
+              BottomNavigationBarItem(
+                icon: KeyedSubtree(
+                  key: _settingsTabKey,
+                  child: const AppIcon.standard(
+                    AppIcons.settingsOutline,
+                    color: AppColors.body,
+                    semanticIcon: Icons.settings_outlined,
+                  ),
+                ),
+                activeIcon: KeyedSubtree(
+                  key: _settingsTabKey,
+                  child: const AppIcon.standard(
+                    AppIcons.settings,
+                    color: AppColors.primary,
+                    semanticIcon: Icons.settings_rounded,
+                  ),
+                ),
+                label: 'Settings',
+              ),
+            ],
           ),
-          const ContactsTab(key: ValueKey('contacts')),
-          const SettingsTab(key: ValueKey('settings')),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedTab,
-        onTap: (index) {
-          if (selectedTab == index) return;
-          setState(() {
-            selectedTab = index;
-          });
-        },
-        backgroundColor: AppColors.card,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.body,
-        type: BottomNavigationBarType.fixed,
-        elevation: 16,
-        iconSize: 22,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-        items: const [
-          BottomNavigationBarItem(
-            icon: AppIcon.standard(
-              AppIcons.homeOutline,
-              color: AppColors.body,
-              semanticIcon: Icons.home_outlined,
+        ),
+        if (showWalkthrough)
+          Positioned.fill(
+            child: WalkthroughOverlay(
+              setUpTripKey: _setUpTripKey,
+              sosKey: _sosKey,
+              tripsTabKey: _tripsTabKey,
+              tripsSummaryKey: _tripsSummaryKey,
+              tripsFilterChipsKey: _tripsFilterChipsKey,
+              tripsCalendarIconKey: _tripsCalendarIconKey,
+              contactsTabKey: _contactsTabKey,
+              addContactKey: _addContactKey,
+              importContactsKey: _importContactsKey,
+              settingsTabKey: _settingsTabKey,
+              homeLocationKey: _homeLocationKey,
+              expiryAlertKey: _expiryAlertKey,
+              onTabChangeRequested: (tabIndex) {
+                setState(() {
+                  selectedTab = tabIndex;
+                });
+              },
+              onDismiss: () {
+                setState(() {
+                  showWalkthrough = false;
+                });
+              },
             ),
-            activeIcon: AppIcon.standard(
-              AppIcons.home,
-              color: AppColors.primary,
-              semanticIcon: Icons.home_rounded,
-            ),
-            label: 'Home',
           ),
-          BottomNavigationBarItem(
-            icon: AppIcon.standard(
-              AppIcons.mapOutline,
-              color: AppColors.body,
-              semanticIcon: Icons.map_outlined,
-            ),
-            activeIcon: AppIcon.standard(
-              AppIcons.map,
-              color: AppColors.primary,
-              semanticIcon: Icons.map_rounded,
-            ),
-            label: 'Trips',
-          ),
-          BottomNavigationBarItem(
-            icon: AppIcon.standard(
-              AppIcons.peopleOutline,
-              color: AppColors.body,
-              semanticIcon: Icons.people_outline_rounded,
-            ),
-            activeIcon: AppIcon.standard(
-              AppIcons.people,
-              color: AppColors.primary,
-              semanticIcon: Icons.people_rounded,
-            ),
-            label: 'Contacts',
-          ),
-          BottomNavigationBarItem(
-            icon: AppIcon.standard(
-              AppIcons.settingsOutline,
-              color: AppColors.body,
-              semanticIcon: Icons.settings_outlined,
-            ),
-            activeIcon: AppIcon.standard(
-              AppIcons.settings,
-              color: AppColors.primary,
-              semanticIcon: Icons.settings_rounded,
-            ),
-            label: 'Settings',
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
