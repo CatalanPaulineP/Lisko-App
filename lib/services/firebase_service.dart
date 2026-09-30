@@ -110,8 +110,11 @@ class FirebaseService {
         final firestore = _firestore;
         if (firestore == null) return;
 
+        final installId = await const LocalStorageService().getOrCreateInstallationId();
+
         _subTrips = firestore
             .collection('trips')
+            .where('installationId', isEqualTo: installId)
             .orderBy('startedAt', descending: true)
             .snapshots()
             .listen((snapshot) {
@@ -133,6 +136,7 @@ class FirebaseService {
 
         _subEvents = firestore
             .collection('emergency_events')
+            .where('installationId', isEqualTo: installId)
             .where('tripId', isEqualTo: '')
             .snapshots()
             .listen((snapshot) {
@@ -179,7 +183,9 @@ class FirebaseService {
     if (firestore == null) return;
 
     try {
+      final installId = await const LocalStorageService().getOrCreateInstallationId();
       final data = {
+        'installationId': installId,
         'destination': destination,
         'estimatedTravelMinutes': estimatedTravelMinutes,
         'startedAt': Timestamp.fromDate(startedAt),
@@ -211,7 +217,9 @@ class FirebaseService {
     if (firestore == null) return;
 
     try {
+      final installId = await const LocalStorageService().getOrCreateInstallationId();
       await firestore.collection('emergency_events').doc(eventId).set({
+        'installationId': installId,
         'deviceId': deviceId,
         'tripId': tripId,
         'latitude': latitude,

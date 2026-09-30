@@ -282,6 +282,7 @@ class GeofenceService {
 
     if (distance <= target.radiusMeters && !_arrivalDetected) {
       _arrivalDetected = true;
+      debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: Geofence Arrival Detected: distance ${distance.toStringAsFixed(1)}m <= radius ${target.radiusMeters}m for target ${target.name}');
       developer.log('Geofence Arrival Detected: within ${distance.toStringAsFixed(1)}m of ${target.name}');
       onArrival(target, distance);
     }

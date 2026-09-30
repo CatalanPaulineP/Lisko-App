@@ -31,7 +31,12 @@ import '../widgets/app_icon.dart';
 /// Splash screen displaying an animated brand shield, staggered typography reveals,
 /// and a sleek glowing loading sequence at a stable 60fps.
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({
+    super.key,
+    this.statusText = 'Preparing LisKo...',
+  });
+
+  final String statusText;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -82,7 +87,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   // Staggered text animations (triggered right after logo appears)
   late final Animation<Offset> _titleSlide = Tween<Offset>(
-    begin: const Offset(0.0, 0.35),
+    begin: const Offset(0.0, 0.20),
     end: Offset.zero,
   ).animate(
     CurvedAnimation(
@@ -102,7 +107,7 @@ class _SplashScreenState extends State<SplashScreen>
   );
 
   late final Animation<Offset> _taglineSlide = Tween<Offset>(
-    begin: const Offset(0.0, 0.35),
+    begin: const Offset(0.0, 0.20),
     end: Offset.zero,
   ).animate(
     CurvedAnimation(
@@ -159,63 +164,89 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _SplashLogo(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double centerY = constraints.maxHeight / 2;
+            const double logoRadius = 46.0; // 92 / 2
+            const double gap = 22.0;
+            final double titleTop = centerY + logoRadius + gap; // centerY + 68.0
+
+            return Stack(
+              children: [
+                // 1. Center _SplashLogo at the exact screen middle to match native splash position
+                Positioned(
+                  top: centerY - logoRadius,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: _SplashLogo(
                       size: 92,
                       scaleAnimation: _logoScale,
                       opacityAnimation: _logoOpacity,
                       pulseAnimation: _pulseGlow,
                     ),
-                    const SizedBox(height: 24),
-                    SlideTransition(
-                      position: _titleSlide,
-                      child: FadeTransition(
-                        opacity: _titleOpacity,
-                        child: Text(
-                          'LISKO',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.header,
-                            letterSpacing: 2.0,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SlideTransition(
-                      position: _taglineSlide,
-                      child: FadeTransition(
-                        opacity: _taglineOpacity,
-                        child: Text(
-                          'Your Student Safety Companion',
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.body,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 36),
-              child: FadeTransition(
-                opacity: _loadingOpacity,
-                child: const _SplashLoadingIndicator(),
-              ),
-            ),
-          ],
+                // 2. Title and Tagline positioned cleanly 22px below the logo bottom
+                Positioned(
+                  top: titleTop,
+                  left: 20,
+                  right: 20,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SlideTransition(
+                        position: _titleSlide,
+                        child: FadeTransition(
+                          opacity: _titleOpacity,
+                          child: Text(
+                            'LISKO',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 34,
+                              height: 1.1,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.header,
+                              letterSpacing: 2.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SlideTransition(
+                        position: _taglineSlide,
+                        child: FadeTransition(
+                          opacity: _taglineOpacity,
+                          child: Text(
+                            'Your Student Safety Companion',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.body,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 3. Bottom Loading Indicator
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 36,
+                  child: Center(
+                    child: FadeTransition(
+                      opacity: _loadingOpacity,
+                      child: _SplashLoadingIndicator(statusText: widget.statusText),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -348,7 +379,11 @@ class _SplashLogo extends StatelessWidget {
 }
 
 class _SplashLoadingIndicator extends StatefulWidget {
-  const _SplashLoadingIndicator();
+  const _SplashLoadingIndicator({
+    this.statusText = 'Preparing LisKo...',
+  });
+
+  final String statusText;
 
   @override
   State<_SplashLoadingIndicator> createState() =>
@@ -443,13 +478,20 @@ class _SplashLoadingIndicatorState extends State<_SplashLoadingIndicator>
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                'Loading...',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.body,
-                  letterSpacing: 0.3,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                child: Text(
+                  widget.statusText,
+                  key: ValueKey<String>(widget.statusText),
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.body,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
             ],

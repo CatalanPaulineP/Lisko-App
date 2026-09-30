@@ -1,0 +1,151 @@
+rules_version = '2';
+
+// ==============================================================================
+// Lisko Mobile Safety Application - Cloud Firestore Security Rules
+// File: firestore.rules
+//
+// Role & Architectural Context:
+// Defines client-side data validation, schema enforcement, immutability guarantees,
+// and deletion prevention for LisKo Cloud Firestore collections (`trips` & `emergency_events`).
+//
+// CURRENT ARCHITECTURAL PRIVACY LIMITATION:
+// LisKo currently operates without Firebase Authentication (`request.auth == null`)
+// and uses local device storage (`SharedPreferences`) for sensitive student contacts.
+// Because the mobile app is accountless, rules CANNOT enforce per-user authorization
+// or distinguish one student's client from another.
+// Public reads (`allow read: if true;`) are retained for compatibility with the current
+// anonymous architecture. Data protection is achieved via strict field-level schema
+// validation, immutable event logs, numeric bounds checking on GPS coordinates, and
+// prevention of document deletions.
+// ==============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------------------------------------------------
+    // Helper Validation Functions for `trips`
+    // --------------------------------------------------------------------------
+
+    /// Validates allowed status values matching current LisKo application logic.
+    function isValidTripStatus(status) {
+      return status in [
+        'active',
+        'timeout_warning',
+        'arrived',
+        'extended',
+        'cancelled',
+        'help_requested',
+        'expired',
+        'Trip Extended'
+      ];
+    }
+
+    /// Enforces field presence, data types, and schema validity for trip documents.
+    function isValidTripSchema(data) {
+      // 1. Strict key check: reject unexpected fields
+      let allowedKeys = [
+        'installationId',
+        'destination',
+        'estimatedTravelMinutes',
+        'startedAt',
+        'expectedArrivalAt',
+        'completedAt',
+        'status',
+        'startLocationLat',
+        'startLocationLng',
+        'wasExtended'
+      ];
+
+      return data.keys().hasOnly(allowedKeys)
+        // 2. Required fields
+        && data.installationId is string
+        && data.installationId.size() > 0
+        && data.destination is string
+        && data.destination.size() > 0
+        && data.estimatedTravelMinutes is int
+        && data.estimatedTravelMinutes > 0
+        && data.startedAt is timestamp
+        && data.status is string
+        && isValidTripStatus(data.status)
+        // 3. Optional fields (validated when present)
+        && (!('expectedArrivalAt' in data) || data.expectedArrivalAt is timestamp)
+        && (!('completedAt' in data) || data.completedAt is timestamp)
+        && (!('startLocationLat' in data) || (data.startLocationLat is number && data.startLocationLat >= -90.0 && data.startLocationLat <= 90.0))
+        && (!('startLocationLng' in data) || (data.startLocationLng is number && data.startLocationLng >= -180.0 && data.startLocationLng <= 180.0))
+        && (!('wasExtended' in data) || data.wasExtended is bool);
+    }
+
+    // --------------------------------------------------------------------------
+    // Helper Validation Functions for `emergency_events`
+    // --------------------------------------------------------------------------
+
+    /// Enforces field presence, data types, and schema validity for emergency events.
+    function isValidEmergencyEventSchema(data) {
+      let allowedKeys = [
+        'installationId',
+        'deviceId',
+        'tripId',
+        'latitude',
+        'longitude',
+        'emergencyType',
+        'triggeredAt',
+        'status'
+      ];
+
+      return data.keys().hasOnly(allowedKeys)
+        && data.installationId is string
+        && data.installationId.size() > 0
+        && data.deviceId is string
+        && data.tripId is string
+        && data.latitude is number
+        && data.latitude >= -90.0 && data.latitude <= 90.0
+        && data.longitude is number
+        && data.longitude >= -180.0 && data.longitude <= 180.0
+        && data.emergencyType in ['SOS', 'TIMEOUT_ESCALATION']
+        && data.triggeredAt is timestamp
+        && data.status == 'active';
+    }
+
+    // --------------------------------------------------------------------------
+    // `trips` Collection Rules
+    // --------------------------------------------------------------------------
+    match /trips/{tripId} {
+      // Retained for accountless architecture compatibility
+      allow read: if true;
+
+      // Allow creating new trip documents conforming to schema
+      allow create: if isValidTripSchema(request.resource.data);
+
+      // Allow updates provided immutability holds and merged result conforms to schema
+      allow update: if isValidTripSchema(request.resource.data)
+                    && request.resource.data.startedAt == resource.data.startedAt
+                    && request.resource.data.destination == resource.data.destination
+                    && request.resource.data.installationId == resource.data.installationId;
+
+      // Prevent trip record deletions
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------------------------------
+    // `emergency_events` Collection Rules (Immutable Audit Trail)
+    // --------------------------------------------------------------------------
+    match /emergency_events/{eventId} {
+      // Retained for accountless architecture compatibility
+      allow read: if true;
+
+      // Allow creating new emergency event logs conforming to schema
+      allow create: if isValidEmergencyEventSchema(request.resource.data);
+
+      // Emergency logs are strictly immutable: no updates or deletions allowed
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------------------------------
+    // Default Catch-All Rule: Deny access to unsupported collections
+    // --------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

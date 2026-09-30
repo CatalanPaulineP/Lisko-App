@@ -47,6 +47,7 @@ android {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("androidx.multidex:multidex:2.0.1")
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }
 
 flutter {

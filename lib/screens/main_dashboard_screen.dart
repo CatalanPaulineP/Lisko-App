@@ -730,6 +730,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Triggers arrival state and begins 90-second escalation countdown.
   void _handleArrivalDetected(String destinationName) async {
     if (isArrived) return;
+    debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: _handleArrivalDetected called for $destinationName');
     tripTimer?.cancel();
     final now = DateTime.now();
     
@@ -740,6 +741,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       arrivalCountdown = 90;
       selectedTab = 0;
     });
+    debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: setState(isArrived = true) executed -> ActiveTripScreen.buildArrivalView triggered');
 
     const LocalStorageService().saveActiveTrip(
       isActive: true,
@@ -770,6 +772,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // Show full-screen intent when the app is brought to foreground (e.g. by native notification)
     if (mounted) {
+      debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: Navigator.push(TimesUpScreen) triggered');
       Navigator.push(
         context,
         PageRouteBuilder(
