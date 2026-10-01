@@ -41,6 +41,9 @@ class GeofenceTarget {
     required this.name,
     required this.latitude,
     required this.longitude,
+    required this.municipality,
+    required this.transitType,
+    this.address = '',
     this.radiusMeters = 150.0,
   });
 
@@ -56,12 +59,21 @@ class GeofenceTarget {
   /// Target geographic longitude.
   final double longitude;
 
+  /// The municipality/city where this terminal is located.
+  final String municipality;
+
+  /// The primary mode of transport (e.g., 'bus', 'jeep', 'van').
+  final String transitType;
+
+  /// The specific street address or landmark description.
+  final String address;
+
   /// Trigger radius perimeter in meters (defaults to 150m).
   final double radiusMeters;
 
   @override
   String toString() =>
-      'GeofenceTarget($name, lat: $latitude, lng: $longitude, r: ${radiusMeters}m)';
+      'GeofenceTarget($name, $municipality, address: $address, lat: $latitude, lng: $longitude, type: $transitType)';
 }
 
 /// Service managing conditional GPS geofence monitoring and arrival detection.
@@ -78,6 +90,8 @@ class GeofenceService {
     name: 'Campus',
     latitude: 14.869725503304737,
     longitude: 120.9990821362761,
+    municipality: 'SANTA MARIA',
+    transitType: 'campus',
     radiusMeters: 150.0,
   );
 
@@ -87,31 +101,243 @@ class GeofenceService {
     name: 'Home',
     latitude: LocalStorageService.defaultHomeLat,
     longitude: LocalStorageService.defaultHomeLng,
+    municipality: 'HOME',
+    transitType: 'home',
     radiusMeters: LocalStorageService.defaultHomeRadius,
   );
 
-  /// Verified Commuter Transit Nodes for Santa Maria, Bulacan
+  /// Verified Commuter Transit Nodes for Santa Maria and nearby municipalities
   static const List<GeofenceTarget> commuterNodes = [
+    // --- SANTA MARIA ---
     GeofenceTarget(
-      id: 'caypombo',
-      name: 'Caypombo Terminal / Crossing',
-      latitude: 14.848737039366092,
-      longitude: 120.9812542306243,
-      radiusMeters: 150.0,
-    ),
-    GeofenceTarget(
-      id: 'waltermart',
-      name: 'Waltermart Santa Maria Drop-off',
-      latitude: 14.822738093788265,
-      longitude: 120.95424771314413,
-      radiusMeters: 150.0,
-    ),
-    GeofenceTarget(
-      id: 'bayan',
+      id: 'sm_bayan',
       name: 'Santa Maria Bayan / Savemore Area',
-      latitude: 14.821742177842623,
-      longitude: 120.96163959792787,
-      radiusMeters: 150.0,
+      latitude: 14.8217,
+      longitude: 120.9616,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'sm_waltermart',
+      name: 'Waltermart Santa Maria Drop-off',
+      latitude: 14.8227,
+      longitude: 120.9542,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'sm_caypombo',
+      name: 'Caypombo Terminal / Crossing',
+      latitude: 14.8487,
+      longitude: 120.9813,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
+      address: '',
+    ),
+
+    // --- NORZAGARAY ---
+    GeofenceTarget(
+      id: 'norz_terminal',
+      name: 'Norzagaray-Santa Maria Jeepney & UV Terminal',
+      latitude: 14.910992,
+      longitude: 121.053711,
+      municipality: 'NORZAGARAY',
+      transitType: 'jeep',
+      address: 'Gen. E. De Leon St., Brgy. Poblacion, Norzagaray, Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'norz_garay_center',
+      name: 'Norzagaray Town Center',
+      latitude: 14.9120,
+      longitude: 121.0550,
+      municipality: 'NORZAGARAY',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'norz_bigte',
+      name: 'Bigte Crossing Terminal',
+      latitude: 14.9130,
+      longitude: 121.0560,
+      municipality: 'NORZAGARAY',
+      transitType: 'jeep',
+      address: '',
+    ),
+
+    // --- ANGAT ---
+    GeofenceTarget(
+      id: 'angat_divisoria',
+      name: 'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)',
+      latitude: 14.922119,
+      longitude: 121.031189,
+      municipality: 'ANGAT',
+      transitType: 'bus',
+      address: 'Matías A. Fernando Ave, Brgy. Poblacion, Angat, Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'angat_monumento',
+      name: 'Angat-Monumento Bus Terminal (Shanine & Pauline Transport)',
+      latitude: 14.916910,
+      longitude: 121.028850,
+      municipality: 'ANGAT',
+      transitType: 'bus',
+      address: 'W28H+MG8, Brgy. Santa Cruz, Angat, Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'angat_precious',
+      name: 'Precious Grace Transport - Angat Bus Terminal',
+      latitude: 14.933445,
+      longitude: 121.038123,
+      municipality: 'ANGAT',
+      transitType: 'bus',
+      address: 'General Alejo Santos Highway, Brgy. Poblacion, Angat, Bulacan',
+    ),
+
+    // --- SJDM ---
+    GeofenceTarget(
+      id: 'sjdm_sampol',
+      name: 'Sampol Market Jeepney Terminal',
+      latitude: 14.834212,
+      longitude: 121.007891,
+      municipality: 'SJDM',
+      transitType: 'jeep',
+      address: 'Santa Maria - Tungkong Mangga Rd, Brgy. Sto. Cristo, City of San Jose del Monte, Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'sjdm_sapang_palay',
+      name: 'Sapang Palay - Sta Maria Jeepney Terminal',
+      latitude: 14.811340,
+      longitude: 121.042310,
+      municipality: 'SJDM',
+      transitType: 'jeep',
+      address: 'Gumamela St, Brgy. San Martin IV, City of San Jose del Monte, Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'sjdm_tungko',
+      name: 'Tungkong Mangga Jeepney & UV Express Terminal (Big R / Savemore Area)',
+      latitude: 14.805678,
+      longitude: 121.046925,
+      municipality: 'SJDM',
+      transitType: 'van',
+      address: 'Quirino Highway, Brgy. Tungkong Mangga, City of San Jose del Monte, Bulacan',
+    ),
+
+    // --- PANDI ---
+    GeofenceTarget(
+      id: 'pandi_bayan',
+      name: 'Pandi Town Center / Bayan',
+      latitude: 14.8670,
+      longitude: 120.9580,
+      municipality: 'PANDI',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'pandi_crossing',
+      name: 'Pandi-Balagtas Crossing',
+      latitude: 14.8680,
+      longitude: 120.9590,
+      municipality: 'PANDI',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'pandi_uv',
+      name: 'Pandi UV Express Terminal',
+      latitude: 14.8690,
+      longitude: 120.9600,
+      municipality: 'PANDI',
+      transitType: 'van',
+      address: '',
+    ),
+
+    // --- BOCAUE ---
+    GeofenceTarget(
+      id: 'bocaue_crossing',
+      name: 'Bocaue Crossing / McArthur Hwy',
+      latitude: 14.7930,
+      longitude: 120.9250,
+      municipality: 'BOCAUE',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'bocaue_bayan',
+      name: 'Bocaue Town Proper',
+      latitude: 14.7940,
+      longitude: 120.9260,
+      municipality: 'BOCAUE',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'bocaue_p2p',
+      name: 'Bocaue P2P Bus Terminal',
+      latitude: 14.7950,
+      longitude: 120.9270,
+      municipality: 'BOCAUE',
+      transitType: 'bus',
+      address: '',
+    ),
+
+    // --- BALAGTAS ---
+    GeofenceTarget(
+      id: 'balagtas_bayan',
+      name: 'Balagtas Town Center',
+      latitude: 14.8140,
+      longitude: 120.9060,
+      municipality: 'BALAGTAS',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'balagtas_uv',
+      name: 'Balagtas UV Express Terminal',
+      latitude: 14.8150,
+      longitude: 120.9070,
+      municipality: 'BALAGTAS',
+      transitType: 'van',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'balagtas_bus',
+      name: 'Balagtas Bus Stop',
+      latitude: 14.8160,
+      longitude: 120.9080,
+      municipality: 'BALAGTAS',
+      transitType: 'bus',
+      address: '',
+    ),
+
+    // --- MARILAO ---
+    GeofenceTarget(
+      id: 'marilao_sm',
+      name: 'SM City Marilao Drop-off',
+      latitude: 14.7570,
+      longitude: 120.9570,
+      municipality: 'MARILAO',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'marilao_bayan',
+      name: 'Marilao Town Proper',
+      latitude: 14.7580,
+      longitude: 120.9580,
+      municipality: 'MARILAO',
+      transitType: 'jeep',
+      address: '',
+    ),
+    GeofenceTarget(
+      id: 'marilao_uv',
+      name: 'Marilao UV Express Terminal',
+      latitude: 14.7590,
+      longitude: 120.9590,
+      municipality: 'MARILAO',
+      transitType: 'van',
+      address: '',
     ),
   ];
 
@@ -162,15 +388,23 @@ class GeofenceService {
         name: 'Home',
         latitude: homeCoords['latitude'] ?? defaultHome.latitude,
         longitude: homeCoords['longitude'] ?? defaultHome.longitude,
+        municipality: 'HOME',
+        transitType: 'home',
         radiusMeters: homeCoords['radius'] ?? defaultHome.radiusMeters,
       );
     }
 
     for (final node in commuterNodes) {
       if (normalized == node.id.toLowerCase() ||
-          normalized == node.name.split(' ').first.toLowerCase()) {
+          normalized == node.name.split(' ').first.toLowerCase() ||
+          normalized == node.municipality.toLowerCase()) {
         return node;
       }
+    }
+
+    // Handle special case for SJDM formatted name
+    if (normalized == 'city of san jose del monte') {
+      return commuterNodes.firstWhere((n) => n.municipality == 'SJDM');
     }
 
     // unknown destination - avoid silent fallback to Campus
