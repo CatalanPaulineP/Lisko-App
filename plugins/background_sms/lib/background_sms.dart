@@ -1,11 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 enum SmsStatus { sent, failed }
 
 class BackgroundSms {
-  static const MethodChannel _channel = const MethodChannel('background_sms');
+  static const MethodChannel _channel = MethodChannel('background_sms');
 
   static Future<SmsStatus> sendMessage(
       {required String phoneNumber,
@@ -19,7 +20,7 @@ class BackgroundSms {
       });
       return result == "Sent" ? SmsStatus.sent : SmsStatus.failed;
     } on PlatformException catch (e) {
-      print(e.toString());
+      debugPrint(e.toString());
       return SmsStatus.failed;
     }
   }
@@ -28,7 +29,7 @@ class BackgroundSms {
     try {
       return await _channel.invokeMethod('isSupportMultiSim');
     } on PlatformException catch (e) {
-      print(e.toString());
+      debugPrint(e.toString());
       return true;
     }
   }

@@ -116,6 +116,8 @@ class _LaunchGateState extends State<_LaunchGate> {
   @override
   void initState() {
     super.initState();
+    _startupStopwatch.reset();
+    _startupStopwatch.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _bootstrapAndNavigate();
