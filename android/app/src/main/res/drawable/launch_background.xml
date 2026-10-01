@@ -7,9 +7,12 @@
         </shape>
     </item>
 
-    <item>
+    <item
+        android:width="92dp"
+        android:height="92dp"
+        android:gravity="center">
         <bitmap
-            android:gravity="center"
-            android:src="@drawable/ic_splash_shield" />
+            android:gravity="fill"
+            android:src="@drawable/lisko_logo" />
     </item>
 </layer-list>

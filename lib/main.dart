@@ -157,7 +157,7 @@ class _LaunchGateState extends State<_LaunchGate> {
       }
 
       final elapsed = _startupStopwatch.elapsedMilliseconds;
-      const minSplashTime = 1200;
+      const minSplashTime = 2000;
       if (elapsed < minSplashTime) {
         await Future.delayed(Duration(milliseconds: minSplashTime - elapsed));
       }
