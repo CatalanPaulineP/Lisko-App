@@ -91,18 +91,21 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
   Duration get duration => Duration(hours: hours, minutes: minutes);
 
   void _openTransitNodesSheet() {
-    showModalBottomSheet<String>(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const TransitNodeSelectionSheet(),
-    ).then((selectedName) {
-      if (selectedName != null && mounted) {
-        setState(() {
-          selectedDestination = selectedName;
-        });
-      }
-    });
+      builder: (ctx) => TransitNodeSelectionSheet(
+        selectedDestination: selectedDestination,
+        onSelected: (name) {
+          if (mounted) {
+            setState(() {
+              selectedDestination = name;
+            });
+          }
+        },
+      ),
+    );
   }
 
   void _choosePreset(int value) {
@@ -669,11 +672,83 @@ String formatSummaryDuration(Duration value) {
 }
 
 /// Nested bottom sheet for selecting a commuter transit node.
-class TransitNodeSelectionSheet extends StatelessWidget {
-  const TransitNodeSelectionSheet({super.key});
+class TransitNodeSelectionSheet extends StatefulWidget {
+  const TransitNodeSelectionSheet({
+    super.key,
+    this.selectedDestination,
+    required this.onSelected,
+  });
+
+  final String? selectedDestination;
+  final ValueChanged<String> onSelected;
+
+  @override
+  State<TransitNodeSelectionSheet> createState() =>
+      _TransitNodeSelectionSheetState();
+}
+
+class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
+  String? _expandedMunicipalityId;
+  final Map<String, ExpansibleController> _controllers = {};
+
+  /// Explicit municipality display priority (Santa Maria #1, followed by Norzagaray, Angat).
+  static const List<String> _municipalityPriority = [
+    'Santa Maria',
+    'Norzagaray',
+    'Angat',
+  ];
+
+  int _getMunicipalityPriority(String name) {
+    final index = _municipalityPriority.indexWhere(
+      (p) => p.toLowerCase() == name.toLowerCase(),
+    );
+    return index != -1 ? index : 999;
+  }
+
+  /// Formats municipality names to title case, with specific handling for SJDM.
+  String _formatMunicipality(String name) {
+    final upper = name.toUpperCase();
+    if (upper == 'SJDM' || upper == 'CITY OF SAN JOSE DEL MONTE') {
+      return 'City of San Jose del Monte';
+    }
+    return name.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
+  ExpansibleController _getController(String municipalityName) {
+    return _controllers.putIfAbsent(
+      municipalityName,
+      () => ExpansibleController(),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Initial State: All city panels must be collapsed initially.
+    _expandedMunicipalityId = null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Group and sort commuter nodes by formatted municipality name according to priority
+    final groupedNodes = <String, List<GeofenceTarget>>{};
+    for (final node in GeofenceService.commuterNodes) {
+      final name = _formatMunicipality(node.municipality);
+      groupedNodes.putIfAbsent(name, () => []).add(node);
+    }
+    final municipalities = groupedNodes.keys.toList()
+      ..sort((a, b) {
+        final priorityA = _getMunicipalityPriority(a);
+        final priorityB = _getMunicipalityPriority(b);
+        if (priorityA != priorityB) {
+          return priorityA.compareTo(priorityB);
+        }
+        return a.compareTo(b);
+      });
+
     return Container(
       width: double.infinity,
       constraints: BoxConstraints(
@@ -718,7 +793,7 @@ class TransitNodeSelectionSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        'Choose a frequent commuter node in Santa Maria',
+                        'Choose a frequent commuter node in your area',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -746,18 +821,65 @@ class TransitNodeSelectionSheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const BouncingScrollPhysics(),
-                itemCount: GeofenceService.commuterNodes.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final node = GeofenceService.commuterNodes[index];
-                  return _TransitNodeCard(
-                    node: node,
-                    onTap: () => Navigator.pop(context, node.name),
-                  );
-                },
+              child: Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: municipalities.length,
+                  itemBuilder: (context, index) {
+                    final municipalityName = municipalities[index];
+                    final nodes = groupedNodes[municipalityName]!
+                      ..sort((a, b) => a.name.compareTo(b.name));
+                    final isExpanded = _expandedMunicipalityId == municipalityName;
+
+                    return ExpansionTile(
+                      key: ValueKey<String>(municipalityName),
+                      controller: _getController(municipalityName),
+                      title: Text(
+                        municipalityName,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.header,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                      childrenPadding: const EdgeInsets.only(bottom: 12),
+                      expandedAlignment: Alignment.topLeft,
+                      initiallyExpanded: isExpanded,
+                      onExpansionChanged: (expanded) {
+                        if (expanded) {
+                          _expandedMunicipalityId = municipalityName;
+                          // Single-expansion accordion: programmatically collapse all other tiles
+                          for (final entry in _controllers.entries) {
+                            if (entry.key != municipalityName && entry.value.isExpanded) {
+                              entry.value.collapse();
+                            }
+                          }
+                        } else {
+                          if (_expandedMunicipalityId == municipalityName) {
+                            _expandedMunicipalityId = null;
+                          }
+                        }
+                      },
+                      children: nodes.map((node) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _TransitNodeCard(
+                            node: node,
+                            isSelected: widget.selectedDestination == node.name,
+                            onTap: () {
+                              widget.onSelected(node.name);
+                              Navigator.pop(context);
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -768,10 +890,39 @@ class TransitNodeSelectionSheet extends StatelessWidget {
 }
 
 class _TransitNodeCard extends StatelessWidget {
-  const _TransitNodeCard({required this.node, required this.onTap});
+  const _TransitNodeCard({
+    required this.node,
+    required this.onTap,
+    this.isSelected = false,
+  });
 
   final GeofenceTarget node;
   final VoidCallback onTap;
+  final bool isSelected;
+
+  String _getTransitIcon() {
+    switch (node.transitType.toLowerCase()) {
+      case 'bus':
+        return AppIcons.bus;
+      case 'van':
+        return AppIcons.van;
+      case 'jeep':
+      default:
+        return AppIcons.jeep;
+    }
+  }
+
+  IconData _getSemanticIcon() {
+    switch (node.transitType.toLowerCase()) {
+      case 'bus':
+        return Icons.directions_bus_rounded;
+      case 'van':
+        return Icons.directions_car_rounded;
+      case 'jeep':
+      default:
+        return Icons.airport_shuttle_rounded;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -781,31 +932,35 @@ class _TransitNodeCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isSelected ? AppColors.primaryContainer : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 10,
-              offset: Offset(0, 2),
-            ),
-          ],
+          border: Border.all(
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border,
+          ),
+          boxShadow: isSelected
+              ? null
+              : const [
+                  BoxShadow(
+                    color: Color(0x0A000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 2),
+                  ),
+                ],
         ),
         child: Row(
           children: [
             Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFDAD8),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary.withValues(alpha: 0.2) : const Color(0xFFFFDAD8),
                 shape: BoxShape.circle,
               ),
-              child: const Center(
+              child: Center(
                 child: AppIcon.badge(
-                  AppIcons.location,
+                  _getTransitIcon(),
                   color: AppColors.primary,
-                  semanticIcon: Icons.location_on_rounded,
+                  semanticIcon: _getSemanticIcon(),
                 ),
               ),
             ),
@@ -824,7 +979,9 @@ class _TransitNodeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${node.latitude.toStringAsFixed(5)}°, ${node.longitude.toStringAsFixed(5)}°',
+                    node.address.isNotEmpty
+                        ? node.address
+                        : '${node.latitude.toStringAsFixed(5)}°, ${node.longitude.toStringAsFixed(5)}°',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
@@ -834,7 +991,14 @@ class _TransitNodeCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.body),
+            if (isSelected)
+              const AppIcon.standard(
+                AppIcons.checkCircle,
+                color: AppColors.primary,
+                semanticIcon: Icons.check_circle_rounded,
+              )
+            else
+              const Icon(Icons.chevron_right_rounded, color: AppColors.body),
           ],
         ),
       ),

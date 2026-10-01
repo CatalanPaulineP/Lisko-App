@@ -140,6 +140,15 @@ abstract final class AppIcons {
   /// Academic graduation cap glyph for Campus destination preset.
   static const String school = MaterialSymbols.school_rounded;
 
+  /// Bus transit icon for commuter terminals.
+  static const String bus = MaterialSymbols.directions_bus_rounded;
+
+  /// Jeepney / Shuttle transit icon for commuter terminals.
+  static const String jeep = MaterialSymbols.airport_shuttle_rounded;
+
+  /// Van / UV Express transit icon for commuter terminals.
+  static const String van = MaterialSymbols.directions_car_rounded;
+
   /// Pencil edit glyph for editing contact details.
   static const String edit = Carbon.edit;
 

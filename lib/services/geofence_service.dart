@@ -41,6 +41,9 @@ class GeofenceTarget {
     required this.name,
     required this.latitude,
     required this.longitude,
+    this.municipality = '',
+    this.transitType = 'terminal',
+    this.address = '',
     this.radiusMeters = 150.0,
   });
 
@@ -56,12 +59,21 @@ class GeofenceTarget {
   /// Target geographic longitude.
   final double longitude;
 
+  /// The municipality/city where this terminal is located.
+  final String municipality;
+
+  /// The primary mode of transport (e.g., 'bus', 'jeep', 'van', 'campus', 'home').
+  final String transitType;
+
+  /// The specific street address or landmark description.
+  final String address;
+
   /// Trigger radius perimeter in meters (defaults to 150m).
   final double radiusMeters;
 
   @override
   String toString() =>
-      'GeofenceTarget($name, lat: $latitude, lng: $longitude, r: ${radiusMeters}m)';
+      'GeofenceTarget($name, $municipality, address: $address, lat: $latitude, lng: $longitude, type: $transitType, r: ${radiusMeters}m)';
 }
 
 /// Service managing conditional GPS geofence monitoring and arrival detection.
@@ -78,6 +90,8 @@ class GeofenceService {
     name: 'Campus',
     latitude: 14.869725503304737,
     longitude: 120.9990821362761,
+    municipality: 'SANTA MARIA',
+    transitType: 'campus',
     radiusMeters: 150.0,
   );
 
@@ -87,16 +101,21 @@ class GeofenceService {
     name: 'Home',
     latitude: LocalStorageService.defaultHomeLat,
     longitude: LocalStorageService.defaultHomeLng,
+    municipality: 'HOME',
+    transitType: 'home',
     radiusMeters: LocalStorageService.defaultHomeRadius,
   );
 
-  /// Verified Commuter Transit Nodes for Santa Maria, Bulacan
+  /// Verified Commuter Transit Nodes for Santa Maria, Norzagaray, and Angat
   static const List<GeofenceTarget> commuterNodes = [
+    // --- SANTA MARIA ---
     GeofenceTarget(
       id: 'caypombo',
       name: 'Caypombo Terminal / Crossing',
       latitude: 14.848737039366092,
       longitude: 120.9812542306243,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
       radiusMeters: 150.0,
     ),
     GeofenceTarget(
@@ -104,6 +123,8 @@ class GeofenceService {
       name: 'Waltermart Santa Maria Drop-off',
       latitude: 14.822738093788265,
       longitude: 120.95424771314413,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
       radiusMeters: 150.0,
     ),
     GeofenceTarget(
@@ -111,7 +132,49 @@ class GeofenceService {
       name: 'Santa Maria Bayan / Savemore Area',
       latitude: 14.821742177842623,
       longitude: 120.96163959792787,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
       radiusMeters: 150.0,
+    ),
+
+    // --- NORZAGARAY ---
+    GeofenceTarget(
+      id: 'norz_terminal',
+      name: 'Norzagaray-Santa Maria Jeepney & UV Terminal',
+      latitude: 14.910992,
+      longitude: 121.053711,
+      municipality: 'NORZAGARAY',
+      transitType: 'jeep',
+      address: 'Gen. E. De Leon St., Brgy. Poblacion, Norzagaray, Bulacan',
+    ),
+
+    // --- ANGAT ---
+    GeofenceTarget(
+      id: 'angat_divisoria',
+      name: 'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)',
+      latitude: 14.922119,
+      longitude: 121.031189,
+      municipality: 'ANGAT',
+      transitType: 'bus',
+      address: 'Matías A. Fernando Ave, Brgy. Poblacion, Angat, Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'angat_monumento',
+      name: 'Angat-Monumento Bus Terminal (Shanine & Pauline Transport)',
+      latitude: 14.916910,
+      longitude: 121.028850,
+      municipality: 'ANGAT',
+      transitType: 'bus',
+      address: 'W28H+MG8, Brgy. Santa Cruz, Angat, Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'angat_precious',
+      name: 'Precious Grace Transport - Angat Bus Terminal',
+      latitude: 14.933445,
+      longitude: 121.038123,
+      municipality: 'ANGAT',
+      transitType: 'bus',
+      address: 'General Alejo Santos Highway, Brgy. Poblacion, Angat, Bulacan',
     ),
   ];
 
@@ -162,6 +225,8 @@ class GeofenceService {
         name: 'Home',
         latitude: homeCoords['latitude'] ?? defaultHome.latitude,
         longitude: homeCoords['longitude'] ?? defaultHome.longitude,
+        municipality: 'HOME',
+        transitType: 'home',
         radiusMeters: homeCoords['radius'] ?? defaultHome.radiusMeters,
       );
     }

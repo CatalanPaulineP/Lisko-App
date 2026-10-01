@@ -724,4 +724,95 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+
+  testWidgets(
+    'TransitNodeSelectionSheet enforces priority order, single expansion accordion, and collapse lifecycle',
+    (tester) async {
+      String? selected;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TransitNodeSelectionSheet(
+              onSelected: (name) => selected = name,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Verify header text and priority display order (1. Santa Maria, 2. Norzagaray, 3. Angat)
+      expect(find.text('Select Transit Drop-off'), findsOneWidget);
+      expect(find.text('Choose a frequent commuter node in your area'), findsOneWidget);
+
+      final santaMariaFinder = find.text('Santa Maria');
+      final norzagarayFinder = find.text('Norzagaray');
+      final angatFinder = find.text('Angat');
+
+      expect(santaMariaFinder, findsOneWidget);
+      expect(norzagarayFinder, findsOneWidget);
+      expect(angatFinder, findsOneWidget);
+
+      // Verify Santa Maria appears above Norzagaray, and Norzagaray above Angat
+      final santaMariaY = tester.getTopLeft(santaMariaFinder).dy;
+      final norzagarayY = tester.getTopLeft(norzagarayFinder).dy;
+      final angatY = tester.getTopLeft(angatFinder).dy;
+
+      expect(santaMariaY, lessThan(norzagarayY));
+      expect(norzagarayY, lessThan(angatY));
+
+      // 2. All groups start collapsed initially
+      expect(find.text('Caypombo Terminal / Crossing'), findsNothing);
+      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsNothing);
+      expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsNothing);
+
+      // 3. Expand Santa Maria
+      await tester.tap(santaMariaFinder);
+      await tester.pumpAndSettle();
+      expect(find.text('Caypombo Terminal / Crossing'), findsOneWidget);
+      expect(find.text('Waltermart Santa Maria Drop-off'), findsOneWidget);
+
+      // 4. Without manually collapsing Santa Maria, expand Angat
+      await tester.tap(angatFinder);
+      await tester.pumpAndSettle();
+
+      // Angat terminals become visible, Santa Maria terminals are automatically collapsed!
+      expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsOneWidget);
+      expect(find.text('Angat-Monumento Bus Terminal (Shanine & Pauline Transport)'), findsOneWidget);
+      expect(find.text('Caypombo Terminal / Crossing'), findsNothing);
+
+      // 5. Expand Norzagaray
+      await tester.tap(norzagarayFinder);
+      await tester.pumpAndSettle();
+
+      // Norzagaray terminal becomes visible, Angat terminals are automatically collapsed!
+      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsOneWidget);
+      expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsNothing);
+
+      // 6. Tap Norzagaray again -> collapses, bottom sheet remains open
+      await tester.tap(norzagarayFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TransitNodeSelectionSheet), findsOneWidget);
+      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsNothing);
+
+      // 7. Re-expand Santa Maria successfully
+      await tester.tap(santaMariaFinder);
+      await tester.pumpAndSettle();
+      expect(find.text('Caypombo Terminal / Crossing'), findsOneWidget);
+
+      // 8. Select an actual terminal -> callback fires and modal closes
+      await tester.tap(find.text('Caypombo Terminal / Crossing'));
+      await tester.pumpAndSettle();
+
+      expect(selected, 'Caypombo Terminal / Crossing');
+
+      // 9. Verify exact resolveTarget() matching
+      final service = GeofenceService();
+      final resolvedNorz = await service.resolveTarget('Norzagaray-Santa Maria Jeepney & UV Terminal');
+      final resolvedDivisoria = await service.resolveTarget('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)');
+
+      expect(resolvedNorz!.id, 'norz_terminal');
+      expect(resolvedDivisoria!.id, 'angat_divisoria');
+    },
+  );
 }
