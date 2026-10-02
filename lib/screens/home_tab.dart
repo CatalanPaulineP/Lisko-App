@@ -49,9 +49,6 @@ class HomeDashboardTab extends StatelessWidget {
     this.sosKey,
   });
 
-  final GlobalKey? setUpTripKey;
-  final GlobalKey? sosKey;
-
   /// Active tab index for targeted component updates.
   final int selectedTab;
 
@@ -78,6 +75,12 @@ class HomeDashboardTab extends StatelessWidget {
 
   /// Callback to re-open setup sheet.
   final VoidCallback? onEditSetup;
+
+  /// Callback to cancel the current staged setup.
+  final VoidCallback? onCancelSetup;
+
+  final GlobalKey? setUpTripKey;
+  final GlobalKey? sosKey;
 
   String _formatDuration(Duration d) {
     final hh = d.inHours.toString().padLeft(2, '0');
@@ -107,6 +110,7 @@ class HomeDashboardTab extends StatelessWidget {
                     isStaged: tripStaged,
                     onAdjustMinutes: onAdjustMinutes,
                     onEditSetup: tripStaged ? onEditSetup : onSetUpTrip,
+                    onCancelSetup: onCancelSetup,
                   ),
                   const SizedBox(height: 14),
                   HomeStartButton(

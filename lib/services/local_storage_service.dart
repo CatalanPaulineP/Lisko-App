@@ -292,28 +292,6 @@ class LocalStorageService {
     }
   }
 
-  static const _walkthroughKey = 'walkthrough_completed_v2';
-
-  Future<bool> readWalkthroughCompleted() async {
-    try {
-      final preferences = await SharedPreferences.getInstance();
-      return preferences.getBool(_walkthroughKey) ?? false;
-    } catch (e, st) {
-      developer.log('Failed to read walkthrough state', error: e, stackTrace: st);
-      return false;
-    }
-  }
-
-  Future<bool> saveWalkthroughCompleted(bool completed) async {
-    try {
-      final preferences = await SharedPreferences.getInstance();
-      return await preferences.setBool(_walkthroughKey, completed);
-    } catch (e, st) {
-      developer.log('Failed to write walkthrough state', error: e, stackTrace: st);
-      return false;
-    }
-  }
-
   /// Persists the onboarding setup completion state to local storage.
   ///
   /// Called upon tapping "Go to Home" on the Step 5 ("You're Ready!") screen,

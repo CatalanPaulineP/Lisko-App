@@ -377,7 +377,6 @@ class TripsHeader extends StatelessWidget {
   final int alertsCount;
   final String selectedFilter;
   final ValueChanged<String> onFilterChanged;
-  final GlobalKey? summaryKey;
 
   @override
   Widget build(BuildContext context) {

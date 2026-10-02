@@ -66,14 +66,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GeofenceService _geofenceService = GeofenceService();
   final SmsAlertService _smsAlertService = SmsAlertService();
 
-  final GlobalKey _setUpTripKey = GlobalKey();
-  final GlobalKey _sosKey = GlobalKey();
-  final GlobalKey _tripsTabKey = GlobalKey();
-  final GlobalKey _tripsSummaryKey = GlobalKey();
-  final GlobalKey _tripsFilterChipsKey = GlobalKey();
-  final GlobalKey _tripsCalendarIconKey = GlobalKey();
-  final GlobalKey _contactsTabKey = GlobalKey();
-
   int selectedTab = 0;
   bool tripActive = false;
   bool tripStaged = false;
@@ -84,7 +76,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int arrivalCountdown = 90;
   bool isTimeoutWarning = false;
   int timeoutCountdown = 90;
-
 
   Duration remaining = const Duration(minutes: 45);
   DateTime? expectedArrivalAt;
@@ -109,8 +100,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GlobalKey _settingsTabKey = GlobalKey();
   final GlobalKey _homeLocationKey = GlobalKey();
   final GlobalKey _expiryAlertKey = GlobalKey();
-
-  bool showWalkthrough = false;
 
   bool get _isTestEnvironment {
     final binding = WidgetsBinding.instance.runtimeType.toString();
@@ -1139,7 +1128,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         destination: destination,
                         remaining: remaining,
                         totalDuration: totalDuration,
-                        onSafe: _handleSafePressed,
+                        onSafe: handleSafeAction,
                         onExtend: _extendTrip,
                         onSos: _triggerEmergencyFlow,
                         isArrived: isArrived,
