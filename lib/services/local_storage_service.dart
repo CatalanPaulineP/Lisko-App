@@ -271,6 +271,30 @@ class LocalStorageService {
   }
 
   static const _walkthroughKey = 'walkthrough_completed_v2';
+  static const _readNotificationsKey = 'read_notification_ids_json';
+
+  Future<Set<String>> readReadNotificationIds() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final raw = preferences.getString(_readNotificationsKey);
+      if (raw == null || raw.isEmpty) return {};
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.map((e) => e.toString()).toSet();
+    } catch (e, st) {
+      developer.log('Failed to read read notification IDs', error: e, stackTrace: st);
+      return {};
+    }
+  }
+
+  Future<bool> saveReadNotificationIds(Set<String> ids) async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return await preferences.setString(_readNotificationsKey, jsonEncode(ids.toList()));
+    } catch (e, st) {
+      developer.log('Failed to save read notification IDs', error: e, stackTrace: st);
+      return false;
+    }
+  }
 
   Future<bool> readWalkthroughCompleted() async {
     try {

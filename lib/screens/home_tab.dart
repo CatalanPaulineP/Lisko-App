@@ -20,11 +20,15 @@
 //   easy thumb reach on standard smartphone dimensions.
 // ==============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../widgets/app_icon.dart';
+import '../widgets/notifications_popover.dart';
+import 'all_notifications_screen.dart';
 import '../widgets/system_status_card.dart';
 import '../widgets/trip_timer_card.dart';
 import '../services/firebase_service.dart';
@@ -137,11 +141,288 @@ class HomeDashboardTab extends StatelessWidget {
   }
 }
 
-/// Header with patterned background, greeting, and system ready card.
-class HomeHeader extends StatelessWidget {
+/// Header with patterned background, greeting, system ready card, and notifications popover anchor.
+class HomeHeader extends StatefulWidget {
   const HomeHeader({super.key, this.selectedTab = 0});
 
   final int selectedTab;
+
+  @override
+  State<HomeHeader> createState() => _HomeHeaderState();
+}
+
+class _HomeHeaderState extends State<HomeHeader> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  StreamSubscription<List<TripRecord>>? _tripsSub;
+
+  List<TripRecord> _rawTrips = [];
+  Set<String> _readIds = {};
+  final Set<String> _dismissedIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReadIds();
+    _tripsSub = FirebaseService().getTripsStream().listen((trips) {
+      if (mounted) {
+        setState(() {
+          _rawTrips = trips;
+        });
+        _overlayEntry?.markNeedsBuild();
+      }
+    });
+  }
+
+  Future<void> _loadReadIds() async {
+    final ids = await const LocalStorageService().readReadNotificationIds();
+    if (mounted) {
+      setState(() {
+        _readIds = ids;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _tripsSub?.cancel();
+    _hideNotificationsPopover();
+    super.dispose();
+  }
+
+  String _formatTimeAgo(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inSeconds < 60) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24 &&
+        timestamp.day == now.day &&
+        timestamp.month == now.month &&
+        timestamp.year == now.year) {
+      return '${difference.inHours}h ago';
+    } else if (timestamp.day == now.subtract(const Duration(days: 1)).day &&
+        timestamp.month == now.subtract(const Duration(days: 1)).month &&
+        timestamp.year == now.subtract(const Duration(days: 1)).year) {
+      return 'Yesterday';
+    } else {
+      final month = timestamp.month.toString().padLeft(2, '0');
+      final day = timestamp.day.toString().padLeft(2, '0');
+      return '$month/$day';
+    }
+  }
+
+  List<AppNotificationItem> _buildNotificationItems() {
+    final List<AppNotificationItem> items = [];
+
+    final activeTrips =
+        _rawTrips.where((t) => !_dismissedIds.contains(t.id)).toList();
+
+    if (activeTrips.isEmpty) {
+      if (!_dismissedIds.contains('sys_welcome_lisko')) {
+        items.add(
+          AppNotificationItem(
+            id: 'sys_welcome_lisko',
+            title: 'LisKo Safety System Ready',
+            message:
+                'Welcome! Set up your emergency contacts and trips to stay protected.',
+            timeAgo: 'Just now',
+            isRead: _readIds.contains('sys_welcome_lisko'),
+            icon: Icons.shield_rounded,
+            iconColor: AppColors.primary,
+          ),
+        );
+      }
+    } else {
+      for (final trip in activeTrips) {
+        final statusLower = trip.status.toLowerCase();
+        final timeStr = _formatTimeAgo(trip.timestamp);
+        final isRead = _readIds.contains(trip.id);
+
+        String title;
+        String message;
+        IconData icon;
+        Color iconColor;
+
+        if (['completed', 'arrived', 'arrived safely'].contains(statusLower)) {
+          title = 'Safe Arrival Alert';
+          message = 'You have safely arrived at ${trip.destination}.';
+          icon = Icons.check_circle_rounded;
+          iconColor = AppColors.success;
+        } else if (['expired', 'alert', 'help_requested', 'need help', 'manual sos', 'timer expired'].contains(statusLower)) {
+          title = 'Emergency Alert Sent';
+          message = trip.destination == 'Manual SOS'
+              ? 'Manual SOS triggered. Alert SMS sent to trusted contacts.'
+              : 'Safety check timeout for ${trip.destination}. Alert SMS sent to trusted contacts.';
+          icon = Icons.warning_rounded;
+          iconColor = AppColors.primary;
+        } else if (statusLower == 'active') {
+          title = 'Trip Timer Active';
+          message =
+              'Heading to ${trip.destination} (${trip.durationMinutes} mins).';
+          icon = Icons.navigation_rounded;
+          iconColor = AppColors.primary;
+        } else if (trip.wasExtended ||
+            statusLower == 'extended' ||
+            statusLower == 'trip extended') {
+          title = 'Trip Extended';
+          message = '15 minutes added to trip to ${trip.destination}.';
+          icon = Icons.add_alarm_rounded;
+          iconColor = const Color(0xFFD97706);
+        } else if (statusLower == 'cancelled') {
+          title = 'Trip Cancelled';
+          message = 'Trip to ${trip.destination} was cancelled.';
+          icon = Icons.cancel_rounded;
+          iconColor = AppColors.body;
+        } else {
+          title = 'Trip Activity';
+          message = 'Trip to ${trip.destination} (${trip.status}).';
+          icon = Icons.notifications_rounded;
+          iconColor = AppColors.primary;
+        }
+
+        items.add(
+          AppNotificationItem(
+            id: trip.id,
+            title: title,
+            message: message,
+            timeAgo: timeStr,
+            isRead: isRead,
+            icon: icon,
+            iconColor: iconColor,
+          ),
+        );
+      }
+    }
+
+    return items;
+  }
+
+  bool _isToday(DateTime ts) {
+    final now = DateTime.now();
+    return ts.year == now.year && ts.month == now.month && ts.day == now.day;
+  }
+
+  List<AppNotificationItem> get _todayNotifications {
+    final allItems = _buildNotificationItems();
+    if (_rawTrips.isEmpty) return allItems;
+
+    final todayTripIds =
+        _rawTrips.where((t) => _isToday(t.timestamp)).map((t) => t.id).toSet();
+    return allItems
+        .where(
+            (n) => todayTripIds.contains(n.id) || n.id == 'sys_welcome_lisko')
+        .toList();
+  }
+
+  List<AppNotificationItem> get _earlierNotifications {
+    final allItems = _buildNotificationItems();
+    if (_rawTrips.isEmpty) return [];
+
+    final todayTripIds =
+        _rawTrips.where((t) => _isToday(t.timestamp)).map((t) => t.id).toSet();
+    return allItems
+        .where(
+            (n) => !todayTripIds.contains(n.id) && n.id != 'sys_welcome_lisko')
+        .toList();
+  }
+
+  bool get _hasUnread {
+    final allItems = _buildNotificationItems();
+    return allItems.any((n) => !n.isRead);
+  }
+
+  void _markAllCurrentAsRead() {
+    final allItems = _buildNotificationItems();
+    final newReadIds = Set<String>.from(_readIds);
+    for (final item in allItems) {
+      newReadIds.add(item.id);
+    }
+    setState(() {
+      _readIds = newReadIds;
+    });
+    const LocalStorageService().saveReadNotificationIds(newReadIds);
+  }
+
+  void _toggleNotificationsPopover() {
+    if (_overlayEntry == null) {
+      _showNotificationsPopover();
+    } else {
+      _hideNotificationsPopover();
+    }
+  }
+
+  void _showNotificationsPopover() {
+    if (_overlayEntry != null) return;
+
+    // Auto Mark-As-Read on Open (No Manual Tapping Required)
+    _markAllCurrentAsRead();
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            // Transparent barrier dismissing popover on outside tap
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _hideNotificationsPopover,
+                child: const SizedBox.expand(),
+              ),
+            ),
+            // Popover card follower anchored to layer link target
+            Positioned(
+              child: CompositedTransformFollower(
+                link: _layerLink,
+                showWhenUnlinked: false,
+                targetAnchor: Alignment.bottomRight,
+                followerAnchor: Alignment.topRight,
+                offset: const Offset(0, 6),
+                child: NotificationsPopover(
+                  todayNotifications: _todayNotifications,
+                  earlierNotifications: _earlierNotifications,
+                  onClose: _hideNotificationsPopover,
+                  onItemTap: _handleItemTap,
+                  onViewAll: _handleViewAll,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideNotificationsPopover() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _handleViewAll() {
+    _hideNotificationsPopover();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AllNotificationsScreen(
+          todayNotifications: _todayNotifications,
+          earlierNotifications: _earlierNotifications,
+          onItemTap: _handleItemTap,
+        ),
+      ),
+    );
+  }
+
+  void _handleItemTap(String id) {
+    setState(() {
+      _readIds.add(id);
+    });
+    const LocalStorageService().saveReadNotificationIds(_readIds);
+    _overlayEntry?.markNeedsBuild();
+  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -222,18 +503,39 @@ class HomeHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  IconButton(
-                    onPressed: () {},
-                    tooltip: 'Notifications',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 44,
-                      height: 44,
-                    ),
-                    icon: const AppIcon.standard(
-                      AppIcons.notificationsOutline,
-                      color: Colors.white,
-                      semanticIcon: Icons.notifications_none_rounded,
+                  CompositedTransformTarget(
+                    link: _layerLink,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          onPressed: _toggleNotificationsPopover,
+                          tooltip: 'Notifications',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 44,
+                            height: 44,
+                          ),
+                          icon: const AppIcon.standard(
+                            AppIcons.notificationsOutline,
+                            color: Colors.white,
+                            semanticIcon: Icons.notifications_none_rounded,
+                          ),
+                        ),
+                        if (_hasUnread)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              width: 9,
+                              height: 9,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -242,7 +544,7 @@ class HomeHeader extends StatelessWidget {
             const SizedBox(height: 28), // Explicit spacing to perfectly prevent text overlap
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SystemReadyCard(selectedTab: selectedTab),
+              child: SystemReadyCard(selectedTab: widget.selectedTab),
             ),
           ],
         ),
