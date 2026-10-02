@@ -4,9 +4,10 @@
 //
 // Role & Architectural Context:
 // Application bootstrapper and root widget coordinator. Initializes binary
-// messenger bindings and connects Firebase services via FlutterFire CLI options.
-// Configures the Material 3 application instance (`LiskoApp`), sets the light theme,
-// and delegates to `_LaunchGate` for splash screen timing and conditional routing.
+// messenger bindings and launches `LiskoApp` immediately so the LisKo branded
+// splash screen renders within milliseconds. Asynchronous initializations
+// (NotificationService, BackgroundService, Firebase, SharedPreferences) execute
+// concurrently while the Flutter SplashScreen is visible.
 //
 // Notification Background Response Handler:
 // `notificationBackgroundResponseHandler` is a top-level @pragma function that
@@ -16,8 +17,9 @@
 //
 // ISO/IEC 25010 Software Quality Standards Alignment:
 // - Reliability (Fault-Tolerant Launch): Firebase / SharedPreferences errors
-//   safely default to WelcomeScreen without crashing.
-// - Reliability (Resource Leak Prevention): Splash timers are cancelled in dispose().
+//   safely default to WelcomeScreen without crashing or hanging.
+// - Performance Efficiency (Zero Black-Screen Startup): Instantaneous Flutter
+//   frame rendering eliminates cold-start launch latency.
 // - Usability (Visual Continuity): Fade transition eliminates jarring flashes.
 // ==============================================================================
 
@@ -44,18 +46,16 @@ export 'screens/screens.dart';
 export 'services/local_storage_service.dart';
 export 'widgets/widgets.dart';
 
+/// Stopwatch tracking high-precision startup milestone timestamps.
+final Stopwatch _startupStopwatch = Stopwatch();
+
 /// Main application entry point invoked by the Flutter engine.
-void main() async {
+/// Mounts [LiskoApp] immediately to render the splash screen without blocking.
+void main() {
+  _startupStopwatch.start();
+  debugPrint('[LisKo Startup] 0ms: main() entered');
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService().initialize();
-  await initializeBackgroundService();
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (error) {
-    debugPrint('Firebase initialization notice: $error');
-  }
+  debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: WidgetsBinding initialized, calling runApp()');
   runApp(const LiskoApp());
 }
 
@@ -103,54 +103,99 @@ class _LaunchGate extends StatefulWidget {
 
 class _LaunchGateState extends State<_LaunchGate> {
   final LocalStorageService _storage = const LocalStorageService();
-  Timer? _splashTimer;
+  String _statusText = 'Preparing LisKo...';
+
+  void _updateStatus(String text) {
+    if (mounted && _statusText != text) {
+      setState(() {
+        _statusText = text;
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    // Trigger navigation ONLY after the first frame has rendered.
+    _startupStopwatch.reset();
+    _startupStopwatch.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _scheduleNavigation();
+      _bootstrapAndNavigate();
     });
   }
 
-  void _scheduleNavigation() {
-    final splashDuration = _isTestMode
-        ? const Duration(seconds: 5)
-        : const Duration(milliseconds: 2600);
+  Future<void> _bootstrapAndNavigate() async {
+    debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: _bootstrapAndNavigate() started');
 
-    _splashTimer = Timer(splashDuration, () async {
-      if (!mounted) return;
-      try {
-        final setupCompleted = _isTestMode
-            ? (forceFreshStartupForTesting
-                ? false
-                : await _storage.readSetupCompleted())
-            : await _storage.readSetupCompleted();
+    try {
+      _updateStatus('Preparing safety services...');
 
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          createRoute(
-            setupCompleted ? const HomeScreen() : const WelcomeScreen(),
-            transition: RouteTransition.fade,
-          ),
-        );
+      // Execute all required initializations concurrently while SplashScreen is visible
+      await Future.wait([
+        NotificationService().initialize().then((_) {
+          debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: NotificationService initialized');
+        }),
+        initializeBackgroundService().then((_) {
+          debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: BackgroundService initialized');
+        }),
+        _initFirebaseSafely().then((_) {
+          debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Firebase initialized');
+        }),
+      ]);
 
-        // After routing to HomeScreen, dispatch any pending notification action
-        // that was stored by the killed-app background handler.
-        if (setupCompleted) {
-          _dispatchPendingNotificationAction();
+      _updateStatus('Loading your preferences...');
+      final setupCompleted = _isTestMode
+          ? (forceFreshStartupForTesting ? false : await _storage.readSetupCompleted())
+          : await _storage.readSetupCompleted();
+      debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Preferences read (setupCompleted: $setupCompleted)');
+
+      if (setupCompleted) {
+        _updateStatus('Checking trip information...');
+        final activeTrip = await _storage.readActiveTrip();
+        if (activeTrip != null && activeTrip['isActive'] == true) {
+          _updateStatus('Restoring your active trip...');
+          debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Active trip detected for restoration');
         }
-      } catch (_) {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          createRoute(const WelcomeScreen(), transition: RouteTransition.fade),
-        );
       }
-    });
+
+      final elapsed = _startupStopwatch.elapsedMilliseconds;
+      const minSplashTime = 2000;
+      if (elapsed < minSplashTime) {
+        await Future.delayed(Duration(milliseconds: minSplashTime - elapsed));
+      }
+
+      debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Navigating from SplashScreen');
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        createRoute(
+          setupCompleted ? const HomeScreen() : const WelcomeScreen(),
+          transition: RouteTransition.fade,
+        ),
+      );
+
+      if (setupCompleted) {
+        _dispatchPendingNotificationAction();
+      }
+    } catch (e) {
+      debugPrint('[LisKo Startup] Bootstrap error: $e');
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        createRoute(const WelcomeScreen(), transition: RouteTransition.fade),
+      );
+    }
+  }
+
+  static Future<void> _initFirebaseSafely() async {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (error) {
+      debugPrint('Firebase initialization notice: $error');
+    }
   }
 
   /// Reads and clears any notification action ID stored while the app was killed,
@@ -160,7 +205,6 @@ class _LaunchGateState extends State<_LaunchGate> {
     final pendingAction = prefs.getString('pending_notification_action');
     if (pendingAction != null && pendingAction.isNotEmpty) {
       await prefs.remove('pending_notification_action');
-      // Small delay to ensure HomeScreenState has mounted and registered its callback.
       await Future.delayed(const Duration(milliseconds: 600));
       debugPrint('[LaunchGate] Dispatching pending notification action: "$pendingAction"');
       NotificationService.onActionReceived?.call(pendingAction);
@@ -168,14 +212,7 @@ class _LaunchGateState extends State<_LaunchGate> {
   }
 
   @override
-  void dispose() {
-    _splashTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return const SplashScreen();
+    return SplashScreen(statusText: _statusText);
   }
 }
-

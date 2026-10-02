@@ -43,7 +43,14 @@ import 'onboarding_flow.dart';
 /// Tab displaying the user's trusted contacts directory with real-time state synchronization,
 /// primary emergency card, edit popup menu, and modal bottom sheets.
 class ContactsTab extends StatefulWidget {
-  const ContactsTab({super.key});
+  final GlobalKey? addContactKey;
+  final GlobalKey? importContactsKey;
+
+  const ContactsTab({
+    super.key,
+    this.addContactKey,
+    this.importContactsKey,
+  });
 
   @override
   State<ContactsTab> createState() => _ContactsTabState();
@@ -94,29 +101,22 @@ class _ContactsTabState extends State<ContactsTab> {
   }
 
   void _setAsPrimaryContact(ContactPerson selectedContact) {
-    // 1. Create a fresh list instance from your current contacts state
     final List<ContactPerson> updated = List<ContactPerson>.from(_contacts);
-
-    // 2. Locate and remove the selected secondary contact from the temporary array
     updated.removeWhere((c) => c.name == selectedContact.name && c.phone == selectedContact.phone);
-
-    // 3. Insert them straight back into the very top spot (Index 0) to make them the primary card
     updated.insert(0, selectedContact);
-
-    // 4. Commit the new reordered sequence globally across your views
     _updateContacts(updated);
 
-    // 5. Send a clean confirmation alert feedback message box toast
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${selectedContact.name} is now your Primary Emergency Contact.'),
-          backgroundColor: const Color(0xFF4CAF50), // Matches your Figma safety green theme color
+          backgroundColor: const Color(0xFF4CAF50),
           duration: const Duration(seconds: 2),
         ),
       );
     }
   }
+
 
   bool get _isTestMode {
     final binding = WidgetsBinding.instance.runtimeType.toString();
@@ -370,6 +370,7 @@ class _ContactsTabState extends State<ContactsTab> {
         ContactsHeader(
           contactCount: _contacts.length,
           onAddTap: _openAddContactModal,
+          addKey: widget.addContactKey,
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -387,6 +388,7 @@ class _ContactsTabState extends State<ContactsTab> {
                   const SizedBox(height: 16),
                   // Outline Import from Contacts Button
                   SizedBox(
+                    key: widget.importContactsKey,
                     width: double.infinity,
                     height: 50,
                     child: OutlinedButton.icon(
@@ -475,10 +477,12 @@ class ContactsHeader extends StatelessWidget {
     super.key,
     required this.contactCount,
     required this.onAddTap,
+    this.addKey,
   });
 
   final int contactCount;
   final VoidCallback onAddTap;
+  final Key? addKey;
 
   @override
   Widget build(BuildContext context) {
@@ -537,6 +541,7 @@ class ContactsHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Material(
+                  key: addKey,
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(20),
                   child: InkWell(
@@ -741,7 +746,7 @@ class SecondaryContactListItem extends StatelessWidget {
     required this.contact,
     required this.onEdit,
     required this.onRemove,
-    required this.onSetPrimary
+    required this.onSetPrimary,
   });
 
   final ContactPerson contact;

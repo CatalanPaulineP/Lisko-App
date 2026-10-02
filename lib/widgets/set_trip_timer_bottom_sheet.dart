@@ -99,7 +99,9 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
         selectedDestination: selectedDestination,
         onSelected: (name) {
           if (mounted) {
-            setState(() => selectedDestination = name);
+            setState(() {
+              selectedDestination = name;
+            });
           }
         },
       ),
@@ -687,6 +689,21 @@ class TransitNodeSelectionSheet extends StatefulWidget {
 
 class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
   String? _expandedMunicipalityId;
+  final Map<String, ExpansibleController> _controllers = {};
+
+  /// Explicit municipality display priority (Santa Maria #1, followed by Norzagaray, Angat).
+  static const List<String> _municipalityPriority = [
+    'Santa Maria',
+    'Norzagaray',
+    'Angat',
+  ];
+
+  int _getMunicipalityPriority(String name) {
+    final index = _municipalityPriority.indexWhere(
+      (p) => p.toLowerCase() == name.toLowerCase(),
+    );
+    return index != -1 ? index : 999;
+  }
 
   /// Formats municipality names to title case, with specific handling for SJDM.
   String _formatMunicipality(String name) {
@@ -700,6 +717,13 @@ class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
     }).join(' ');
   }
 
+  ExpansibleController _getController(String municipalityName) {
+    return _controllers.putIfAbsent(
+      municipalityName,
+      () => ExpansibleController(),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -709,13 +733,21 @@ class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // Group and sort commuter nodes by formatted municipality name
+    // Group and sort commuter nodes by formatted municipality name according to priority
     final groupedNodes = <String, List<GeofenceTarget>>{};
     for (final node in GeofenceService.commuterNodes) {
       final name = _formatMunicipality(node.municipality);
       groupedNodes.putIfAbsent(name, () => []).add(node);
     }
-    final municipalities = groupedNodes.keys.toList()..sort();
+    final municipalities = groupedNodes.keys.toList()
+      ..sort((a, b) {
+        final priorityA = _getMunicipalityPriority(a);
+        final priorityB = _getMunicipalityPriority(b);
+        if (priorityA != priorityB) {
+          return priorityA.compareTo(priorityB);
+        }
+        return a.compareTo(b);
+      });
 
     return Container(
       width: double.infinity,
@@ -802,7 +834,8 @@ class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
                     final isExpanded = _expandedMunicipalityId == municipalityName;
 
                     return ExpansionTile(
-                      key: PageStorageKey<String>('$municipalityName-$isExpanded'),
+                      key: ValueKey<String>(municipalityName),
+                      controller: _getController(municipalityName),
                       title: Text(
                         municipalityName,
                         style: GoogleFonts.plusJakartaSans(
@@ -817,9 +850,19 @@ class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
                       expandedAlignment: Alignment.topLeft,
                       initiallyExpanded: isExpanded,
                       onExpansionChanged: (expanded) {
-                        setState(() {
-                          _expandedMunicipalityId = expanded ? municipalityName : null;
-                        });
+                        if (expanded) {
+                          _expandedMunicipalityId = municipalityName;
+                          // Single-expansion accordion: programmatically collapse all other tiles
+                          for (final entry in _controllers.entries) {
+                            if (entry.key != municipalityName && entry.value.isExpanded) {
+                              entry.value.collapse();
+                            }
+                          }
+                        } else {
+                          if (_expandedMunicipalityId == municipalityName) {
+                            _expandedMunicipalityId = null;
+                          }
+                        }
                       },
                       children: nodes.map((node) {
                         return Padding(
@@ -892,7 +935,7 @@ class _TransitNodeCard extends StatelessWidget {
           color: isSelected ? AppColors.primaryContainer : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppColors.primary.withOpacity(0.3) : AppColors.border,
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border,
           ),
           boxShadow: isSelected
               ? null
@@ -910,7 +953,7 @@ class _TransitNodeCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary.withOpacity(0.2) : const Color(0xFFFFDAD8),
+                color: isSelected ? AppColors.primary.withValues(alpha: 0.2) : const Color(0xFFFFDAD8),
                 shape: BoxShape.circle,
               ),
               child: Center(

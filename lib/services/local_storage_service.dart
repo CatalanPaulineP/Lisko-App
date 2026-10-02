@@ -21,6 +21,7 @@
 
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/action_buttons.dart';
@@ -29,7 +30,32 @@ import '../widgets/action_buttons.dart';
 ///
 /// Implemented with a `const` constructor for dependency-injection readiness and
 /// zero-overhead instantiation across UI state controllers.
-class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
+class LocalStorageService {
+  static const _installationIdKey = 'lisko_installation_id';
+
+  /// Retrieves or generates a persistent random installation ID for this device installation.
+  Future<String> getOrCreateInstallationId() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final existing = preferences.getString(_installationIdKey);
+      if (existing != null && existing.isNotEmpty) {
+        return existing;
+      }
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final random = Random.secure();
+      final r1 = random.nextInt(1000000).toString().padLeft(6, '0');
+      final r2 = random.nextInt(1000000).toString().padLeft(6, '0');
+      final newId = 'inst_${nowMs}_${r1}_$r2';
+      await preferences.setString(_installationIdKey, newId);
+      developer.log('LocalStorageService: Generated new persistent installation ID: $newId');
+      return newId;
+    } catch (e, st) {
+      developer.log('Failed to read or generate installation ID', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  static const _tripHistoryKey = 'trip_history_json';
 
   Future<List<TripRecord>> readTripHistory() async {
     try {
@@ -262,6 +288,28 @@ class LocalStorageService {  static const _tripHistoryKey = 'trip_history_json';
         error: e,
         stackTrace: st,
       );
+      return false;
+    }
+  }
+
+  static const _walkthroughKey = 'walkthrough_completed_v2';
+
+  Future<bool> readWalkthroughCompleted() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return preferences.getBool(_walkthroughKey) ?? false;
+    } catch (e, st) {
+      developer.log('Failed to read walkthrough state', error: e, stackTrace: st);
+      return false;
+    }
+  }
+
+  Future<bool> saveWalkthroughCompleted(bool completed) async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return await preferences.setBool(_walkthroughKey, completed);
+    } catch (e, st) {
+      developer.log('Failed to write walkthrough state', error: e, stackTrace: st);
       return false;
     }
   }

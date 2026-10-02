@@ -662,6 +662,7 @@ class _SetupCompleteScreenState extends State<SetupCompleteScreen>
                 icon: Icons.home_rounded,
                 onPressed: () async {
                   await const LocalStorageService().setSetupCompleted(true);
+                  await const LocalStorageService().saveWalkthroughCompleted(false);
                   if (!context.mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,

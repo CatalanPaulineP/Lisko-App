@@ -43,13 +43,17 @@ class HomeDashboardTab extends StatelessWidget {
     this.stagedDuration = const Duration(minutes: 45),
     this.onAdjustMinutes,
     this.onEditSetup,
+    this.onCancelSetup,
+    this.selectedTab = 0,
     this.setUpTripKey,
     this.sosKey,
   });
 
-  /// Global keys for runtime spotlight rect calculations
   final GlobalKey? setUpTripKey;
   final GlobalKey? sosKey;
+
+  /// Active tab index for targeted component updates.
+  final int selectedTab;
 
   /// Action dispatched to open the `TripSchedulerSheet` modal.
   final VoidCallback onSetUpTrip;

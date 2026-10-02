@@ -370,6 +370,7 @@ class TripsHeader extends StatelessWidget {
     this.summaryKey,
   });
 
+  final GlobalKey? summaryKey;
   final int tripCount;
   final int safeCount;
   final int extendedCount;

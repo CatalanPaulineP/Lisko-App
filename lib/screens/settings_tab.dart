@@ -28,13 +28,20 @@ import 'home_tab.dart'; // For HomeHeaderPatternPainter
 
 /// Tab for managing Lisko preferences, notifications, and permissions.
 class SettingsTab extends StatefulWidget {
-  const SettingsTab({super.key});
+  const SettingsTab({
+    super.key,
+    this.homeLocationKey,
+    this.expiryAlertKey,
+  });
+
+  final GlobalKey? homeLocationKey;
+  final GlobalKey? expiryAlertKey;
 
   @override
   State<SettingsTab> createState() => _SettingsTabState();
 }
 
-class _SettingsTabState extends State<SettingsTab> {
+class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
   final LocalStorageService _storage = const LocalStorageService();
 
   String _defaultDuration = '45 mins';
@@ -43,10 +50,47 @@ class _SettingsTabState extends State<SettingsTab> {
   double? _homeLat;
   double? _homeLng;
 
+  bool _hasContacts = false;
+  bool _hasNotifications = false;
+  bool _hasSms = false;
+  bool _hasLocation = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
+    _checkPermissions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissions();
+    }
+  }
+
+  Future<void> _checkPermissions() async {
+    final ps = PermissionService();
+    final contacts = await ps.checkContactsPermission();
+    final notifs = await ps.checkNotificationPermission();
+    final sms = await ps.checkSmsPermission();
+    final loc = await ps.checkLocationPermission();
+
+    if (mounted) {
+      setState(() {
+        _hasContacts = contacts;
+        _hasNotifications = notifs;
+        _hasSms = sms;
+        _hasLocation = loc;
+      });
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -143,14 +187,7 @@ class _SettingsTabState extends State<SettingsTab> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const InfoModalBottomSheet(
-        title: 'Privacy Policy & GPS Usage',
-        content: 'Lisko uses a Zero-Surveillance Architecture:\n\n'
-            '- GPS is only tracked during active trips.\n'
-            '- Geofence monitoring runs 100% locally on your device.\n'
-            '- Your location data is NEVER uploaded to any cloud server.\n'
-            '- Emergency SMS alerts send your last known location only to your trusted contacts.',
-      ),
+      builder: (ctx) => const PrivacyPolicyModalBottomSheet(),
     );
   }
 
@@ -276,6 +313,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     child: Column(
                       children: [
                         _buildActionRow(
+                          rowKey: widget.homeLocationKey,
                           iconStr: AppIcons.home,
                           semanticIcon: Icons.home_rounded,
                           iconBg: const Color(0xFFFFDAD8),
@@ -325,6 +363,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     child: Column(
                       children: [
                         _buildActionRow(
+                          rowKey: widget.expiryAlertKey,
                           iconStr: AppIcons.vibration,
                           semanticIcon: Icons.vibration_rounded,
                           iconBg: AppColors.canvas,
@@ -347,7 +386,59 @@ class _SettingsTabState extends State<SettingsTab> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Section 3: Information & Support Card
+                  // Section 3: Permissions Card
+                  _buildSectionTitle('PERMISSIONS'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Manage the permissions used by LisKo for its safety features.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: _cardDecoration(),
+                    child: Column(
+                      children: [
+                        _buildPermissionRow(
+                          semanticIcon: Icons.contacts_rounded,
+                          title: 'Contacts',
+                          subtitle: 'Used to import contacts from your phone.',
+                          isAllowed: _hasContacts,
+                          onTap: openAppSettings,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildPermissionRow(
+                          semanticIcon: Icons.notifications_active_rounded,
+                          title: 'Notifications',
+                          subtitle: 'Used for travel reminders and safety alerts.',
+                          isAllowed: _hasNotifications,
+                          onTap: openAppSettings,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildPermissionRow(
+                          semanticIcon: Icons.sms_rounded,
+                          title: 'SMS',
+                          subtitle: 'Used for safety and emergency alerts.',
+                          isAllowed: _hasSms,
+                          onTap: openAppSettings,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildPermissionRow(
+                          semanticIcon: Icons.location_on_rounded,
+                          title: 'Location',
+                          subtitle: 'Used for arrival detection and emergency location.',
+                          isAllowed: _hasLocation,
+                          onTap: openAppSettings,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Section 4: Information & Support Card
                   _buildSectionTitle('INFORMATION & SUPPORT'),
                   const SizedBox(height: 12),
                   Container(
@@ -479,6 +570,89 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
+  Widget _buildPermissionRow({
+    required IconData semanticIcon,
+    required String title,
+    required String subtitle,
+    required bool isAllowed,
+    required VoidCallback onTap,
+  }) {
+    final statusColor = isAllowed ? AppColors.success : AppColors.body;
+    final statusBg = isAllowed ? AppColors.successContainer : AppColors.canvas;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: statusBg,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Icon(
+                  semanticIcon,
+                  color: isAllowed ? AppColors.success : AppColors.header,
+                  size: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.header,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+              decoration: BoxDecoration(
+                color: statusBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isAllowed ? AppColors.success.withValues(alpha: 0.3) : AppColors.border,
+                ),
+              ),
+              child: Text(
+                isAllowed ? 'Allowed' : 'Not allowed',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: Colors.white,
@@ -558,8 +732,10 @@ class _SettingsTabState extends State<SettingsTab> {
     required String title,
     String? subtitle,
     required VoidCallback onTap,
+    Key? rowKey,
   }) {
     return InkWell(
+      key: rowKey,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1256,4 +1432,255 @@ class InfoModalBottomSheet extends StatelessWidget {
   }
 }
 
+class ExpandablePrivacyCard extends StatefulWidget {
+  const ExpandablePrivacyCard({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.icon,
+  });
 
+  final String title;
+  final String description;
+  final IconData icon;
+
+  @override
+  State<ExpandablePrivacyCard> createState() => _ExpandablePrivacyCardState();
+}
+
+class _ExpandablePrivacyCardState extends State<ExpandablePrivacyCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          onExpansionChanged: (expanded) => setState(() => _isExpanded = expanded),
+          trailing: AnimatedRotation(
+            turns: _isExpanded ? 0.5 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.expand_more_rounded, color: AppColors.body, size: 20),
+          ),
+          leading: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(widget.icon, color: AppColors.primary, size: 18),
+          ),
+          title: Text(
+            widget.title,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.header,
+            ),
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          children: [
+            Text(
+              widget.description,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.body,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PrivacyPolicyModalBottomSheet extends StatelessWidget {
+  const PrivacyPolicyModalBottomSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      maxChildSize: 0.95,
+      minChildSize: 0.5,
+      builder: (_, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Privacy Policy & GPS Usage',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.header,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'How LisKo protects student privacy and handles location data',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.body,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.border),
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                children: [
+                  // SECTION 1: PRIVACY POLICY
+                  Text(
+                    'PRIVACY POLICY',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.body,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const ExpandablePrivacyCard(
+                    title: 'Information LisKo Uses',
+                    icon: Icons.folder_shared_outlined,
+                    description:
+                        'LisKo uses information necessary for travel safety monitoring:\n'
+                        '• Trusted Contacts: Names, phone numbers, and relationships you provide.\n'
+                        '• Commute Settings: Travel destinations and timer presets you select.\n'
+                        '• Trip Logs: Travel timer status and timestamps.\n'
+                        '• Location Coordinates: Used only when required by geofence arrival or emergency alert features.\n\n'
+                        'LisKo does not require user registration or an online account. Trusted contacts and app preferences are stored locally on your device.',
+                  ),
+                  const ExpandablePrivacyCard(
+                    title: 'Why Information Is Used',
+                    icon: Icons.center_focus_strong_outlined,
+                    description:
+                        'LisKo uses this information solely to:\n'
+                        '• Manage active commute timers and send arrival reminders.\n'
+                        '• Automatically detect arrival at your selected destination geofence.\n'
+                        '• Send safe-arrival SMS notifications to your Primary Emergency Contact.\n'
+                        '• Dispatch emergency alerts with your location to trusted contacts when needed.',
+                  ),
+                  const ExpandablePrivacyCard(
+                    title: 'Who Receives Your Information',
+                    icon: Icons.people_outline_rounded,
+                    description:
+                        '• Normal Safe Arrival: Confirming "I\'m Safe" sends an SMS only to your Primary Emergency Contact without GPS coordinates.\n'
+                        '• Emergency Alerts: Triggering Manual SOS, tapping "Need Help", or failing to respond to a safety timeout sends emergency alerts to all your trusted contacts.\n'
+                        '• No Live-Tracking Dashboard: LisKo does not broadcast your location to a public or admin web dashboard.',
+                  ),
+                  const ExpandablePrivacyCard(
+                    title: 'Storage & User Control',
+                    icon: Icons.phonelink_setup_rounded,
+                    description:
+                        '• No account registration or login is required.\n'
+                        '• Some app information, such as trusted contacts and preferences, is stored locally on your phone.\n'
+                        '• You can add, edit, or remove trusted contacts at any time.\n'
+                        '• You can manage Android location permissions through system settings.',
+                  ),
+                  const ExpandablePrivacyCard(
+                    title: 'Privacy Commitment',
+                    icon: Icons.verified_user_outlined,
+                    description:
+                        'LisKo is designed to minimize location sharing by utilizing location information only when required by its safety and emergency features.',
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // SECTION 2: GPS USAGE RULES
+                  Text(
+                    'GPS USAGE RULES',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.body,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const ExpandablePrivacyCard(
+                    title: '1. When GPS / Location Is Used',
+                    icon: Icons.location_on_outlined,
+                    description:
+                        'LisKo accesses location services only during specific event-driven safety functions:\n'
+                        '• Destination Arrival: Checking geofence boundary arrival during an active trip.\n'
+                        '• Emergency Alerts: Requesting your current location during Manual SOS, "Need Help", or an unhandled safety timeout.',
+                  ),
+                  const ExpandablePrivacyCard(
+                    title: '2. When GPS Is NOT Used',
+                    icon: Icons.location_off_outlined,
+                    description:
+                        '• LisKo does not continuously broadcast or track your location throughout your journey.\n'
+                        '• LisKo does not provide 24/7 live-location tracking.\n'
+                        '• Confirming "I\'m Safe" on arrival does not attach GPS coordinates to the normal Safe Arrival SMS.',
+                  ),
+                  const ExpandablePrivacyCard(
+                    title: '3. Emergency Location Sharing',
+                    icon: Icons.sos_rounded,
+                    description:
+                        '• During an emergency alert, LisKo attempts to obtain your current GPS coordinates.\n'
+                        '• If a valid location fix is obtained, coordinates and a Google Maps link may be included in the emergency SMS.\n'
+                        '• If location services cannot obtain a current fix, the emergency alert is still sent without location coordinates.\n'
+                        '• Emergency location is sent only to the trusted contacts involved in the alert.',
+                  ),
+                  const ExpandablePrivacyCard(
+                    title: '4. Permissions & User Control',
+                    icon: Icons.admin_panel_settings_outlined,
+                    description:
+                        '• Android Location Permission is required for geofencing and emergency location features.\n'
+                        '• You can enable or disable location permissions at any time through Android System Settings.\n'
+                        '• Disabling location services or permissions may prevent geofencing auto-arrival and emergency location acquisition.',
+                  ),
+
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
