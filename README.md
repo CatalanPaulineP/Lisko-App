@@ -190,10 +190,10 @@ LisKo requests the following Android permissions:
 
 | Member | Role |
 | --- | --- |
-| [Member Name] | [Role] |
-| [Member Name] | [Role] |
-| [Member Name] | [Role] |
-| [Member Name] | [Role] |
+| Rainn Jewel S. Castillo | Backend Developer |
+| Pauline P. Catalan | Backend Developer |
+| Rotchen P. Parangue | Project Manager |
+| Ashley Prescilla V. Villanueva | Frontend Developer |
 
 ---
 
