@@ -106,9 +106,9 @@ class GeofenceService {
     radiusMeters: LocalStorageService.defaultHomeRadius,
   );
 
-  /// Verified Commuter Transit Nodes for Santa Maria, Norzagaray, and Angat
+  /// Verified Commuter Transit Nodes for Santa Maria, Norzagaray, Angat, Pandi, Bocaue, and Marilao
   static const List<GeofenceTarget> commuterNodes = [
-    // --- SANTA MARIA ---
+    // --- SANTA MARIA (3 original + 4 new approved additions) ---
     GeofenceTarget(
       id: 'caypombo',
       name: 'Caypombo Terminal / Crossing',
@@ -136,8 +136,44 @@ class GeofenceService {
       transitType: 'jeep',
       radiusMeters: 150.0,
     ),
+    GeofenceTarget(
+      id: 'sm_jeep_terminal',
+      name: 'New Santa Maria Jeepney Terminal (Ilalim ng Tulay)',
+      latitude: 14.817611,
+      longitude: 120.959392,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
+      address: '15 C De Jesus St, Brgy. Poblacion, Santa Maria, 3022 Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'sm_sti_station',
+      name: 'STI College - Sta. Maria Loading/Unloading Station',
+      latitude: 14.821110,
+      longitude: 120.959243,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
+      address: 'AAA Building, Halili Arcade, Brgy. Poblacion, Santa Maria, 3022 Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'sm_caypombo_p2p',
+      name: 'P2P Caypombo Terminal',
+      latitude: 14.848596,
+      longitude: 120.981279,
+      municipality: 'SANTA MARIA',
+      transitType: 'bus',
+      address: 'RXXJ+CG6, Brgy. Caypombo, 3022 Santa Maria, Bulacan',
+    ),
+    GeofenceTarget(
+      id: 'sm_tierra_subd',
+      name: 'Tierra de Santa Maria Subdivision Jeep/Bus Stop',
+      latitude: 14.873493169286384,
+      longitude: 121.00672345660084,
+      municipality: 'SANTA MARIA',
+      transitType: 'jeep',
+      address: 'Norzagaray - Santa Maria Road, Brgy. Pulong Buhangin, Santa Maria, 3022 Bulacan',
+    ),
 
-    // --- NORZAGARAY ---
+    // --- NORZAGARAY (1 original) ---
     GeofenceTarget(
       id: 'norz_terminal',
       name: 'Norzagaray-Santa Maria Jeepney & UV Terminal',
@@ -148,7 +184,7 @@ class GeofenceService {
       address: 'Gen. E. De Leon St., Brgy. Poblacion, Norzagaray, Bulacan',
     ),
 
-    // --- ANGAT ---
+    // --- ANGAT (3 original) ---
     GeofenceTarget(
       id: 'angat_divisoria',
       name: 'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)',
@@ -175,6 +211,39 @@ class GeofenceService {
       municipality: 'ANGAT',
       transitType: 'bus',
       address: 'General Alejo Santos Highway, Brgy. Poblacion, Angat, Bulacan',
+    ),
+
+    // --- PANDI (1 new approved addition) ---
+    GeofenceTarget(
+      id: 'pandi_p2p',
+      name: 'P2P Pandi Terminal',
+      latitude: 14.886820,
+      longitude: 120.967725,
+      municipality: 'PANDI',
+      transitType: 'bus',
+      address: 'VXP8+8XP, Brgy. Mapulang Lupa, Pandi, Bulacan',
+    ),
+
+    // --- BOCAUE (1 new approved addition) ---
+    GeofenceTarget(
+      id: 'bocaue_loading_station',
+      name: 'Bocaue Loading/Unloading Station',
+      latitude: 14.807822217640073,
+      longitude: 120.94154942456477,
+      municipality: 'BOCAUE',
+      transitType: 'jeep',
+      address: '',
+    ),
+
+    // --- MARILAO (1 new approved addition) ---
+    GeofenceTarget(
+      id: 'marilao_fortune',
+      name: 'Fortune Market & Transport Terminal',
+      latitude: 14.76235509247624,
+      longitude: 120.94843839515224,
+      municipality: 'MARILAO',
+      transitType: 'jeep',
+      address: 'Fortune Market, Brgy. Tabing Ilog, Marilao, Bulacan',
     ),
   ];
 

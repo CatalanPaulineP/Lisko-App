@@ -691,11 +691,14 @@ class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
   String? _expandedMunicipalityId;
   final Map<String, ExpansibleController> _controllers = {};
 
-  /// Explicit municipality display priority (Santa Maria #1, followed by Norzagaray, Angat).
+  /// Explicit municipality display priority.
   static const List<String> _municipalityPriority = [
     'Santa Maria',
     'Norzagaray',
     'Angat',
+    'Pandi',
+    'Bocaue',
+    'Marilao',
   ];
 
   int _getMunicipalityPriority(String name) {
@@ -825,7 +828,7 @@ class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                 child: ListView.builder(
                   shrinkWrap: true,
-                  physics: const BouncingScrollPhysics(),
+                  physics: const ClampingScrollPhysics(),
                   itemCount: municipalities.length,
                   itemBuilder: (context, index) {
                     final municipalityName = municipalities[index];
@@ -836,6 +839,10 @@ class _TransitNodeSelectionSheetState extends State<TransitNodeSelectionSheet> {
                     return ExpansionTile(
                       key: ValueKey<String>(municipalityName),
                       controller: _getController(municipalityName),
+                      expansionAnimationStyle: const AnimationStyle(
+                        duration: Duration(milliseconds: 200),
+                        curve: Curves.easeOutQuad,
+                      ),
                       title: Text(
                         municipalityName,
                         style: GoogleFonts.plusJakartaSans(
