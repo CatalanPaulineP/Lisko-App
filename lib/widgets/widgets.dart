@@ -14,6 +14,7 @@
 
 export 'action_buttons.dart';
 export 'app_icon.dart';
+export 'notifications_popover.dart';
 export 'onboarding_header_shell.dart';
 export 'set_trip_timer_bottom_sheet.dart';
 export 'system_status_card.dart';

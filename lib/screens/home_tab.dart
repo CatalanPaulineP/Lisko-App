@@ -20,15 +20,19 @@
 //   easy thumb reach on standard smartphone dimensions.
 // ==============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
-import '../widgets/app_icon.dart';
-import '../widgets/system_status_card.dart';
-import '../widgets/trip_timer_card.dart';
 import '../services/firebase_service.dart';
 import '../services/local_storage_service.dart';
+import '../widgets/app_icon.dart';
+import '../widgets/notifications_popover.dart';
+import '../widgets/system_status_card.dart';
+import '../widgets/trip_timer_card.dart';
+import 'all_notifications_screen.dart';
 import 'trips_tab.dart';
 
 /// Home dashboard view containing the hero header, trip launcher, and status indicators.
@@ -137,11 +141,310 @@ class HomeDashboardTab extends StatelessWidget {
   }
 }
 
-/// Header with patterned background, greeting, and system ready card.
-class HomeHeader extends StatelessWidget {
+/// Header with patterned background, greeting, system ready card, and notifications popover anchor.
+class HomeHeader extends StatefulWidget {
   const HomeHeader({super.key, this.selectedTab = 0});
 
   final int selectedTab;
+
+  @override
+  State<HomeHeader> createState() => _HomeHeaderState();
+}
+
+class _HomeHeaderState extends State<HomeHeader> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  StreamSubscription<List<TripRecord>>? _tripsSub;
+
+  List<TripRecord> _rawTrips = [];
+  Set<String> _readIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReadIds();
+    _tripsSub = FirebaseService().getTripsStream().listen((trips) {
+      if (mounted) {
+        setState(() {
+          _rawTrips = trips;
+        });
+        _overlayEntry?.markNeedsBuild();
+      }
+    });
+  }
+
+  Future<void> _loadReadIds() async {
+    final ids = await const LocalStorageService().readReadNotificationIds();
+    if (mounted) {
+      setState(() {
+        _readIds = ids;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _tripsSub?.cancel();
+    _hideNotificationsPopover();
+    super.dispose();
+  }
+
+  String _formatTimeAgo(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inSeconds < 60) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24 &&
+        timestamp.day == now.day &&
+        timestamp.month == now.month &&
+        timestamp.year == now.year) {
+      return '${difference.inHours}h ago';
+    } else if (timestamp.day == now.subtract(const Duration(days: 1)).day &&
+        timestamp.month == now.subtract(const Duration(days: 1)).month &&
+        timestamp.year == now.subtract(const Duration(days: 1)).year) {
+      return 'Yesterday';
+    } else {
+      final month = timestamp.month.toString().padLeft(2, '0');
+      final day = timestamp.day.toString().padLeft(2, '0');
+      return '$month/$day';
+    }
+  }
+
+  List<AppNotificationItem> _buildNotificationItems() {
+    final List<AppNotificationItem> items = [];
+
+    for (final trip in _rawTrips) {
+      final statusLower = trip.status.toLowerCase();
+      final timeStr = _formatTimeAgo(trip.timestamp);
+      final isRead = _readIds.contains(trip.id);
+
+      String title;
+      String message;
+      String category;
+      IconData icon;
+      Color iconColor;
+
+      if (['completed', 'arrived', 'arrived safely'].contains(statusLower)) {
+        title = 'Safe Arrival Alert';
+        message = 'You have safely arrived at ${trip.destination}.';
+        category = 'arrival';
+        icon = Icons.check_circle_rounded;
+        iconColor = AppColors.success;
+      } else if (trip.destination == 'Manual SOS' || ['manual sos'].contains(statusLower)) {
+        title = 'Emergency Alert Sent';
+        message = 'Manual SOS triggered. Alert SMS sent to trusted contacts.';
+        category = 'emergency';
+        icon = Icons.warning_rounded;
+        iconColor = AppColors.primary;
+      } else if (['expired', 'timer expired'].contains(statusLower)) {
+        title = 'Emergency Alert Sent';
+        message = 'Safety check timed out for ${trip.destination}. Alert SMS sent to trusted contacts.';
+        category = 'emergency';
+        icon = Icons.warning_rounded;
+        iconColor = AppColors.primary;
+      } else if (['help_requested', 'need help', 'alert'].contains(statusLower)) {
+        title = 'Emergency Alert Sent';
+        message = 'Help was requested during your trip to ${trip.destination}. Alert SMS sent to trusted contacts.';
+        category = 'emergency';
+        icon = Icons.warning_rounded;
+        iconColor = AppColors.primary;
+      } else if (statusLower == 'active') {
+        title = 'Trip Timer Active';
+        message = 'Heading to ${trip.destination} (${trip.durationMinutes} mins).';
+        category = 'trip';
+        icon = Icons.navigation_rounded;
+        iconColor = AppColors.primary;
+      } else if (trip.wasExtended || ['extended', 'trip extended'].contains(statusLower)) {
+        title = 'Trip Extended';
+        message = '15 minutes added to trip to ${trip.destination}.';
+        category = 'trip';
+        icon = Icons.add_alarm_rounded;
+        iconColor = const Color(0xFFD97706);
+      } else if (statusLower == 'cancelled') {
+        title = 'Trip Cancelled';
+        message = 'Trip to ${trip.destination} was cancelled.';
+        category = 'trip';
+        icon = Icons.cancel_rounded;
+        iconColor = AppColors.body;
+      } else {
+        title = 'Trip Activity';
+        message = 'Trip to ${trip.destination} (${trip.status}).';
+        category = 'trip';
+        icon = Icons.notifications_rounded;
+        iconColor = AppColors.primary;
+      }
+
+      items.add(
+        AppNotificationItem(
+          id: trip.id,
+          title: title,
+          message: message,
+          timeAgo: timeStr,
+          isRead: isRead,
+          category: category,
+          icon: icon,
+          iconColor: iconColor,
+        ),
+      );
+    }
+
+    return items;
+  }
+
+  bool _isToday(DateTime ts) {
+    final now = DateTime.now();
+    return ts.year == now.year && ts.month == now.month && ts.day == now.day;
+  }
+
+  bool _isYesterday(DateTime ts) {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    return ts.year == yesterday.year && ts.month == yesterday.month && ts.day == yesterday.day;
+  }
+
+  List<AppNotificationItem> get _todayNotifications {
+    final allItems = _buildNotificationItems();
+    if (_rawTrips.isEmpty) return [];
+
+    final todayTripIds =
+        _rawTrips.where((t) => _isToday(t.timestamp)).map((t) => t.id).toSet();
+    return allItems
+        .where((n) => todayTripIds.contains(n.id))
+        .toList();
+  }
+
+  List<AppNotificationItem> get _yesterdayNotifications {
+    final allItems = _buildNotificationItems();
+    if (_rawTrips.isEmpty) return [];
+
+    final yesterdayTripIds =
+        _rawTrips.where((t) => _isYesterday(t.timestamp)).map((t) => t.id).toSet();
+    return allItems
+        .where((n) => yesterdayTripIds.contains(n.id))
+        .toList();
+  }
+
+  List<AppNotificationItem> get _earlierNotifications {
+    final allItems = _buildNotificationItems();
+    if (_rawTrips.isEmpty) return [];
+
+    final recentTripIds =
+        _rawTrips.where((t) => _isToday(t.timestamp) || _isYesterday(t.timestamp)).map((t) => t.id).toSet();
+    return allItems
+        .where((n) => !recentTripIds.contains(n.id))
+        .toList();
+  }
+
+  bool get _hasUnread {
+    final allItems = _buildNotificationItems();
+    return allItems.any((n) => !n.isRead);
+  }
+
+  List<AppNotificationItem> get _visiblePopoverNotifications {
+    final allItems = [
+      ..._todayNotifications,
+      ..._yesterdayNotifications,
+      ..._earlierNotifications,
+    ];
+    return allItems.take(5).toList();
+  }
+
+  void _markVisiblePopoverAsRead() {
+    final visibleItems = _visiblePopoverNotifications;
+    final unreadVisible = visibleItems.where((n) => !n.isRead).toList();
+    if (unreadVisible.isEmpty) return;
+
+    final newReadIds = Set<String>.from(_readIds);
+    for (final item in unreadVisible) {
+      newReadIds.add(item.id);
+    }
+
+    setState(() {
+      _readIds = newReadIds;
+    });
+    const LocalStorageService().saveReadNotificationIds(newReadIds);
+  }
+
+  void _toggleNotificationsPopover() {
+    if (_overlayEntry == null) {
+      _showNotificationsPopover();
+    } else {
+      _hideNotificationsPopover();
+    }
+  }
+
+  void _showNotificationsPopover() {
+    if (_overlayEntry != null) return;
+
+    // Mark ONLY the visible latest-5 notification items as read
+    _markVisiblePopoverAsRead();
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            // Transparent barrier dismissing popover on outside tap
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _hideNotificationsPopover,
+                child: const SizedBox.expand(),
+              ),
+            ),
+            // Popover card follower anchored to layer link target
+            Positioned(
+              child: CompositedTransformFollower(
+                link: _layerLink,
+                showWhenUnlinked: false,
+                targetAnchor: Alignment.bottomRight,
+                followerAnchor: Alignment.topRight,
+                offset: const Offset(0, 6),
+                child: NotificationsPopover(
+                  todayNotifications: _todayNotifications,
+                  earlierNotifications: [..._yesterdayNotifications, ..._earlierNotifications],
+                  onClose: _hideNotificationsPopover,
+                  onItemTap: _handleItemTap,
+                  onViewAll: _handleViewAll,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideNotificationsPopover() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _handleViewAll() {
+    _hideNotificationsPopover();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AllNotificationsScreen(
+          todayNotifications: _todayNotifications,
+          yesterdayNotifications: _yesterdayNotifications,
+          earlierNotifications: _earlierNotifications,
+          onItemTap: _handleItemTap,
+        ),
+      ),
+    );
+  }
+
+  void _handleItemTap(String id) {
+    setState(() {
+      _readIds.add(id);
+    });
+    const LocalStorageService().saveReadNotificationIds(_readIds);
+    _overlayEntry?.markNeedsBuild();
+  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -222,18 +525,39 @@ class HomeHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  IconButton(
-                    onPressed: () {},
-                    tooltip: 'Notifications',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 44,
-                      height: 44,
-                    ),
-                    icon: const AppIcon.standard(
-                      AppIcons.notificationsOutline,
-                      color: Colors.white,
-                      semanticIcon: Icons.notifications_none_rounded,
+                  CompositedTransformTarget(
+                    link: _layerLink,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          onPressed: _toggleNotificationsPopover,
+                          tooltip: 'Notifications',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 44,
+                            height: 44,
+                          ),
+                          icon: const AppIcon.standard(
+                            AppIcons.notificationsOutline,
+                            color: Colors.white,
+                            semanticIcon: Icons.notifications_none_rounded,
+                          ),
+                        ),
+                        if (_hasUnread)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              width: 9,
+                              height: 9,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -242,7 +566,7 @@ class HomeHeader extends StatelessWidget {
             const SizedBox(height: 28), // Explicit spacing to perfectly prevent text overlap
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SystemReadyCard(selectedTab: selectedTab),
+              child: SystemReadyCard(selectedTab: widget.selectedTab),
             ),
           ],
         ),

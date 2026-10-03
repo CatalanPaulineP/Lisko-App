@@ -292,6 +292,29 @@ class LocalStorageService {
     }
   }
 
+  static const _readNotificationIdsKey = 'read_notification_ids_set';
+
+  Future<Set<String>> readReadNotificationIds() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final list = preferences.getStringList(_readNotificationIdsKey);
+      return list?.toSet() ?? {};
+    } catch (e, st) {
+      developer.log('Failed to read notification read IDs from SharedPreferences', error: e, stackTrace: st);
+      return {};
+    }
+  }
+
+  Future<bool> saveReadNotificationIds(Set<String> readIds) async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return await preferences.setStringList(_readNotificationIdsKey, readIds.toList());
+    } catch (e, st) {
+      developer.log('Failed to save notification read IDs to SharedPreferences', error: e, stackTrace: st);
+      return false;
+    }
+  }
+
   /// Persists the onboarding setup completion state to local storage.
   ///
   /// Called upon tapping "Go to Home" on the Step 5 ("You're Ready!") screen,

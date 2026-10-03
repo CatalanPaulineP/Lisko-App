@@ -815,4 +815,197 @@ void main() {
       expect(resolvedDivisoria!.id, 'angat_divisoria');
     },
   );
+
+  testWidgets(
+    'notification bell opens popover displaying max 5 recent items without auto-marking read',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+
+      final todayList = List.generate(
+        4,
+        (i) => AppNotificationItem(
+          id: 't_$i',
+          title: 'Safe Arrival Alert $i',
+          message: 'You have safely arrived at Campus.',
+          timeAgo: '10m ago',
+          category: 'arrival',
+          isRead: false,
+        ),
+      );
+
+      final earlierList = List.generate(
+        4,
+        (i) => AppNotificationItem(
+          id: 'e_$i',
+          title: 'Emergency Alert Sent $i',
+          message: 'Manual SOS triggered. Alert SMS sent to trusted contacts.',
+          timeAgo: 'Yesterday',
+          category: 'emergency',
+          isRead: false,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NotificationsPopover(
+              todayNotifications: todayList,
+              earlierNotifications: earlierList,
+              onClose: () {},
+              onItemTap: (_) {},
+              onViewAll: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Verify popover title and unread badge count (total 8 unread)
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
+
+      // 2. Verify max 5 recent items are displayed
+      expect(find.byType(NotificationTile), findsNWidgets(5));
+      expect(find.text('View All Notifications'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'AllNotificationsScreen displays category filter chips and filters emergency vs safe arrival notifications',
+    (tester) async {
+      final todayList = [
+        const AppNotificationItem(
+          id: '1',
+          title: 'Safe Arrival Alert',
+          message: 'You have safely arrived at Campus.',
+          timeAgo: '10m ago',
+          category: 'arrival',
+          isRead: false,
+        ),
+        const AppNotificationItem(
+          id: '2',
+          title: 'Emergency Alert Sent',
+          message: 'Manual SOS triggered. Alert SMS sent to trusted contacts.',
+          timeAgo: '30m ago',
+          category: 'emergency',
+          isRead: false,
+        ),
+      ];
+
+      final yesterdayList = [
+        const AppNotificationItem(
+          id: '3',
+          title: 'Emergency Alert Sent',
+          message: 'Safety check timed out for Campus. Alert SMS sent to trusted contacts.',
+          timeAgo: 'Yesterday',
+          category: 'emergency',
+          isRead: true,
+        ),
+      ];
+
+      String? tappedId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AllNotificationsScreen(
+            todayNotifications: todayList,
+            yesterdayNotifications: yesterdayList,
+            earlierNotifications: const [],
+            onItemTap: (id) => tappedId = id,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. All filter selected by default: shows TODAY and YESTERDAY sections
+      expect(find.text('TODAY'), findsOneWidget);
+      expect(find.text('YESTERDAY'), findsOneWidget);
+      expect(find.byType(NotificationTile), findsNWidgets(3));
+
+      // 2. Filter by Emergency Alerts
+      await tester.tap(find.text('Emergency Alerts'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NotificationTile), findsNWidgets(2));
+      expect(find.text('Safe Arrival Alert'), findsNothing);
+
+      // 3. Filter by Safe Arrivals
+      await tester.tap(find.text('Safe Arrivals'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NotificationTile), findsNWidgets(1));
+      expect(find.text('Safe Arrival Alert'), findsOneWidget);
+      expect(find.text('Emergency Alert Sent'), findsNothing);
+
+      // 4. Tap notification tile
+      await tester.tap(find.text('Safe Arrival Alert'));
+      await tester.pumpAndSettle();
+      expect(tappedId, '1');
+
+      // 5. Test empty state when filter has no matches
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AllNotificationsScreen(
+            todayNotifications: const [],
+            yesterdayNotifications: const [],
+            earlierNotifications: const [],
+            onItemTap: (_) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No safe arrivals recorded'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'opening popover marks ONLY top 5 visible notifications read and leaves older items unread',
+    (tester) async {
+      final mockTrips = List.generate(
+        8,
+        (i) => TripRecord(
+          id: 'trip_$i',
+          destination: 'Campus $i',
+          durationMinutes: 30,
+          status: 'arrived',
+          timestamp: DateTime.now().subtract(Duration(minutes: i * 10)),
+        ),
+      );
+
+      final encoded = jsonEncode(mockTrips.map((t) => t.toJson()).toList());
+      SharedPreferences.setMockInitialValues({
+        'trip_history_json': encoded,
+        'walkthrough_completed_v2': true,
+        'setup_completed': true,
+      });
+
+      await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+      await tester.pumpAndSettle();
+
+      // 1. Initial state: Notification bell has unread indicator
+      expect(find.byTooltip('Notifications'), findsOneWidget);
+
+      // 2. Open Notification Popover
+      await tester.tap(find.byTooltip('Notifications'));
+      await tester.pumpAndSettle();
+
+      // 3. Popover shows top 5 items, unread badge count shows remaining 3
+      expect(find.byType(NotificationsPopover), findsOneWidget);
+      expect(find.text('3'), findsOneWidget); // 3 remaining unread
+
+      // 4. Close popover
+      await tester.tap(find.byTooltip('Close notifications'));
+      await tester.pumpAndSettle();
+
+      // 5. Verify top 5 IDs were persisted as read, and items 5-7 remain unread
+      final prefs = await SharedPreferences.getInstance();
+      final readIds = prefs.getStringList('read_notification_ids_set') ?? [];
+      expect(readIds.length, 5);
+      expect(readIds, containsAll(['trip_0', 'trip_1', 'trip_2', 'trip_3', 'trip_4']));
+      expect(readIds.contains('trip_5'), false);
+      expect(readIds.contains('trip_6'), false);
+      expect(readIds.contains('trip_7'), false);
+    },
+  );
 }
