@@ -761,14 +761,14 @@ void main() {
       expect(norzagarayY, lessThan(angatY));
 
       // 2. All groups start collapsed initially
-      expect(find.text('Caypombo Terminal / Crossing'), findsNothing);
-      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsNothing);
+      expect(find.text('Caypombo Jeep/Bus Stop'), findsNothing);
+      expect(find.text('Norzagaray Crossing'), findsNothing);
       expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsNothing);
 
       // 3. Expand Santa Maria via header text tap
       await tester.tap(santaMariaFinder);
       await tester.pumpAndSettle();
-      expect(find.text('Caypombo Terminal / Crossing'), findsOneWidget);
+      expect(find.text('Caypombo Jeep/Bus Stop'), findsOneWidget);
 
       // 4. Collapse Santa Maria via header text tap
       await tester.tap(santaMariaFinder);
@@ -777,13 +777,13 @@ void main() {
       // 5. Expand Norzagaray via header text tap -> Norzagaray terminals become visible
       await tester.tap(norzagarayFinder);
       await tester.pumpAndSettle();
-      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsOneWidget);
+      expect(find.text('Norzagaray Crossing'), findsOneWidget);
 
       // 6. Expand Angat via header text tap -> Norzagaray automatically collapses
       await tester.tap(angatFinder);
       await tester.pumpAndSettle();
       expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsOneWidget);
-      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsNothing);
+      expect(find.text('Norzagaray Crossing'), findsNothing);
 
       // 7. Select Angat terminal -> callback fires
       await tester.tap(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'));
@@ -793,7 +793,7 @@ void main() {
 
       // 9. Verify exact resolveTarget() matching
       final service = GeofenceService();
-      final resolvedNorz = await service.resolveTarget('Norzagaray-Santa Maria Jeepney & UV Terminal');
+      final resolvedNorz = await service.resolveTarget('Norzagaray Crossing');
       final resolvedDivisoria = await service.resolveTarget('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)');
 
       expect(resolvedNorz!.id, 'norz_terminal');
@@ -802,23 +802,23 @@ void main() {
       // 10. Comprehensive 14-terminal audit assertions
       expect(GeofenceService.commuterNodes.length, 14);
 
-      // Verify 7 original terminals
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'caypombo' && n.latitude == 14.848737039366092 && n.longitude == 120.9812542306243), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'waltermart' && n.latitude == 14.822738093788265 && n.longitude == 120.95424771314413), true);
+      // Verify original nodes with updated verified coordinates
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'caypombo' && n.name == 'Caypombo Jeep/Bus Stop' && n.latitude == 14.847154 && n.longitude == 120.980688), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'waltermart' && n.latitude == 14.824197 && n.longitude == 120.954508), true);
       expect(GeofenceService.commuterNodes.any((n) => n.id == 'bayan' && n.latitude == 14.821742177842623 && n.longitude == 120.96163959792787), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'norz_terminal' && n.latitude == 14.910992 && n.longitude == 121.053711), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'norz_terminal' && n.name == 'Norzagaray Crossing' && n.latitude == 14.905759 && n.longitude == 121.038575), true);
       expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_divisoria' && n.latitude == 14.922119 && n.longitude == 121.031189), true);
       expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_monumento' && n.latitude == 14.916910 && n.longitude == 121.028850), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_precious' && n.latitude == 14.933445 && n.longitude == 121.038123), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_precious' && n.latitude == 14.917082 && n.longitude == 121.028816), true);
 
-      // Verify 7 new approved terminals with exact coordinates
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_jeep_terminal' && n.latitude == 14.817611 && n.longitude == 120.959392), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_sti_station' && n.latitude == 14.821110 && n.longitude == 120.959243), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_caypombo_p2p' && n.latitude == 14.848596 && n.longitude == 120.981279), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_tierra_subd' && n.latitude == 14.873493169286384 && n.longitude == 121.00672345660084), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'pandi_p2p' && n.latitude == 14.886820 && n.longitude == 120.967725), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'bocaue_loading_station' && n.latitude == 14.807822217640073 && n.longitude == 120.94154942456477), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'marilao_fortune' && n.latitude == 14.76235509247624 && n.longitude == 120.94843839515224), true);
+      // Verify new approved terminals with exact October 03 field-verified coordinates
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_jeep_terminal' && n.latitude == 14.81761144692498 && n.longitude == 120.95939230431375), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_sti_station' && n.latitude == 14.8211107 && n.longitude == 120.959243), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_caypombo_p2p' && n.latitude == 14.848596041960562 && n.longitude == 120.98127901552402), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_tierra_subd' && n.latitude == 14.873438 && n.longitude == 121.006779), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'pandi_p2p' && n.latitude == 14.885914 && n.longitude == 120.967473), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'bocaue_loading_station' && n.latitude == 14.807693 && n.longitude == 120.941586), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'marilao_fortune' && n.latitude == 14.762252 && n.longitude == 120.948450), true);
 
       // Verify Rain's old coordinates and excluded terminals are NOT present
       expect(GeofenceService.commuterNodes.any((n) => n.latitude == 14.864920 && n.longitude == 120.965000), false); // Rain old Tierra
@@ -830,7 +830,7 @@ void main() {
       expect(GeofenceService.commuterNodes.any((n) => n.name.contains('SM City Marilao')), false);
       expect(GeofenceService.commuterNodes.any((n) => n.municipality == 'SJDM'), false);
 
-      // Verify target resolution works deterministically for new terminals
+      // Verify target resolution works deterministically for updated/new terminals
       final resolvedTierra = await service.resolveTarget('Tierra de Santa Maria Subdivision Jeep/Bus Stop');
       final resolvedPandi = await service.resolveTarget('P2P Pandi Terminal');
       final resolvedBocaue = await service.resolveTarget('Bocaue Loading/Unloading Station');
