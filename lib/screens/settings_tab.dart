@@ -320,7 +320,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           iconColor: AppColors.primary,
                           title: 'Home Location Pin',
                           subtitle: _homeLat != null
-                              ? '${_homeLat!.toStringAsFixed(4)}� N, ${_homeLng!.toStringAsFixed(4)}� E'
+                              ? '${_homeLat!.toStringAsFixed(4)}° N, ${_homeLng!.toStringAsFixed(4)}° E'
                               : 'Tap to set home coordinates',
                           onTap: _openHomeGeofenceModal,
                         ),
