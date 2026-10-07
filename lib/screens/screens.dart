@@ -13,6 +13,7 @@
 // ==============================================================================
 
 export 'active_trip_screen.dart';
+export 'all_notifications_screen.dart';
 export 'contacts_tab.dart';
 export 'faq_screen.dart';
 export 'home_tab.dart';

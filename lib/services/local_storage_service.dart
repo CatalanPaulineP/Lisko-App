@@ -248,6 +248,28 @@ class LocalStorageService {
     ),
   ];
 
+  /// Reads whether the user has completed the initial onboarding setup.
+  ///
+  /// **Boot Check & Lockout Logic:**
+  /// Used by `main.dart` during app launch to determine the initial route:
+  /// - `true`: Skips the welcome/onboarding carousel and navigates directly to `HomeScreen`.
+  /// - `false`: Shows the initial `SplashScreen` followed by the onboarding flow.
+  ///
+  /// Falls back safely to `false` if an I/O or platform channel error occurs.
+  Future<bool> readSetupCompleted() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return preferences.getBool(_setupCompletedKey) ?? false;
+    } catch (e, st) {
+      developer.log(
+        'Failed to read setup_completed from SharedPreferences',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
+    }
+  }
+
   static const _walkthroughKey = 'walkthrough_completed_v2';
 
   Future<bool> readWalkthroughCompleted() async {
@@ -270,24 +292,25 @@ class LocalStorageService {
     }
   }
 
-  /// Reads whether the user has completed the initial onboarding setup.
-  ///
-  /// **Boot Check & Lockout Logic:**
-  /// Used by `main.dart` during app launch to determine the initial route:
-  /// - `true`: Skips the welcome/onboarding carousel and navigates directly to `HomeScreen`.
-  /// - `false`: Shows the initial `SplashScreen` followed by the onboarding flow.
-  ///
-  /// Falls back safely to `false` if an I/O or platform channel error occurs.
-  Future<bool> readSetupCompleted() async {
+  static const _readNotificationIdsKey = 'read_notification_ids_set';
+
+  Future<Set<String>> readReadNotificationIds() async {
     try {
       final preferences = await SharedPreferences.getInstance();
-      return preferences.getBool(_setupCompletedKey) ?? false;
+      final list = preferences.getStringList(_readNotificationIdsKey);
+      return list?.toSet() ?? {};
     } catch (e, st) {
-      developer.log(
-        'Failed to read setup_completed from SharedPreferences',
-        error: e,
-        stackTrace: st,
-      );
+      developer.log('Failed to read notification read IDs from SharedPreferences', error: e, stackTrace: st);
+      return {};
+    }
+  }
+
+  Future<bool> saveReadNotificationIds(Set<String> readIds) async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      return await preferences.setStringList(_readNotificationIdsKey, readIds.toList());
+    } catch (e, st) {
+      developer.log('Failed to save notification read IDs to SharedPreferences', error: e, stackTrace: st);
       return false;
     }
   }

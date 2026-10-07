@@ -1,4 +1,4 @@
-package com.example.flutter_app
+package com.lisko.safety
 
 import android.os.Bundle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen

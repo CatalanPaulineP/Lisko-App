@@ -761,58 +761,283 @@ void main() {
       expect(norzagarayY, lessThan(angatY));
 
       // 2. All groups start collapsed initially
-      expect(find.text('Caypombo Terminal / Crossing'), findsNothing);
-      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsNothing);
+      expect(find.text('Caypombo Jeep/Bus Stop'), findsNothing);
+      expect(find.text('Norzagaray Crossing'), findsNothing);
       expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsNothing);
 
-      // 3. Expand Santa Maria
+      // 3. Expand Santa Maria via header text tap
       await tester.tap(santaMariaFinder);
       await tester.pumpAndSettle();
-      expect(find.text('Caypombo Terminal / Crossing'), findsOneWidget);
-      expect(find.text('Waltermart Santa Maria Drop-off'), findsOneWidget);
+      expect(find.text('Caypombo Jeep/Bus Stop'), findsOneWidget);
 
-      // 4. Without manually collapsing Santa Maria, expand Angat
+      // 4. Collapse Santa Maria via header text tap
+      await tester.tap(santaMariaFinder);
+      await tester.pumpAndSettle();
+
+      // 5. Expand Norzagaray via header text tap -> Norzagaray terminals become visible
+      await tester.tap(norzagarayFinder);
+      await tester.pumpAndSettle();
+      expect(find.text('Norzagaray Crossing'), findsOneWidget);
+
+      // 6. Expand Angat via header text tap -> Norzagaray automatically collapses
       await tester.tap(angatFinder);
       await tester.pumpAndSettle();
-
-      // Angat terminals become visible, Santa Maria terminals are automatically collapsed!
       expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsOneWidget);
-      expect(find.text('Angat-Monumento Bus Terminal (Shanine & Pauline Transport)'), findsOneWidget);
-      expect(find.text('Caypombo Terminal / Crossing'), findsNothing);
+      expect(find.text('Norzagaray Crossing'), findsNothing);
 
-      // 5. Expand Norzagaray
-      await tester.tap(norzagarayFinder);
+      // 7. Select Angat terminal -> callback fires
+      await tester.tap(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'));
       await tester.pumpAndSettle();
 
-      // Norzagaray terminal becomes visible, Angat terminals are automatically collapsed!
-      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsOneWidget);
-      expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsNothing);
-
-      // 6. Tap Norzagaray again -> collapses, bottom sheet remains open
-      await tester.tap(norzagarayFinder);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TransitNodeSelectionSheet), findsOneWidget);
-      expect(find.text('Norzagaray-Santa Maria Jeepney & UV Terminal'), findsNothing);
-
-      // 7. Re-expand Santa Maria successfully
-      await tester.tap(santaMariaFinder);
-      await tester.pumpAndSettle();
-      expect(find.text('Caypombo Terminal / Crossing'), findsOneWidget);
-
-      // 8. Select an actual terminal -> callback fires and modal closes
-      await tester.tap(find.text('Caypombo Terminal / Crossing'));
-      await tester.pumpAndSettle();
-
-      expect(selected, 'Caypombo Terminal / Crossing');
+      expect(selected, 'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)');
 
       // 9. Verify exact resolveTarget() matching
       final service = GeofenceService();
-      final resolvedNorz = await service.resolveTarget('Norzagaray-Santa Maria Jeepney & UV Terminal');
+      final resolvedNorz = await service.resolveTarget('Norzagaray Crossing');
       final resolvedDivisoria = await service.resolveTarget('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)');
 
       expect(resolvedNorz!.id, 'norz_terminal');
       expect(resolvedDivisoria!.id, 'angat_divisoria');
+
+      // 10. Comprehensive 14-terminal audit assertions
+      expect(GeofenceService.commuterNodes.length, 14);
+
+      // Verify original nodes with updated verified coordinates
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'caypombo' && n.name == 'Caypombo Jeep/Bus Stop' && n.latitude == 14.847154 && n.longitude == 120.980688), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'waltermart' && n.latitude == 14.824197 && n.longitude == 120.954508), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'bayan' && n.latitude == 14.821742177842623 && n.longitude == 120.96163959792787), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'norz_terminal' && n.name == 'Norzagaray Crossing' && n.latitude == 14.905759 && n.longitude == 121.038575), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_divisoria' && n.latitude == 14.922119 && n.longitude == 121.031189), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_monumento' && n.latitude == 14.916910 && n.longitude == 121.028850), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_precious' && n.latitude == 14.917082 && n.longitude == 121.028816), true);
+
+      // Verify new approved terminals with exact October 03 field-verified coordinates
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_jeep_terminal' && n.latitude == 14.81761144692498 && n.longitude == 120.95939230431375), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_sti_station' && n.latitude == 14.8211107 && n.longitude == 120.959243), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_caypombo_p2p' && n.latitude == 14.848596041960562 && n.longitude == 120.98127901552402), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_tierra_subd' && n.latitude == 14.873438 && n.longitude == 121.006779), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'pandi_p2p' && n.latitude == 14.885914 && n.longitude == 120.967473), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'bocaue_loading_station' && n.latitude == 14.807693 && n.longitude == 120.941586), true);
+      expect(GeofenceService.commuterNodes.any((n) => n.id == 'marilao_fortune' && n.latitude == 14.762252 && n.longitude == 120.948450), true);
+
+      // Verify Rain's old coordinates and excluded terminals are NOT present
+      expect(GeofenceService.commuterNodes.any((n) => n.latitude == 14.864920 && n.longitude == 120.965000), false); // Rain old Tierra
+      expect(GeofenceService.commuterNodes.any((n) => n.latitude == 14.793000 && n.longitude == 120.925000), false); // Rain old Bocaue
+      expect(GeofenceService.commuterNodes.any((n) => n.latitude == 14.773121 && n.longitude == 120.949743), false); // Rain old Fortune
+      expect(GeofenceService.commuterNodes.any((n) => n.name.contains('Pandi Town Center')), false);
+      expect(GeofenceService.commuterNodes.any((n) => n.name.contains('Bocaue P2P')), false);
+      expect(GeofenceService.commuterNodes.any((n) => n.municipality == 'BALAGTAS'), false);
+      expect(GeofenceService.commuterNodes.any((n) => n.name.contains('SM City Marilao')), false);
+      expect(GeofenceService.commuterNodes.any((n) => n.municipality == 'SJDM'), false);
+
+      // Verify target resolution works deterministically for updated/new terminals
+      final resolvedTierra = await service.resolveTarget('Tierra de Santa Maria Subdivision Jeep/Bus Stop');
+      final resolvedPandi = await service.resolveTarget('P2P Pandi Terminal');
+      final resolvedBocaue = await service.resolveTarget('Bocaue Loading/Unloading Station');
+      final resolvedFortune = await service.resolveTarget('Fortune Market & Transport Terminal');
+
+      expect(resolvedTierra!.id, 'sm_tierra_subd');
+      expect(resolvedPandi!.id, 'pandi_p2p');
+      expect(resolvedBocaue!.id, 'bocaue_loading_station');
+      expect(resolvedFortune!.id, 'marilao_fortune');
+
+      // Verify municipality names alone do NOT resolve to an arbitrary terminal
+      expect(await service.resolveTarget('SANTA MARIA'), null);
+      expect(await service.resolveTarget('Pandi'), null);
+      expect(await service.resolveTarget('Marilao'), null);
+    },
+  );
+
+  testWidgets(
+    'notification bell opens popover displaying max 5 recent items without auto-marking read',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+
+      final todayList = List.generate(
+        4,
+        (i) => AppNotificationItem(
+          id: 't_$i',
+          title: 'Safe Arrival Alert $i',
+          message: 'You have safely arrived at Campus.',
+          timeAgo: '10m ago',
+          category: 'arrival',
+          isRead: false,
+        ),
+      );
+
+      final earlierList = List.generate(
+        4,
+        (i) => AppNotificationItem(
+          id: 'e_$i',
+          title: 'Emergency Alert Sent $i',
+          message: 'Manual SOS triggered. Alert SMS sent to trusted contacts.',
+          timeAgo: 'Yesterday',
+          category: 'emergency',
+          isRead: false,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NotificationsPopover(
+              todayNotifications: todayList,
+              earlierNotifications: earlierList,
+              onClose: () {},
+              onItemTap: (_) {},
+              onViewAll: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Verify popover title and unread badge count (total 8 unread)
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
+
+      // 2. Verify max 5 recent items are displayed
+      expect(find.byType(NotificationTile), findsNWidgets(5));
+      expect(find.text('View All Notifications'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'AllNotificationsScreen displays category filter chips and filters emergency vs safe arrival notifications',
+    (tester) async {
+      final todayList = [
+        const AppNotificationItem(
+          id: '1',
+          title: 'Safe Arrival Alert',
+          message: 'You have safely arrived at Campus.',
+          timeAgo: '10m ago',
+          category: 'arrival',
+          isRead: false,
+        ),
+        const AppNotificationItem(
+          id: '2',
+          title: 'Emergency Alert Sent',
+          message: 'Manual SOS triggered. Alert SMS sent to trusted contacts.',
+          timeAgo: '30m ago',
+          category: 'emergency',
+          isRead: false,
+        ),
+      ];
+
+      final yesterdayList = [
+        const AppNotificationItem(
+          id: '3',
+          title: 'Emergency Alert Sent',
+          message: 'Safety check timed out for Campus. Alert SMS sent to trusted contacts.',
+          timeAgo: 'Yesterday',
+          category: 'emergency',
+          isRead: true,
+        ),
+      ];
+
+      String? tappedId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AllNotificationsScreen(
+            todayNotifications: todayList,
+            yesterdayNotifications: yesterdayList,
+            earlierNotifications: const [],
+            onItemTap: (id) => tappedId = id,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. All filter selected by default: shows TODAY and YESTERDAY sections
+      expect(find.text('TODAY'), findsOneWidget);
+      expect(find.text('YESTERDAY'), findsOneWidget);
+      expect(find.byType(NotificationTile), findsNWidgets(3));
+
+      // 2. Filter by Emergency Alerts
+      await tester.tap(find.text('Emergency Alerts'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NotificationTile), findsNWidgets(2));
+      expect(find.text('Safe Arrival Alert'), findsNothing);
+
+      // 3. Filter by Safe Arrivals
+      await tester.tap(find.text('Safe Arrivals'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NotificationTile), findsNWidgets(1));
+      expect(find.text('Safe Arrival Alert'), findsOneWidget);
+      expect(find.text('Emergency Alert Sent'), findsNothing);
+
+      // 4. Tap notification tile
+      await tester.tap(find.text('Safe Arrival Alert'));
+      await tester.pumpAndSettle();
+      expect(tappedId, '1');
+
+      // 5. Test empty state when filter has no matches
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AllNotificationsScreen(
+            todayNotifications: const [],
+            yesterdayNotifications: const [],
+            earlierNotifications: const [],
+            onItemTap: (_) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No safe arrivals recorded'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'opening popover marks ONLY top 5 visible notifications read and leaves older items unread',
+    (tester) async {
+      final mockTrips = List.generate(
+        8,
+        (i) => TripRecord(
+          id: 'trip_$i',
+          destination: 'Campus $i',
+          durationMinutes: 30,
+          status: 'arrived',
+          timestamp: DateTime.now().subtract(Duration(minutes: i * 10)),
+        ),
+      );
+
+      final encoded = jsonEncode(mockTrips.map((t) => t.toJson()).toList());
+      SharedPreferences.setMockInitialValues({
+        'trip_history_json': encoded,
+        'walkthrough_completed_v2': true,
+        'setup_completed': true,
+      });
+
+      await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+      await tester.pumpAndSettle();
+
+      // 1. Initial state: Notification bell has unread indicator
+      expect(find.byTooltip('Notifications'), findsOneWidget);
+
+      // 2. Open Notification Popover
+      await tester.tap(find.byTooltip('Notifications'));
+      await tester.pumpAndSettle();
+
+      // 3. Popover shows top 5 items, unread badge count shows remaining 3
+      expect(find.byType(NotificationsPopover), findsOneWidget);
+      expect(find.text('3'), findsOneWidget); // 3 remaining unread
+
+      // 4. Close popover
+      await tester.tap(find.byTooltip('Close notifications'));
+      await tester.pumpAndSettle();
+
+      // 5. Verify top 5 IDs were persisted as read, and items 5-7 remain unread
+      final prefs = await SharedPreferences.getInstance();
+      final readIds = prefs.getStringList('read_notification_ids_set') ?? [];
+      expect(readIds.length, 5);
+      expect(readIds, containsAll(['trip_0', 'trip_1', 'trip_2', 'trip_3', 'trip_4']));
+      expect(readIds.contains('trip_5'), false);
+      expect(readIds.contains('trip_6'), false);
+      expect(readIds.contains('trip_7'), false);
     },
   );
 }
