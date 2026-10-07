@@ -251,7 +251,9 @@ class GeofenceService {
   bool _isMonitoring = false;
   GeofenceTarget? _activeTarget;
   bool _arrivalDetected = false;
+  bool _suppressArrivalUntilExit = false;
   double? _lastDistanceMeters;
+  DateTime? _lastGpsLogTime;
 
   /// Whether active GPS tracking is currently running.
   bool get isMonitoring => _isMonitoring;
@@ -320,15 +322,19 @@ class GeofenceService {
     required void Function(GeofenceTarget target, double distanceMeters) onArrival,
     void Function(double distanceMeters)? onLocationUpdate,
     void Function(String error)? onError,
+    bool suppressArrivalUntilExit = false,
   }) async {
+    debugPrint('[LisKo-BG-Diag] startMonitoring called for destination "$destination", suppressArrivalUntilExit=$suppressArrivalUntilExit');
     stopMonitoring();
 
     _activeTarget = await resolveTarget(destination);
     if (_activeTarget == null) {
+      debugPrint('[LisKo-BG-Diag] startMonitoring failed: target null for "$destination"');
       onError?.call('Location monitoring unavailable for this destination');
       return false;
     }
     _arrivalDetected = false;
+    _suppressArrivalUntilExit = suppressArrivalUntilExit;
     _isMonitoring = true;
 
     // In unit / widget tests, avoid touching unmocked native geolocator platform channels.
@@ -340,6 +346,7 @@ class GeofenceService {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
+        debugPrint('[LisKo-BG-Diag] startMonitoring failed: Location services disabled');
         onError?.call('Location services are disabled on device.');
         return false;
       }
@@ -348,12 +355,14 @@ class GeofenceService {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
+          debugPrint('[LisKo-BG-Diag] startMonitoring failed: Permission denied');
           onError?.call('Location permission denied.');
           return false;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
+        debugPrint('[LisKo-BG-Diag] startMonitoring failed: Permission permanently denied');
         onError?.call('Location permission permanently denied.');
         return false;
       }
@@ -375,6 +384,7 @@ class GeofenceService {
         distanceFilter: 10, // Updates every 10 meters
       );
 
+      debugPrint('[LisKo-BG-Diag] Position subscription created for target "${_activeTarget?.name}"');
       _positionSubscription = Geolocator.getPositionStream(
         locationSettings: locationSettings,
       ).listen(
@@ -382,6 +392,7 @@ class GeofenceService {
           _evaluatePosition(position, onArrival, onLocationUpdate);
         },
         onError: (error) {
+          debugPrint('[LisKo-BG-Diag] GPS position stream error: $error');
           developer.log('GPS position stream error: $error');
           onError?.call(error.toString());
         },
@@ -389,6 +400,7 @@ class GeofenceService {
 
       return true;
     } catch (e, st) {
+      debugPrint('[LisKo-BG-Diag] startMonitoring exception: $e');
       developer.log('GeofenceService startMonitoring error', error: e, stackTrace: st);
       onError?.call('Failed to activate geofence GPS monitoring: $e');
       return false;
@@ -414,11 +426,38 @@ class GeofenceService {
     _lastDistanceMeters = distance;
     onLocationUpdate?.call(distance);
 
-    if (distance <= target.radiusMeters && !_arrivalDetected) {
+    final now = DateTime.now();
+    if (_lastGpsLogTime == null || now.difference(_lastGpsLogTime!) >= const Duration(seconds: 30)) {
+      _lastGpsLogTime = now;
+      debugPrint(
+        '[LisKo-BG-Diag] GPS heartbeat: time=${now.toIso8601String()}, '
+        'lat=${position.latitude.toStringAsFixed(6)}, lng=${position.longitude.toStringAsFixed(6)}, '
+        'accuracy=${position.accuracy.toStringAsFixed(1)}m, '
+        'target="${target.name}" (${target.id}), distance=${distance.toStringAsFixed(1)}m, '
+        'suppressed=$_suppressArrivalUntilExit',
+      );
+    }
+
+    // Exit / Hysteresis check: If device moves >180m from target, clear suppression and re-arm geofence
+    if (_suppressArrivalUntilExit && distance > 180.0) {
+      _suppressArrivalUntilExit = false;
+      _arrivalDetected = false;
+      const LocalStorageService().saveActiveTrip(
+        isActive: true,
+        destination: target.name,
+        suppressArrivalUntilExit: false,
+      );
+      debugPrint('[LisKo-BG-Diag] Destination exit confirmed (${distance.toStringAsFixed(1)}m > 180m); arrival re-armed for ${target.name}');
+    }
+
+    if (distance <= target.radiusMeters && !_arrivalDetected && !_suppressArrivalUntilExit) {
       _arrivalDetected = true;
+      debugPrint('[LisKo-BG-Diag] Destination arrival triggered: within ${distance.toStringAsFixed(1)}m of ${target.name}');
       debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: Geofence Arrival Detected: distance ${distance.toStringAsFixed(1)}m <= radius ${target.radiusMeters}m for target ${target.name}');
       developer.log('Geofence Arrival Detected: within ${distance.toStringAsFixed(1)}m of ${target.name}');
       onArrival(target, distance);
+    } else if (distance <= target.radiusMeters && _suppressArrivalUntilExit) {
+      debugPrint('[LisKo-BG-Diag] Arrival suppressed: device still inside previous destination (${distance.toStringAsFixed(1)}m <= 180m)');
     }
   }
 
@@ -427,12 +466,15 @@ class GeofenceService {
   /// Adheres strictly to Zero-Surveillance principles by shutting down
   /// location listeners as soon as the trip ends or safe arrival is confirmed.
   void stopMonitoring() {
+    debugPrint('[LisKo-BG-Diag] stopMonitoring called, cancelling subscription for target "${_activeTarget?.name}"');
     _positionSubscription?.cancel();
     _positionSubscription = null;
     _isMonitoring = false;
     _activeTarget = null;
     _arrivalDetected = false;
+    _suppressArrivalUntilExit = false;
     _lastDistanceMeters = null;
+    _lastGpsLogTime = null;
   }
 
   /// Testing & Simulation helper: Simulates entering the geofence perimeter.

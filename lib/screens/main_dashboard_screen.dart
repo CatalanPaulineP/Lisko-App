@@ -87,6 +87,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   DateTime? tripStartedAt;
   Timer? tripTimer;
   Timer? _arrivalTimer;
+  DateTime? _lastTimerLogTime;
 
   // Walkthrough Target Key Anchors
   final GlobalKey _setUpTripKey = GlobalKey();
@@ -134,24 +135,30 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     NotificationService.onActionReceived = _routeNotificationAction;
+    if (!_isTestEnvironment) {
+      FlutterBackgroundService().on('arrivalDetected').listen((event) {
+        if (!mounted) return;
+        final dest = event?['destination'] as String? ?? destination;
+        _handleArrivalDetected(dest);
+      });
+      FlutterBackgroundService().on('timeoutDetected').listen((event) {
+        if (!mounted) return;
+        _handleTimeoutDetected();
+      });
+    }
     _restoreActiveTrip();
     _checkWalkthroughStatus();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('[LisKo-BG-Diag] App lifecycle state changed: ${state.name}');
     if (state == AppLifecycleState.resumed) {
       FirebaseService().refreshLocalTrips();
       
       if ((isTimeoutWarning || isArrived) && safetyCheckDeadline != null) {
         final now = DateTime.now();
-        if (now.isBefore(safetyCheckDeadline!)) {
-          final rem = safetyCheckDeadline!.difference(now).inSeconds;
-          final elapsed = 90 - rem;
-          if (elapsed >= 0 && elapsed < 90) {
-            _triggerVibrationPattern(elapsed);
-          }
-        } else {
+        if (now.isAfter(safetyCheckDeadline!)) {
           if (!_isEscalating) {
             try {
               if (Navigator.of(context).canPop()) {
@@ -160,15 +167,70 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             } catch (_) {}
             _escalateEmergencyAlert(isManualSos: false);
           }
+        } else if (!_safetyScreenOpen && !_alertScreenOpen) {
+          _presentSafetyScreen();
         }
       }
     }
   }
 
+  bool _safetyScreenOpen = false;
+
+  void _presentSafetyScreen() {
+    if (!mounted || _safetyScreenOpen || safetyCheckDeadline == null) return;
+    final now = DateTime.now();
+    if (now.isAfter(safetyCheckDeadline!)) return;
+
+    _safetyScreenOpen = true;
+
+    if (isTimeoutWarning) {
+      timeoutCountdown = safetyCheckDeadline!.difference(now).inSeconds;
+      _startTimeoutCountdownTimer();
+    } else {
+      arrivalCountdown = safetyCheckDeadline!.difference(now).inSeconds;
+      _startArrivalCountdownTimer();
+    }
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        fullscreenDialog: true,
+        pageBuilder: (context, _, __) => TimesUpScreen(
+          isTimeoutWarning: isTimeoutWarning,
+          onSafe: () {
+            Vibration.cancel();
+            NotificationService().cancelArrivalAlarm();
+            if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+            _endTrip(safe: true);
+          },
+          onExtend: () {
+            Vibration.cancel();
+            NotificationService().cancelArrivalAlarm();
+            if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+            _extendTrip();
+          },
+          onHelp: () {
+            Vibration.cancel();
+            NotificationService().cancelArrivalAlarm();
+            _triggerEmergencyFlow(immediate: false);
+          },
+          deadline: safetyCheckDeadline!,
+        ),
+      ),
+    ).whenComplete(() {
+      _safetyScreenOpen = false;
+    });
+  }
+
   Future<void> _restoreActiveTrip() async {
+    debugPrint('[LisKo-BG-Diag] _restoreActiveTrip() started');
     const storage = LocalStorageService();
     final data = await storage.readActiveTrip();
-    if (data == null || !mounted) return;
+    if (data == null || !mounted) {
+      debugPrint('[LisKo-BG-Diag] _restoreActiveTrip(): No active trip found in LocalStorageService');
+      return;
+    }
 
     final dest = data['destination'] as String? ?? 'Campus';
     final totalSecs = data['totalDurationSeconds'] as int? ?? 45 * 60;
@@ -178,6 +240,11 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final tId = data['tripId'] as String? ?? '';
     final startedMs = data['startedAtMs'] as int?;
     final isTimeout = data['isTimeoutWarning'] as bool? ?? false;
+
+    debugPrint(
+      '[LisKo-BG-Diag] _restoreActiveTrip(): Active trip found: '
+      'destination=$dest, expMs=$expMs, arrived=$arrived, isTimeout=$isTimeout',
+    );
 
     setState(() {
       tripActive = true;
@@ -204,105 +271,21 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _escalateEmergencyAlert(isManualSos: false);
         }
       } else {
-        if (isTimeout) {
-          timeoutCountdown = safetyCheckDeadline!.difference(now).inSeconds;
-          _startTimeoutCountdownTimer();
-          
-          if (mounted) {
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                opaque: false,
-                fullscreenDialog: true,
-                pageBuilder: (context, _, __) => TimesUpScreen(
-                  onSafe: () {
-                    Vibration.cancel();
-                    NotificationService().cancelArrivalAlarm();
-                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-                    _endTrip(safe: true);
-                  },
-                  onExtend: () {
-                    Vibration.cancel();
-                    NotificationService().cancelArrivalAlarm();
-                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-                    _extendTrip();
-                  },
-                  onHelp: () {
-                    Vibration.cancel();
-                    NotificationService().cancelArrivalAlarm();
-                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-                    _triggerEmergencyFlow(immediate: false);
-                  },
-                  deadline: safetyCheckDeadline!,
-                ),
-              ),
-            );
-          }
-        } else {
-          arrivalCountdown = safetyCheckDeadline!.difference(now).inSeconds;
-          _startArrivalCountdownTimer();
-          // _runVibrateLoop removed; vibration handled in Timer
-          
-          if (mounted) {
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                opaque: false,
-                fullscreenDialog: true,
-                pageBuilder: (context, _, __) => TimesUpScreen(
-                  onSafe: () {
-                    Vibration.cancel();
-                    NotificationService().cancelArrivalAlarm();
-                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-                    _endTrip(safe: true);
-                  },
-                  onExtend: () {
-                    Vibration.cancel();
-                    NotificationService().cancelArrivalAlarm();
-                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-                    _extendTrip();
-                  },
-                  onHelp: () {
-                    Vibration.cancel();
-                    NotificationService().cancelArrivalAlarm();
-                    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-                    _triggerEmergencyFlow(immediate: false);
-                  },
-                  deadline: safetyCheckDeadline!,
-                ),
-              ),
-            );
-          }
-        }
+        _presentSafetyScreen();
       }
     } else if (expectedArrivalAt != null) {
       if (now.isAfter(expectedArrivalAt!)) {
+        debugPrint('[LisKo-BG-Diag] _restoreActiveTrip(): Trip already expired upon restoration');
         _handleArrivalDetected(destination);
       } else {
         remaining = expectedArrivalAt!.difference(now);
-        if (!_isTestEnvironment) FlutterBackgroundService().startService();
+        debugPrint('[LisKo-BG-Diag] _restoreActiveTrip(): Restoring ongoing trip. Invoking startService() and _startTravelTimer()');
+        if (!_isTestEnvironment) {
+          FlutterBackgroundService().startService().then((_) {
+            FlutterBackgroundService().invoke('startTripMonitoring');
+          });
+        }
         _startTravelTimer();
-        _geofenceService.startMonitoring(
-          destination: destination,
-          onArrival: (target, distance) {
-            if (!mounted) return;
-            _handleArrivalDetected(target.name);
-          },
-          onError: (error) {
-            debugPrint('Geofence tracking notice: $error');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: AppColors.body,
-                  duration: const Duration(seconds: 5),
-                  content: const Text(
-                    'Auto-arrival detection is unavailable for this destination. Your trip timer will continue.',
-                  ),
-                ),
-              );
-            }
-          },
-        );
       }
     }
   }
@@ -443,67 +426,30 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _startTravelTimer() {
     tripTimer?.cancel();
+    _lastTimerLogTime = null;
     tripTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final currentTime = DateTime.now();
-      if (expectedArrivalAt != null && currentTime.isAfter(expectedArrivalAt!)) {
-        tripTimer?.cancel();
-        _handleTimeoutDetected();
-      } else if (expectedArrivalAt != null) {
-        setState(() => remaining = expectedArrivalAt!.difference(currentTime));
-        final mm = remaining.inMinutes.toString().padLeft(2, '0');
-        final ss = (remaining.inSeconds % 60).toString().padLeft(2, '0');
-        NotificationService().showPersistentTripNotification(destination, '$mm:$ss');
+      if (expectedArrivalAt != null) {
+        final diff = expectedArrivalAt!.difference(currentTime);
+        setState(() => remaining = diff.isNegative ? Duration.zero : diff);
+
+        final now = DateTime.now();
+        if (_lastTimerLogTime == null || now.difference(_lastTimerLogTime!) >= const Duration(seconds: 30)) {
+          _lastTimerLogTime = now;
+          final lifecycle = WidgetsBinding.instance.lifecycleState?.name ?? 'unknown';
+          debugPrint(
+            '[LisKo-BG-Diag] UI timer heartbeat: time=${now.toIso8601String()}, '
+            'remaining=${remaining.inSeconds}s, expectedArrivalAt=${expectedArrivalAt?.toIso8601String()}, '
+            'lifecycle=$lifecycle',
+          );
+        }
       }
     });
   }
 
-
-
-  void _triggerVibrationPattern(int initialElapsed) async {
-    List<bool> activeSeconds = [];
-    for (int sec = 0; sec < 90; sec++) {
-      bool inActiveBlock = (sec >= 0 && sec < 20) || (sec >= 30 && sec < 50) || (sec >= 60 && sec < 80);
-      bool isPulseVibrate = (sec % 4) < 2; // 2s on, 2s off
-      activeSeconds.add(inActiveBlock && isPulseVibrate);
-    }
-
-    if (initialElapsed >= 90) return;
-    List<bool> remaining = activeSeconds.sublist(initialElapsed);
-
-    List<int> pattern = [];
-    int currentDuration = 0;
-    bool currentState = false; 
-
-    for (int i = 0; i < remaining.length; i++) {
-      if (remaining[i] == currentState) {
-        currentDuration += 1000;
-      } else {
-        pattern.add(currentDuration);
-        currentState = remaining[i];
-        currentDuration = 1000;
-      }
-    }
-    
-    if (currentState == true) {
-      pattern.add(currentDuration);
-    }
-    
-    if (pattern.isNotEmpty) {
-      Vibration.vibrate(pattern: pattern);
-    }
-  }
-
   void _startArrivalCountdownTimer() {
     _arrivalTimer?.cancel();
-    Vibration.cancel();
-    
-    if (safetyCheckDeadline != null) {
-      final now = DateTime.now();
-      final rem = safetyCheckDeadline!.difference(now).inSeconds;
-      final elapsed = 90 - rem;
-      if (elapsed >= 0 && elapsed < 90) _triggerVibrationPattern(elapsed);
-    }
 
     _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if (!mounted) return;
@@ -525,7 +471,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
-  void _executeStartTrip(String selectedDestination, Duration duration) {
+  Future<void> _executeStartTrip(String selectedDestination, Duration duration) async {
     tripTimer?.cancel();
     _arrivalTimer?.cancel();
     final now = DateTime.now();
@@ -548,9 +494,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       selectedTab = 0;
     });
 
-    if (!_isTestEnvironment) FlutterBackgroundService().startService();
-
-    const LocalStorageService().saveActiveTrip(
+    await const LocalStorageService().saveActiveTrip(
       isActive: true,
       destination: destination,
       totalDurationSeconds: totalDuration.inSeconds,
@@ -559,7 +503,14 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tripId: tripId,
       startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
     );
+    debugPrint('[LisKo-BG-Diag] saveActiveTrip() write COMPLETED for tripId: $tripId, destination: $destination, expectedArrivalAtMs: ${expectedArrivalAt?.millisecondsSinceEpoch}');
+
     FirebaseService().refreshLocalTrips();
+
+    if (!_isTestEnvironment) {
+      await FlutterBackgroundService().startService();
+      FlutterBackgroundService().invoke('startTripMonitoring');
+    }
 
     // Sync to Firebase
     FirebaseService().saveOrUpdateTrip(
@@ -569,29 +520,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       startedAt: tripStartedAt ?? now,
       expectedArrivalAt: expectedArrivalAt,
       status: 'active',
-    );
-
-    // 1. Activate Conditional GPS Geofence Monitoring (strictly inactive when idle)
-    _geofenceService.startMonitoring(
-      destination: selectedDestination,
-      onArrival: (target, distance) {
-        if (!mounted) return;
-        _handleArrivalDetected(target.name);
-      },
-      onError: (error) {
-        debugPrint('Geofence tracking notice: $error');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: AppColors.body,
-              duration: const Duration(seconds: 5),
-              content: const Text(
-                'Auto-arrival detection is unavailable for this destination. Your trip timer will continue.',
-              ),
-            ),
-          );
-        }
-      },
     );
 
     // 2. Start Travel Countdown Timer using Timestamp Comparison
@@ -614,14 +542,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _startTimeoutCountdownTimer() {
     _arrivalTimer?.cancel();
-    Vibration.cancel();
-
-    if (safetyCheckDeadline != null) {
-      final now = DateTime.now();
-      final rem = safetyCheckDeadline!.difference(now).inSeconds;
-      final elapsed = 90 - rem;
-      if (elapsed >= 0 && elapsed < 90) _triggerVibrationPattern(elapsed);
-    }
 
     _arrivalTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if (!mounted) return;
@@ -655,7 +575,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       selectedTab = 0;
     });
 
-    const LocalStorageService().saveActiveTrip(
+    await const LocalStorageService().saveActiveTrip(
       isActive: true,
       destination: destination,
       totalDurationSeconds: totalDuration.inSeconds,
@@ -693,37 +613,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     NotificationService().cancelPersistentTripNotification();
     NotificationService().showTimeoutAlarm(destination);
 
-    if (mounted) {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          opaque: false,
-          fullscreenDialog: true,
-          pageBuilder: (context, _, __) => TimesUpScreen(
-            isTimeoutWarning: true,
-            onSafe: () {
-              Vibration.cancel();
-              NotificationService().cancelArrivalAlarm();
-              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-              _endTrip(safe: true);
-            },
-            onExtend: () {
-              Vibration.cancel();
-              NotificationService().cancelArrivalAlarm();
-              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-              _extendTrip();
-            },
-            onHelp: () {
-              Vibration.cancel();
-              NotificationService().cancelArrivalAlarm();
-              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-              _triggerEmergencyFlow(immediate: false);
-            },
-            deadline: safetyCheckDeadline!,
-          ),
-        ),
-      );
-    }
+    _presentSafetyScreen();
   }
 
 
@@ -743,7 +633,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
     debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: setState(isArrived = true) executed -> ActiveTripScreen.buildArrivalView triggered');
 
-    const LocalStorageService().saveActiveTrip(
+    await const LocalStorageService().saveActiveTrip(
       isActive: true,
       destination: destination,
       totalDurationSeconds: totalDuration.inSeconds,
@@ -770,36 +660,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     NotificationService().cancelPersistentTripNotification();
     NotificationService().showArrivalAlarm(destinationName);
 
-    // Show full-screen intent when the app is brought to foreground (e.g. by native notification)
-    if (mounted) {
-      debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: Navigator.push(TimesUpScreen) triggered');
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          opaque: false,
-          fullscreenDialog: true,
-          pageBuilder: (context, _, __) => TimesUpScreen(
-            isTimeoutWarning: false,
-            onSafe: () {
-              Vibration.cancel();
-              NotificationService().cancelArrivalAlarm();
-              _endTrip(safe: true);
-            },
-            onExtend: () {
-              Vibration.cancel();
-              NotificationService().cancelArrivalAlarm();
-              _extendTrip();
-            },
-            onHelp: () {
-              Vibration.cancel();
-              NotificationService().cancelArrivalAlarm();
-              _triggerEmergencyFlow(immediate: false);
-            },
-            deadline: safetyCheckDeadline!,
-          ),
-        ),
-      );
-    }
+    _presentSafetyScreen();
   }
 
   /// Public test & demonstration helper allowing simulation of GPS arrival.
@@ -1026,8 +887,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!_isTestEnvironment) FlutterBackgroundService().invoke('stopService');
   }
 
-  void _extendTrip() {
+  Future<void> _extendTrip() async {
     _arrivalTimer?.cancel();
+    final bool wasArrived = isArrived;
     
     final currentTime = DateTime.now();
     // If we've already passed expectedArrivalAt, or it's null, base it on now
@@ -1046,12 +908,14 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       remaining = expectedArrivalAt!.difference(currentTime);
     });
 
-    const LocalStorageService().saveActiveTrip(
+    await const LocalStorageService().saveActiveTrip(
       isActive: true,
       destination: destination,
       totalDurationSeconds: totalDuration.inSeconds,
       expectedArrivalAtMs: expectedArrivalAt?.millisecondsSinceEpoch,
       isArrived: false,
+      isTimeoutWarning: false,
+      suppressArrivalUntilExit: wasArrived,
       tripId: tripId,
       startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
     );
@@ -1140,6 +1004,13 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) {
         _alertScreenOpen = false;
         _isPreparingSos = false;
+
+        if ((isArrived || isTimeoutWarning) && safetyCheckDeadline != null && !_isEscalating) {
+          final now = DateTime.now();
+          if (now.isBefore(safetyCheckDeadline!) && !_safetyScreenOpen) {
+            _presentSafetyScreen();
+          }
+        }
       }
     });
   }

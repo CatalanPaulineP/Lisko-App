@@ -53,9 +53,12 @@ void notificationBackgroundResponseHandler(
   WidgetsFlutterBinding.ensureInitialized();
   try { await Firebase.initializeApp(); } catch (_) {}
 
+  // Persist pending action FIRST so BackgroundService can read and reconcile it
+  final storage = const LocalStorageService();
+  await storage.savePendingAction(actionId);
+
   if (actionId == kNotifActionSafe || actionId == kNotifActionExtend) {
     try {
-      final storage = const LocalStorageService();
       final data = await storage.readActiveTrip();
       if (data != null && data['isActive'] == true) {
         final tripId = data['tripId'] as String? ?? '';
@@ -101,6 +104,8 @@ void notificationBackgroundResponseHandler(
           final now = DateTime.now();
           final currentExpected = expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : now;
           final newExpected = currentExpected.isBefore(now) ? now.add(const Duration(minutes: 15)) : currentExpected.add(const Duration(minutes: 15));
+          final wasArrived = (data['isArrived'] as bool?) ?? false;
+
           await storage.saveActiveTrip(
             isActive: true,
             destination: dest,
@@ -110,6 +115,7 @@ void notificationBackgroundResponseHandler(
             startedAtMs: startedMs,
             isArrived: false,
             isTimeoutWarning: false,
+            suppressArrivalUntilExit: wasArrived,
           );
           if (tripId.isNotEmpty && startedMs != null) {
             await fs.FirebaseService().saveOrUpdateTrip(
@@ -126,6 +132,18 @@ void notificationBackgroundResponseHandler(
     } catch (e) {
       debugPrint('[NotificationService-BG] Database sync error: $e');
     }
+  }
+
+  // Notify / Wake FlutterBackgroundService to reconcile pending action
+  try {
+    final bgService = FlutterBackgroundService();
+    if (await bgService.isRunning()) {
+      bgService.invoke('notificationAction', {'actionId': actionId});
+    } else {
+      await bgService.startService();
+    }
+  } catch (e) {
+    debugPrint('[NotificationService-BG] FlutterBackgroundService wake error: $e');
   }
 
   final sendPort = IsolateNameServer.lookupPortByName('lisko_notif_port');
@@ -318,11 +336,12 @@ class NotificationService {
 
   Future<void> showPersistentTripNotification(
     String destination,
-    String remainingTime,
-  ) async {
+    String remainingTime, {
+    int? expectedArrivalAtMs,
+  }) async {
     if (_isTestEnvironment) return;
     final title = 'Lisko: Active Travel Timer';
-    final content = '$destination - $remainingTime remaining';
+    final content = 'Heading to $destination';
 
     try {
       final bgService = FlutterBackgroundService();
@@ -330,27 +349,10 @@ class NotificationService {
         bgService.invoke('updateNotification', {
           'title': title,
           'content': content,
+          'expectedArrivalAtMs': expectedArrivalAtMs,
         });
       }
     } catch (_) {}
-
-    final AndroidNotificationDetails details = AndroidNotificationDetails(
-      'lisko_trip_channel',
-      'Lisko Trip Monitoring',
-      channelDescription:
-          'Ongoing background monitoring for your active travel.',
-      importance: Importance.low,
-      priority: Priority.low,
-      ongoing: true,
-      autoCancel: false,
-      showWhen: false,
-    );
-    await _flutterLocalNotificationsPlugin.show(
-      id: 888,
-      title: title,
-      body: content,
-      notificationDetails: NotificationDetails(android: details),
-    );
   }
 
   Future<void> showTimeoutAlarm(String destination) async {
@@ -496,6 +498,7 @@ class NotificationService {
 
   Future<void> cancelPersistentTripNotification() async {
     if (_isTestEnvironment) return;
+    debugPrint('[LisKo-BG-Diag] cancelPersistentTripNotification(888) called');
     await _flutterLocalNotificationsPlugin.cancel(id: 888);
   }
 

@@ -94,7 +94,7 @@ class LocalStorageService {
     int? expectedArrivalAtMs,
     bool? isArrived,
     bool? isTimeoutWarning,
-    
+    bool? suppressArrivalUntilExit,
     int? safetyCheckDeadlineMs,
     String? tripId,
     int? startedAtMs,
@@ -108,23 +108,26 @@ class LocalStorageService {
     }
     double? finalLat = cachedLat;
     double? finalLng = cachedLng;
-    if (finalLat == null || finalLng == null) {
-      try {
-        final raw = prefs.getString(_activeTripKey);
-        if (raw != null) {
-          final existing = jsonDecode(raw) as Map<String, dynamic>;
-          finalLat = finalLat ?? (existing['cachedLat'] as num?)?.toDouble();
-          finalLng = finalLng ?? (existing['cachedLng'] as num?)?.toDouble();
-        }
-      } catch (_) {}
-    }
+    bool? finalSuppress = suppressArrivalUntilExit;
+
+    try {
+      final raw = prefs.getString(_activeTripKey);
+      if (raw != null) {
+        final existing = jsonDecode(raw) as Map<String, dynamic>;
+        finalLat = finalLat ?? (existing['cachedLat'] as num?)?.toDouble();
+        finalLng = finalLng ?? (existing['cachedLng'] as num?)?.toDouble();
+        finalSuppress = finalSuppress ?? (existing['suppressArrivalUntilExit'] as bool?);
+      }
+    } catch (_) {}
+
     final data = {
+      'isActive': true,
       'destination': destination,
       'totalDurationSeconds': totalDurationSeconds,
       'expectedArrivalAtMs': expectedArrivalAtMs,
       'isArrived': isArrived,
       'isTimeoutWarning': isTimeoutWarning,
-      
+      'suppressArrivalUntilExit': finalSuppress ?? false,
       'safetyCheckDeadlineMs': safetyCheckDeadlineMs,
       'tripId': tripId,
       'startedAtMs': startedAtMs,
@@ -147,11 +150,65 @@ class LocalStorageService {
     }
   }
 
+  static const _pendingActionKey = 'pending_notification_action';
+
+  Future<void> savePendingAction(String actionId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_pendingActionKey, actionId);
+    } catch (_) {}
+  }
+
+  /// Non-destructively reads the pending notification action without clearing it.
+  Future<String?> peekPendingAction() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      return prefs.getString(_pendingActionKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Clears pending action ONLY if it matches [expectedActionId].
+  Future<bool> consumePendingActionIfMatches(String expectedActionId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final action = prefs.getString(_pendingActionKey);
+      if (action == expectedActionId) {
+        await prefs.remove(_pendingActionKey);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<String?> readAndClearPendingAction() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final action = prefs.getString(_pendingActionKey);
+      if (action != null) {
+        await prefs.remove(_pendingActionKey);
+      }
+      return action;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>?> readActiveTrip() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     final raw = prefs.getString(_activeTripKey);
     if (raw == null) return null;
-    return jsonDecode(raw) as Map<String, dynamic>;
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    // Backward compatibility for active trips stored with legacy schema
+    map['isActive'] = map['isActive'] ?? true;
+    return map;
   }
 
   const LocalStorageService();

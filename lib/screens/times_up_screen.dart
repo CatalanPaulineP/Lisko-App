@@ -153,7 +153,6 @@ class _TimesUpScreenState extends State<TimesUpScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context);
                         widget.onHelp();
                       },
                       style: ElevatedButton.styleFrom(
