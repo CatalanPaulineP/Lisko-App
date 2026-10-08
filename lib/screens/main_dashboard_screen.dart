@@ -983,7 +983,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!mounted) return;
 
-    Navigator.push(
+    final executed = await Navigator.push<bool>(
       context,
       PageRouteBuilder(
         opaque: false,
@@ -1000,19 +1000,27 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
         ),
       ),
-    ).whenComplete(() {
-      if (mounted) {
-        _alertScreenOpen = false;
-        _isPreparingSos = false;
+    );
 
-        if ((isArrived || isTimeoutWarning) && safetyCheckDeadline != null && !_isEscalating) {
-          final now = DateTime.now();
-          if (now.isBefore(safetyCheckDeadline!) && !_safetyScreenOpen) {
-            _presentSafetyScreen();
-          }
+    if (executed == true && mounted) {
+      try {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      _alertScreenOpen = false;
+      _isPreparingSos = false;
+
+      if (executed != true && (isArrived || isTimeoutWarning) && safetyCheckDeadline != null && !_isEscalating) {
+        final now = DateTime.now();
+        if (now.isBefore(safetyCheckDeadline!) && !_safetyScreenOpen) {
+          _presentSafetyScreen();
         }
       }
-    });
+    }
   }
 
   void _openTripScheduler() {

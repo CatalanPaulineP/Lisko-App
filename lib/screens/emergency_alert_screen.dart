@@ -64,7 +64,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
       });
       // Optionally close after a short delay
       Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) Navigator.pop(context);
+        if (mounted) Navigator.pop(context, true);
       });
     }
   }
@@ -73,7 +73,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
     _timer?.cancel();
     Vibration.cancel();
     widget.onCancel();
-    Navigator.pop(context);
+    Navigator.pop(context, false);
   }
 
   @override
