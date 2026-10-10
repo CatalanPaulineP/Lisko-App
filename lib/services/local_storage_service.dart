@@ -200,6 +200,37 @@ class LocalStorageService {
     }
   }
 
+  static const _completionFeedbackKey = 'show_trip_completed_feedback';
+
+  /// Saves the one-time flag requesting a trip-completion SnackBar when the UI becomes active.
+  Future<void> saveTripCompletedFeedback(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      if (value) {
+        await prefs.setBool(_completionFeedbackKey, true);
+      } else {
+        await prefs.remove(_completionFeedbackKey);
+      }
+    } catch (_) {}
+  }
+
+  /// Atomically reads and clears the one-time trip completion feedback flag across isolates.
+  Future<bool> consumeTripCompletedFeedback() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload(); // Ensure fresh read across Flutter isolates
+      final value = prefs.getBool(_completionFeedbackKey) ?? false;
+      if (value) {
+        await prefs.remove(_completionFeedbackKey);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>?> readActiveTrip() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();

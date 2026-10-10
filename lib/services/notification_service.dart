@@ -26,11 +26,7 @@ import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'sms_alert_service.dart';
 import 'local_storage_service.dart';
-import 'location_service.dart';
-import 'firebase_service.dart' as fs;
 
 // ---------------------------------------------------------------------------
 // Notification action ID constants
@@ -53,93 +49,17 @@ void notificationBackgroundResponseHandler(
   WidgetsFlutterBinding.ensureInitialized();
   try { await Firebase.initializeApp(); } catch (_) {}
 
-  // Persist pending action FIRST so BackgroundService can read and reconcile it
-  final storage = const LocalStorageService();
-  await storage.savePendingAction(actionId);
-
-  if (actionId == kNotifActionSafe || actionId == kNotifActionExtend) {
-    try {
-      final data = await storage.readActiveTrip();
-      if (data != null && data['isActive'] == true) {
-        final tripId = data['tripId'] as String? ?? '';
-        final dest = data['destination'] as String? ?? '';
-        final startedMs = data['startedAtMs'] as int?;
-        final expectedMs = data['expectedArrivalAtMs'] as int?;
-        final totalSecs = data['totalDurationSeconds'] as int? ?? 0;
-
-        if (actionId == kNotifActionSafe) {
-          final isArrived = (data['isArrived'] as bool?) ?? false;
-          final isTimeoutWarning = (data['isTimeoutWarning'] as bool?) ?? false;
-
-          if (isArrived || isTimeoutWarning) {
-            await storage.saveActiveTrip(isActive: false);
-            if (tripId.isNotEmpty && startedMs != null) {
-              await fs.FirebaseService().saveOrUpdateTrip(
-                tripId: tripId,
-                destination: dest,
-                estimatedTravelMinutes: totalSecs ~/ 60,
-                startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
-                expectedArrivalAt: expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : null,
-                completedAt: DateTime.now(),
-                status: 'arrived',
-              );
-              final history = await storage.readTripHistory();
-              history.add(TripRecord(
-                id: tripId, destination: dest, durationMinutes: totalSecs ~/ 60,
-                status: 'Completed', timestamp: DateTime.fromMillisecondsSinceEpoch(startedMs),
-              ));
-              await storage.saveTripHistory(history);
-              if (dest.isNotEmpty) {
-                try {
-                  await SmsAlertService().dispatchPrimaryArrivalSms(destination: dest);
-                } catch (e) {
-                  debugPrint('[NotificationService-BG] Primary safe arrival SMS error: $e');
-                }
-              }
-            }
-          } else {
-            debugPrint('[NotificationService-BG] "I\'m Safe" tapped before arrival in background. Active trip maintained.');
-          }
-        } else if (actionId == kNotifActionExtend) {
-          final now = DateTime.now();
-          final currentExpected = expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : now;
-          final newExpected = currentExpected.isBefore(now) ? now.add(const Duration(minutes: 15)) : currentExpected.add(const Duration(minutes: 15));
-          final wasArrived = (data['isArrived'] as bool?) ?? false;
-
-          await storage.saveActiveTrip(
-            isActive: true,
-            destination: dest,
-            totalDurationSeconds: totalSecs,
-            expectedArrivalAtMs: newExpected.millisecondsSinceEpoch,
-            tripId: tripId,
-            startedAtMs: startedMs,
-            isArrived: false,
-            isTimeoutWarning: false,
-            suppressArrivalUntilExit: wasArrived,
-          );
-          if (tripId.isNotEmpty && startedMs != null) {
-            await fs.FirebaseService().saveOrUpdateTrip(
-              tripId: tripId,
-              destination: dest,
-              estimatedTravelMinutes: totalSecs ~/ 60,
-              startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
-              expectedArrivalAt: newExpected,
-              status: 'extended',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('[NotificationService-BG] Database sync error: $e');
-    }
-  }
-
-  // Notify / Wake FlutterBackgroundService to reconcile pending action
   try {
     final bgService = FlutterBackgroundService();
-    if (await bgService.isRunning()) {
+    final isRunning = await bgService.isRunning();
+
+    if (isRunning) {
+      debugPrint('[NotificationService-BG] BackgroundService is running. Invoking notificationAction directly without saving pending action.');
       bgService.invoke('notificationAction', {'actionId': actionId});
     } else {
+      debugPrint('[NotificationService-BG] BackgroundService is NOT running. Saving pending action "$actionId" and starting service.');
+      final storage = const LocalStorageService();
+      await storage.savePendingAction(actionId);
       await bgService.startService();
     }
   } catch (e) {
@@ -149,70 +69,6 @@ void notificationBackgroundResponseHandler(
   final sendPort = IsolateNameServer.lookupPortByName('lisko_notif_port');
   if (sendPort != null) {
     sendPort.send(actionId);
-  } else {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('pending_notification_action', actionId);
-    if (actionId == kNotifActionSos) {
-      await Future.delayed(const Duration(seconds: 5));
-      try {
-        final locResult = await LocationService().acquireEmergencyLocation();
-        final lat = locResult.latitude;
-        final lng = locResult.longitude;
-
-        await SmsAlertService().sendManualSos(
-          latitude: lat,
-          longitude: lng,
-          accuracy: locResult.accuracy,
-          locationError: locResult.locationError,
-        );
-
-        final storage = const LocalStorageService();
-        final data = await storage.readActiveTrip();
-        if (data != null && data['isActive'] == true) {
-          final tripId = data['tripId'] as String? ?? '';
-          final dest = data['destination'] as String? ?? 'Manual SOS';
-          final startedMs = data['startedAtMs'] as int?;
-          final expectedMs = data['expectedArrivalAtMs'] as int?;
-          final totalSecs = data['totalDurationSeconds'] as int? ?? 0;
-
-          await storage.saveActiveTrip(isActive: false);
-
-          final history = await storage.readTripHistory();
-          final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
-          history.add(TripRecord(
-            id: eventId,
-            destination: dest,
-            durationMinutes: totalSecs ~/ 60,
-            status: 'Need Help',
-            timestamp: startedMs != null ? DateTime.fromMillisecondsSinceEpoch(startedMs) : DateTime.now(),
-          ));
-          await storage.saveTripHistory(history);
-
-          if (tripId.isNotEmpty && startedMs != null) {
-            await fs.FirebaseService().saveOrUpdateTrip(
-              tripId: tripId,
-              destination: dest,
-              estimatedTravelMinutes: totalSecs ~/ 60,
-              startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
-              expectedArrivalAt: expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : null,
-              completedAt: DateTime.now(),
-              status: 'help_requested',
-            );
-          }
-          fs.FirebaseService().logEmergencyEvent(
-            eventId: eventId,
-            deviceId: 'local_device',
-            tripId: tripId,
-            latitude: lat ?? 0.0,
-            longitude: lng ?? 0.0,
-            emergencyType: 'SOS',
-          );
-        }
-      } catch (e) {
-        debugPrint('[NotificationService-BG] Failed background SOS dispatch: $e');
-      }
-      await prefs.remove('pending_notification_action');
-    }
   }
 }
 
@@ -235,14 +91,23 @@ class NotificationService {
   static ReceivePort? _receivePort;
 
   /// Internal response router: called for foreground and background-resumed taps.
-  static void _handleNotificationResponse(NotificationResponse response) {
+  static void _handleNotificationResponse(NotificationResponse response) async {
     final actionId = response.actionId ?? response.payload ?? '';
     debugPrint(
       '[NotificationService] Response received - actionId: "$actionId"',
     );
-    if (actionId.isNotEmpty) {
-      onActionReceived?.call(actionId);
+    if (actionId.isEmpty) return;
+
+    if (actionId == kNotifActionSafe) {
+      final data = await const LocalStorageService().readActiveTrip();
+      final isActive = (data != null && data['isActive'] == true);
+      if (!isActive) {
+        debugPrint('[LisKo-Action] ignoring stale safe_id because trip is inactive');
+        return;
+      }
     }
+
+    onActionReceived?.call(actionId);
   }
 
   // ---------------------------------------------------------------------------
@@ -322,6 +187,69 @@ class NotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(alarmChannelVibrate);
+  }
+
+  /// Dedicated background-safe initialization method for the BackgroundService isolate.
+  /// Initializes local notifications plugin and creates channels WITHOUT registering
+  /// UI action callbacks, IsolateNameServer mappings, or background response handlers.
+  Future<void> initializeForBackgroundService() async {
+    if (_isTestEnvironment) return;
+
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+
+    await _flutterLocalNotificationsPlugin.initialize(
+      settings: initializationSettings,
+    );
+
+    // Low-priority persistent channel for active trip countdown bar.
+    const AndroidNotificationChannel tripChannel = AndroidNotificationChannel(
+      'lisko_trip_channel',
+      'Lisko Trip Monitoring',
+      description: 'Ongoing background monitoring for your active travel.',
+      importance: Importance.low,
+    );
+    await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(tripChannel);
+
+    // Max-priority alarm channel (Sound & Vibrate)
+    const AndroidNotificationChannel alarmChannelSound = AndroidNotificationChannel(
+      'lisko_alarm_channel_v2',
+      'LisKo Travel Reminder',
+      description: 'Arrival reminders and travel safety confirmation with sound',
+      importance: Importance.max,
+      enableVibration: false,
+      playSound: true,
+      showBadge: true,
+    );
+    await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(alarmChannelSound);
+
+    // Max-priority alarm channel (Vibration Only)
+    const AndroidNotificationChannel alarmChannelVibrate = AndroidNotificationChannel(
+      'lisko_alarm_vibrate_v1',
+      'LisKo Travel Reminder (Vibration Only)',
+      description: 'Arrival reminders and travel safety confirmation without sound',
+      importance: Importance.max,
+      enableVibration: false,
+      playSound: false,
+      showBadge: true,
+    );
+    await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(alarmChannelVibrate);
+
+    debugPrint('[LisKo-Notif889] background notification init complete');
   }
 
   bool get _isTestEnvironment {

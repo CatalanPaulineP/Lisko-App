@@ -168,6 +168,12 @@ void onStart(ServiceInstance service) async {
     debugPrint('[LisKo-BG-Diag] Firebase initialization notice in BackgroundService isolate: $e');
   }
 
+  try {
+    await NotificationService().initializeForBackgroundService();
+  } catch (e) {
+    debugPrint('[LisKo-BG-Diag] NotificationService background init notice: $e');
+  }
+
   service.on('stopService').listen((event) async {
     debugPrint('[LisKo-BG-Diag] BackgroundService received stopService event, stopping monitoring and calling stopSelf()');
     _bgPeriodicTimer?.cancel();
@@ -237,9 +243,6 @@ void _showNotification888({
 }
 
 Future<void> _handleBackgroundNotificationAction(ServiceInstance service, String actionId) async {
-  // Compare and consume ONLY if the persisted action matches the live actionId being handled
-  await const LocalStorageService().consumePendingActionIfMatches(actionId);
-
   if (actionId == kNotifActionSafe) {
     debugPrint('[LisKo-BG-Diag] BackgroundService handling kNotifActionSafe ("I\'m Safe")');
     _bgPeriodicTimer?.cancel();
@@ -248,9 +251,63 @@ Future<void> _handleBackgroundNotificationAction(ServiceInstance service, String
     _cancelBackgroundSafetyVibration('kNotifActionSafe');
     debugPrint('[LisKo-BG-Diag] Deadline timer cancelled reason=safe_action');
     GeofenceService().stopMonitoring();
+
+    // Read active trip state BEFORE marking inactive
+    final activeTrip = await const LocalStorageService().readActiveTrip();
+    final String dest = activeTrip?['destination'] as String? ?? '';
+    final String tId = activeTrip?['tripId'] as String? ?? '';
+    final int totalSecs = activeTrip?['totalDurationSeconds'] as int? ?? 0;
+    final int? startedMs = activeTrip?['startedAtMs'] as int?;
+    final int? expectedMs = activeTrip?['expectedArrivalAtMs'] as int?;
+    final bool isArrived = activeTrip?['isArrived'] as bool? ?? false;
+    final bool isTimeoutWarning = activeTrip?['isTimeoutWarning'] as bool? ?? false;
+
+    // Immediate local safety shutdown
     await const LocalStorageService().saveActiveTrip(isActive: false);
     await NotificationService().cancelPersistentTripNotification();
     await NotificationService().cancelArrivalAlarm();
+
+    // Perform safe-arrival completion work if trip was in an active safety check state
+    if (isArrived || isTimeoutWarning) {
+      try {
+        final storage = const LocalStorageService();
+        final history = await storage.readTripHistory();
+        history.add(TripRecord(
+          id: tId.isNotEmpty ? tId : DateTime.now().millisecondsSinceEpoch.toString(),
+          destination: dest,
+          durationMinutes: totalSecs ~/ 60,
+          status: 'Arrived Safely',
+          timestamp: startedMs != null ? DateTime.fromMillisecondsSinceEpoch(startedMs) : DateTime.now(),
+        ));
+        await storage.saveTripHistory(history);
+
+        if (tId.isNotEmpty && startedMs != null) {
+          await FirebaseService().saveOrUpdateTrip(
+            tripId: tId,
+            destination: dest,
+            estimatedTravelMinutes: totalSecs ~/ 60,
+            startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
+            expectedArrivalAt: expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : null,
+            completedAt: DateTime.now(),
+            status: 'arrived',
+          );
+        }
+
+        if (dest.isNotEmpty) {
+          try {
+            await SmsAlertService().dispatchPrimaryArrivalSms(destination: dest);
+          } catch (e) {
+            debugPrint('[LisKo-BG-Diag] Primary safe arrival SMS notice: $e');
+          }
+        }
+
+        await const LocalStorageService().saveTripCompletedFeedback(true);
+      } catch (e) {
+        debugPrint('[LisKo-BG-Diag] Error completing safe arrival in background: $e');
+      }
+    }
+
+    await const LocalStorageService().consumePendingActionIfMatches(actionId);
     service.stopSelf();
   } else if (actionId == kNotifActionExtend) {
     debugPrint('[LisKo-BG-Diag] BackgroundService handling kNotifActionExtend ("+15 min")');

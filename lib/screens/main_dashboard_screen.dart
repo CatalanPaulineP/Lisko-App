@@ -155,6 +155,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     debugPrint('[LisKo-BG-Diag] App lifecycle state changed: ${state.name}');
     if (state == AppLifecycleState.resumed) {
       FirebaseService().refreshLocalTrips();
+      _checkCompletionFeedback();
       
       if ((isTimeoutWarning || isArrived) && safetyCheckDeadline != null) {
         final now = DateTime.now();
@@ -171,6 +172,31 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _presentSafetyScreen();
         }
       }
+    }
+  }
+
+  Future<void> _checkCompletionFeedback() async {
+    final showFeedback = await const LocalStorageService().consumeTripCompletedFeedback();
+    if (showFeedback && mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Trip completed. Trip monitoring has stopped.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
     }
   }
 
@@ -229,6 +255,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final data = await storage.readActiveTrip();
     if (data == null || !mounted) {
       debugPrint('[LisKo-BG-Diag] _restoreActiveTrip(): No active trip found in LocalStorageService');
+      _checkCompletionFeedback();
       return;
     }
 
@@ -868,6 +895,28 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       } catch (e) {
         debugPrint('Primary safe arrival SMS notice: $e');
       }
+    }
+
+    if (safe && mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Trip completed. Trip monitoring has stopped.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
     }
     
     setState(() {
