@@ -19,6 +19,7 @@
 //   safety setup with zero confusion.
 // ==============================================================================
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -26,6 +27,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/app_icon.dart';
+import '../widgets/legal_modals.dart';
 import 'onboarding_flow.dart';
 
 /// Route transition types used across the application.
@@ -114,6 +116,59 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   );
                 },
+              ),
+              const SizedBox(height: 14),
+              Center(
+                child: Text.rich(
+                  TextSpan(
+                    text: 'By tapping Get Started, you agree to LisKo\'s ',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                      height: 1.4,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: 'Terms of Use',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const TermsOfUseModalBottomSheet(),
+                            );
+                          },
+                      ),
+                      const TextSpan(text: ' and acknowledge our '),
+                      TextSpan(
+                        text: 'Privacy Policy',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const PrivacyPolicyModalBottomSheet(),
+                            );
+                          },
+                      ),
+                      const TextSpan(text: '.'),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),
