@@ -32,6 +32,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/local_storage_service.dart';
 import '../services/firebase_service.dart';
+import '../services/trip_history_export_service.dart';
 import '../widgets/app_icon.dart';
 import 'home_tab.dart';
 
@@ -151,6 +152,12 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
               alertsCount: alertsCount,
               selectedFilter: _selectedFilter,
               onFilterChanged: (filter) => setState(() => _selectedFilter = filter),
+              onExportTap: () {
+                TripHistoryExportService().exportAndShareTripHistory(
+                  trips: filteredTrips,
+                  context: context,
+                );
+              },
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -367,6 +374,7 @@ class TripsHeader extends StatelessWidget {
     required this.alertsCount,
     required this.selectedFilter,
     required this.onFilterChanged,
+    this.onExportTap,
     this.summaryKey,
   });
 
@@ -377,6 +385,7 @@ class TripsHeader extends StatelessWidget {
   final int alertsCount;
   final String selectedFilter;
   final ValueChanged<String> onFilterChanged;
+  final VoidCallback? onExportTap;
 
   @override
   Widget build(BuildContext context) {
@@ -416,31 +425,64 @@ class TripsHeader extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Trip History',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            height: 1.15,
-                            letterSpacing: -0.3,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Trip History',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.15,
+                              letterSpacing: -0.3,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '$tripCount trip${tripCount == 1 ? '' : 's'} recorded',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF94A3B8),
+                          const SizedBox(height: 3),
+                          Text(
+                            '$tripCount trip${tripCount == 1 ? '' : 's'} recorded',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF94A3B8),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    if (onExportTap != null)
+                      Material(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        child: InkWell(
+                          onTap: onExportTap,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.ios_share_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Export',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

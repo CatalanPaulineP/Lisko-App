@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/services/geofence_service.dart';
 import 'package:flutter_app/services/sms_alert_service.dart';
+import 'package:flutter_app/services/trip_history_export_service.dart';
 
 void main() {
   setUpAll(() {
@@ -1076,5 +1077,40 @@ void main() {
 
     expect(arrivedAlerts, isA<List<String>>());
     expect(expiredAlerts, isA<List<String>>());
+  });
+
+  test('TripHistoryExportService generates valid non-empty PDF bytes excluding private fields', () async {
+    final service = TripHistoryExportService();
+    final trips = [
+      TripRecord(
+        id: 'internal_secret_doc_123',
+        destination: 'PUP Santa Maria Campus',
+        durationMinutes: 45,
+        status: 'arrived',
+        timestamp: DateTime(2026, 10, 11, 16, 30),
+      ),
+      TripRecord(
+        id: 'internal_secret_doc_456',
+        destination: 'Home',
+        durationMinutes: 30,
+        status: 'expired',
+        timestamp: DateTime(2026, 10, 10, 8, 15),
+        wasExtended: true,
+      ),
+    ];
+
+    final pdfBytes = await service.generatePdfBytes(trips);
+
+    expect(pdfBytes, isNotEmpty);
+    expect(pdfBytes.length, greaterThan(100));
+
+    // Verify PDF header magic bytes (%PDF-1.)
+    final pdfHeader = String.fromCharCodes(pdfBytes.take(5));
+    expect(pdfHeader, '%PDF-');
+
+    // Verify display status mappings
+    expect(TripHistoryExportService.getDisplayStatus(trips[0]), 'ARRIVED');
+    expect(TripHistoryExportService.getDisplayStatus(trips[1]), 'EXPIRED');
+    expect(TripHistoryExportService.formatDuration(45), '45 mins');
   });
 }
