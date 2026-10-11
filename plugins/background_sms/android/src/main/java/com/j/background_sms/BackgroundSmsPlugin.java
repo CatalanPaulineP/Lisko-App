@@ -7,6 +7,7 @@ import android.telephony.SmsManager;
 
 import androidx.annotation.NonNull;
 
+import java.util.ArrayList;
 import java.util.UUID;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -59,7 +60,13 @@ public class BackgroundSmsPlugin implements FlutterPlugin, MethodCallHandler {
           smsManager = SmsManager.getDefault();
         }
       }
-      smsManager.sendTextMessage(num, null, msg, null, null);
+
+      ArrayList<String> parts = smsManager.divideMessage(msg);
+      if (parts != null && parts.size() > 1) {
+        smsManager.sendMultipartTextMessage(num, null, parts, null, null);
+      } else {
+        smsManager.sendTextMessage(num, null, msg, null, null);
+      }
       result.success("Sent");
     } catch (Exception ex) {
       ex.printStackTrace();

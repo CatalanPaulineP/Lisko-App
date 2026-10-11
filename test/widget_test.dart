@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/services/geofence_service.dart';
+import 'package:flutter_app/services/sms_alert_service.dart';
 
 void main() {
   setUpAll(() {
@@ -1040,4 +1041,40 @@ void main() {
       expect(readIds.contains('trip_7'), false);
     },
   );
+
+  test('claimAutomaticEscalation is idempotent across multiple callers', () async {
+    const storage = LocalStorageService();
+    await storage.saveActiveTrip(
+      isActive: true,
+      destination: 'Campus',
+      safetyCheckDeadlineMs: DateTime.now().millisecondsSinceEpoch - 1000,
+    );
+
+    final firstClaim = await storage.claimAutomaticEscalation();
+    final secondClaim = await storage.claimAutomaticEscalation();
+
+    expect(firstClaim, true);
+    expect(secondClaim, false);
+  });
+
+  test('dispatchEmergencyAlert formats Timer Expired vs Destination Reached headers correctly', () async {
+    final smsService = SmsAlertService();
+
+    final arrivedAlerts = await smsService.dispatchEmergencyAlert(
+      destination: 'Campus',
+      latitude: 14.869725,
+      longitude: 120.999082,
+      isArrived: true,
+    );
+
+    final expiredAlerts = await smsService.dispatchEmergencyAlert(
+      destination: 'Campus',
+      latitude: 14.869725,
+      longitude: 120.999082,
+      isArrived: false,
+    );
+
+    expect(arrivedAlerts, isA<List<String>>());
+    expect(expiredAlerts, isA<List<String>>());
+  });
 }

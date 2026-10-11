@@ -37,24 +37,80 @@ class SmsAlertService {
     }
   }
 
-  String _appendTimestamp(String message) {
-    final now = DateTime.now();
-    final mo = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    final y = (now.year % 100).toString().padLeft(2, '0');
+  String _formatSmsDateTime([DateTime? dt]) {
+    final now = dt ?? DateTime.now();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final monthStr = months[now.month - 1];
+    final dayStr = now.day;
+    final yearStr = now.year;
+
     int h = now.hour;
     final ampm = h >= 12 ? 'PM' : 'AM';
     if (h == 0) h = 12;
     if (h > 12) h -= 12;
-    final hs = h.toString().padLeft(2, '0');
+    final hs = h;
     final mi = now.minute.toString().padLeft(2, '0');
-    final timestamp = '\nTime: $mo-$d-$y $hs:$mi $ampm';
-    return '$message$timestamp';
+    final sec = now.second.toString().padLeft(2, '0');
+
+    return '$monthStr $dayStr, $yearStr, $hs:$mi:$sec $ampm';
+  }
+
+  Future<String> _buildLocationLines({
+    double? latitude,
+    double? longitude,
+    String? locationError,
+  }) async {
+    if (latitude != null && longitude != null) {
+      final latStr = latitude.toStringAsFixed(6);
+      final lngStr = longitude.toStringAsFixed(6);
+      final rawAddr = await _reverseGeocode(latitude, longitude);
+
+      String locLine;
+      if (rawAddr != null && rawAddr.trim().isNotEmpty) {
+        var cleanAddr = rawAddr.trim();
+        if (cleanAddr.toLowerCase().startsWith('near ')) {
+          cleanAddr = cleanAddr.substring(5).trim();
+        }
+        locLine = 'Loc: $cleanAddr';
+      } else {
+        locLine = 'Loc: See map location below';
+      }
+
+      final mapLine = 'Map: https://www.google.com/maps?q=$latStr,$lngStr';
+      return '$locLine\n$mapLine';
+    } else {
+      return 'Loc: ${locationError ?? "Location unavailable"}';
+    }
+  }
+
+  bool _isValidStreet(String street) {
+    final trimmed = street.trim();
+    if (trimmed.isEmpty) return false;
+
+    final lower = trimmed.toLowerCase();
+    if (lower == 'unnamed road' || lower == 'unnamed' || lower == 'null') {
+      return false;
+    }
+
+    // Omit numeric-only street numbers (e.g. "123")
+    if (RegExp(r'^\d+$').hasMatch(trimmed)) {
+      return false;
+    }
+
+    // Omit Plus Codes (e.g. "7Q5F+X9")
+    if (RegExp(r'^[A-Za-z0-9]{4,8}\+[A-Za-z0-9]{2,4}$').hasMatch(trimmed)) {
+      return false;
+    }
+
+    return true;
   }
 
   Future<String?> _reverseGeocode(double lat, double lng) async {
     if (_isTestEnvironment) {
-      return 'Pulong Buhangin, Sta Maria';
+      return 'Pulong Buhangin, Sta. Maria';
     }
     try {
       final placemarks = await placemarkFromCoordinates(
@@ -64,28 +120,67 @@ class SmsAlertService {
 
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
+
+        final street = (p.thoroughfare ?? p.street ?? '').trim();
+        final subLoc = (p.subLocality ?? '').trim();
+        final loc = (p.locality ?? p.subAdministrativeArea ?? '').trim();
+        final admin = (p.administrativeArea ?? '').trim();
+
         final parts = <String>[];
 
-        final subLoc = p.subLocality ?? p.thoroughfare;
-        if (subLoc != null && subLoc.isNotEmpty) {
-          parts.add(subLoc);
-        }
-
-        final loc = p.locality ?? p.subAdministrativeArea;
-        if (loc != null && loc.isNotEmpty) {
+        // Priority A: Street + Municipality/City
+        if (_isValidStreet(street) && loc.isNotEmpty) {
+          parts.add(street);
           parts.add(loc);
         }
+        // Priority B: Barangay/SubLocality + Municipality/City
+        else if (subLoc.isNotEmpty && loc.isNotEmpty) {
+          parts.add(subLoc);
+          parts.add(loc);
+        }
+        // Priority C: Municipality/City + Province
+        else if (loc.isNotEmpty && admin.isNotEmpty) {
+          parts.add(loc);
+          parts.add(admin);
+        }
+        // Priority D: Barangay/SubLocality + Province
+        else if (subLoc.isNotEmpty && admin.isNotEmpty) {
+          parts.add(subLoc);
+          parts.add(admin);
+        }
+        // Priority E: Single available component
+        else if (loc.isNotEmpty) {
+          parts.add(loc);
+        } else if (subLoc.isNotEmpty) {
+          parts.add(subLoc);
+        } else if (admin.isNotEmpty) {
+          parts.add(admin);
+        }
 
-        if (parts.isNotEmpty) {
-          var addr = parts.join(', ');
-          addr = addr
-              .replaceAll('Santa ', 'Sta ')
-              .replaceAll('Barangay ', 'Brgy ')
-              .replaceAll('Saint ', 'St ');
-          if (addr.length > 24) {
-            addr = addr.substring(0, 24);
+        // Deduplicate & normalize abbreviations
+        final uniqueParts = <String>[];
+        final seenLower = <String>{};
+
+        for (var part in parts) {
+          var cleaned = part
+              .replaceAll('Barangay ', 'Brgy. ')
+              .replaceAll('Santa ', 'Sta. ')
+              .replaceAll('Saint ', 'St. ')
+              .replaceAll('Near ', '')
+              .trim();
+
+          cleaned = cleaned.replaceAll(RegExp(r'^\s*,\s*|\s*,\s*$'), '');
+          if (cleaned.isEmpty) continue;
+
+          final lower = cleaned.toLowerCase();
+          if (!seenLower.contains(lower)) {
+            seenLower.add(lower);
+            uniqueParts.add(cleaned);
           }
-          return addr;
+        }
+
+        if (uniqueParts.isNotEmpty) {
+          return uniqueParts.join(', ');
         }
       }
     } catch (e) {
@@ -100,27 +195,18 @@ class SmsAlertService {
     double? accuracy,
     String? locationError,
   }) async {
-    String alertMessage;
+    final dateTimeStr = _formatSmsDateTime();
+    final locLines = await _buildLocationLines(
+      latitude: latitude,
+      longitude: longitude,
+      locationError: locationError,
+    );
 
-    if (latitude != null && longitude != null) {
-      final latStr = latitude.toStringAsFixed(6);
-      final lngStr = longitude.toStringAsFixed(6);
-      final accStr = accuracy != null ? ' (+/-${accuracy.toStringAsFixed(0)}m)' : '';
-      final address = await _reverseGeocode(latitude, longitude);
+    final alertMessage = 'LISKO SOS! Student needs help.\n\n'
+        '$locLines\n'
+        'Date & Time: $dateTimeStr';
 
-      final locLine = (address != null && address.isNotEmpty) ? 'Loc: $address\n' : '';
-
-      alertMessage = 'LISKO SOS! Need Help!\n'
-          '$locLine'
-          '$latStr,$lngStr$accStr\n'
-          'Map: https://www.google.com/maps?q=$latStr,$lngStr';
-    } else {
-      final err = locationError ?? 'Location Unavailable';
-      alertMessage = 'LISKO SOS! Need Help!\n'
-          'Loc: $err';
-    }
-
-    return _internalDispatch(_appendTimestamp(alertMessage));
+    return _internalDispatch(alertMessage);
   }
 
   Future<List<String>> dispatchEmergencyAlert({
@@ -137,28 +223,21 @@ class SmsAlertService {
     if (customMessage != null && customMessage.isNotEmpty) {
       alertMessage = customMessage;
     } else {
-      final now = DateTime.now();
-      int h = now.hour;
-      final ampm = h >= 12 ? 'PM' : 'AM';
-      if (h == 0) h = 12;
-      if (h > 12) h -= 12;
-      final hs = h.toString().padLeft(2, '0');
-      final mi = now.minute.toString().padLeft(2, '0');
-      final timeStr = '$hs:$mi $ampm';
-
-      final locText = (latitude != null && longitude != null)
-          ? 'https://www.google.com/maps?q=${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)}'
-          : (locationError ?? 'Location Unavailable');
-
+      final dateTimeStr = _formatSmsDateTime();
       final destText = destination.isNotEmpty ? destination : 'destination';
+      final locLines = await _buildLocationLines(
+        latitude: latitude,
+        longitude: longitude,
+        locationError: locationError,
+      );
 
-      if (isArrived) {
-        alertMessage =
-            'LisKo ALERT: Student reached $destText but did not respond to the safety confirmation. Location: $locText Time: $timeStr';
-      } else {
-        alertMessage =
-            'LisKo ALERT: Student did not respond to the safety confirmation for $destText. Location: $locText Time: $timeStr';
-      }
+      final header = isArrived
+          ? 'LISKO ALERT: Student reached $destText but did not confirm safety.'
+          : 'LISKO ALERT: Timer expired!';
+
+      alertMessage = '$header\n\n'
+          '$locLines\n'
+          'Date & Time: $dateTimeStr';
     }
 
     return _internalDispatch(alertMessage);
@@ -248,20 +327,12 @@ class SmsAlertService {
   Future<List<String>> dispatchPrimaryArrivalSms({
     required String destination,
   }) async {
-    final now = DateTime.now();
-    final mo = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    final y = (now.year % 100).toString().padLeft(2, '0');
-    int h = now.hour;
-    final ampm = h >= 12 ? 'PM' : 'AM';
-    if (h == 0) h = 12;
-    if (h > 12) h -= 12;
-    final hs = h.toString().padLeft(2, '0');
-    final mi = now.minute.toString().padLeft(2, '0');
-    final timeStr = '$mo-$d-$y $hs:$mi $ampm';
+    final dateTimeStr = _formatSmsDateTime();
+    final destText = destination.isNotEmpty ? destination : 'destination';
 
     final alertMessage =
-        'LisKo: Student arrived safely at $destination. Time: $timeStr';
+        'LisKo: Student arrived safely at $destText.\n\n'
+        'Date & Time: $dateTimeStr';
 
     return _internalDispatchPrimaryOnly(alertMessage);
   }

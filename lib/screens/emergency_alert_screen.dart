@@ -50,6 +50,7 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   }
 
   Future<void> _executeAlert() async {
+    if (_executing || _done) return;
     setState(() {
       countdown = 0;
       _executing = true;
@@ -62,9 +63,10 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         _executing = false;
         _done = true;
       });
-      // Optionally close after a short delay
       Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) Navigator.pop(context, true);
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        }
       });
     }
   }

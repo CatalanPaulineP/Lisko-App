@@ -538,9 +538,15 @@ Future<void> _handleBackgroundArrivalDetected({
     startedAtMs: startedAtMs,
   );
 
-  await NotificationService().showArrivalAlarm(destination);
   service.invoke('arrivalDetected', {'destination': destination});
 
+  final bool isUserEmergency = await const LocalStorageService().readEmergencyActive();
+  if (isUserEmergency) {
+    debugPrint('[LisKo-BG-Diag] Arrival detected while user-initiated emergency is active. Suppressing arrival alarm vibration.');
+    return;
+  }
+
+  await NotificationService().showArrivalAlarm(destination);
   _scheduleNextVibrationPhase(safetyDeadlineMs);
 
   _bgSafetyCheckTimer?.cancel();
@@ -670,6 +676,14 @@ Future<void> _executeBackgroundEmergencyEscalation({
       return;
     }
 
+    if (!effectiveIsManualSos) {
+      final claimed = await const LocalStorageService().claimAutomaticEscalation();
+      if (!claimed) {
+        debugPrint('[LisKo-BG-Diag] BackgroundService: Escalation already claimed by another handler. Skipping duplicate dispatch.');
+        return;
+      }
+    }
+
     debugPrint('[LisKo-BG-Diag] BackgroundService executing emergency SMS escalation.');
 
     double? lat;
@@ -689,13 +703,15 @@ Future<void> _executeBackgroundEmergencyEscalation({
       locationError = 'GPS acquisition timeout';
     }
 
+    final bool freshIsArrived = (freshTrip['isArrived'] as bool?) ?? false;
+
     final sentList = await SmsAlertService().dispatchEmergencyAlert(
       destination: destination,
       latitude: lat,
       longitude: lng,
       accuracy: acc,
       locationError: locationError,
-      isArrived: false,
+      isArrived: freshIsArrived,
     );
 
     await NotificationService().showEmergencySentNotification(sentList, permissionDenied: false);
@@ -705,11 +721,15 @@ Future<void> _executeBackgroundEmergencyEscalation({
     final history = await storage.readTripHistory();
     final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
 
+    final String historyStatus = effectiveIsManualSos
+        ? 'Need Help'
+        : (freshIsArrived ? 'Arrival Unconfirmed' : 'Timer Expired');
+
     final newTrip = TripRecord(
       id: eventId,
       destination: destination,
       durationMinutes: totalDurationSeconds ~/ 60,
-      status: effectiveIsManualSos ? 'Need Help' : 'Timer Expired',
+      status: historyStatus,
       timestamp: DateTime.now(),
     );
     await storage.saveTripHistory([...history, newTrip]);

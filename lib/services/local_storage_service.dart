@@ -100,6 +100,7 @@ class LocalStorageService {
     int? startedAtMs,
     double? cachedLat,
     double? cachedLng,
+    bool? isEscalated,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!isActive) {
@@ -109,6 +110,7 @@ class LocalStorageService {
     double? finalLat = cachedLat;
     double? finalLng = cachedLng;
     bool? finalSuppress = suppressArrivalUntilExit;
+    bool? finalEscalated = isEscalated;
 
     try {
       final raw = prefs.getString(_activeTripKey);
@@ -117,6 +119,7 @@ class LocalStorageService {
         finalLat = finalLat ?? (existing['cachedLat'] as num?)?.toDouble();
         finalLng = finalLng ?? (existing['cachedLng'] as num?)?.toDouble();
         finalSuppress = finalSuppress ?? (existing['suppressArrivalUntilExit'] as bool?);
+        finalEscalated = finalEscalated ?? (existing['isEscalated'] as bool?);
       }
     } catch (_) {}
 
@@ -133,8 +136,35 @@ class LocalStorageService {
       'startedAtMs': startedAtMs,
       'cachedLat': finalLat,
       'cachedLng': finalLng,
+      'isEscalated': finalEscalated ?? false,
     };
     await prefs.setString(_activeTripKey, jsonEncode(data));
+  }
+
+  /// Atomically claims automatic 90-second timeout escalation across isolates.
+  /// Returns `true` ONLY if the active trip is currently active and was NOT previously claimed.
+  /// Persists `isEscalated: true` before returning `true`.
+  Future<bool> claimAutomaticEscalation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload(); // Fresh read across Flutter isolates
+      final raw = prefs.getString(_activeTripKey);
+      if (raw == null) return false;
+
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final bool isActive = (data['isActive'] as bool?) ?? false;
+      final bool isEscalated = (data['isEscalated'] as bool?) ?? false;
+
+      if (!isActive || isEscalated) {
+        return false;
+      }
+
+      data['isEscalated'] = true;
+      await prefs.setString(_activeTripKey, jsonEncode(data));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> updateCachedLocation(double lat, double lng) async {
@@ -201,6 +231,31 @@ class LocalStorageService {
   }
 
   static const _completionFeedbackKey = 'show_trip_completed_feedback';
+  static const _emergencyActiveKey = 'user_emergency_active';
+
+  /// Saves whether a user-initiated emergency countdown (Need Help / Manual SOS) is currently active.
+  Future<void> saveEmergencyActive(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      if (value) {
+        await prefs.setBool(_emergencyActiveKey, true);
+      } else {
+        await prefs.remove(_emergencyActiveKey);
+      }
+    } catch (_) {}
+  }
+
+  /// Reads whether a user-initiated emergency countdown is active across Flutter isolates.
+  Future<bool> readEmergencyActive() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      return prefs.getBool(_emergencyActiveKey) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Saves the one-time flag requesting a trip-completion SnackBar when the UI becomes active.
   Future<void> saveTripCompletedFeedback(bool value) async {

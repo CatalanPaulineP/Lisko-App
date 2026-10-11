@@ -203,7 +203,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _safetyScreenOpen = false;
 
   void _presentSafetyScreen() {
-    if (!mounted || _safetyScreenOpen || safetyCheckDeadline == null) return;
+    if (!mounted || _safetyScreenOpen || _alertScreenOpen || safetyCheckDeadline == null) return;
     final now = DateTime.now();
     if (now.isAfter(safetyCheckDeadline!)) return;
 
@@ -685,9 +685,10 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _startArrivalCountdownTimer();
 
     NotificationService().cancelPersistentTripNotification();
-    NotificationService().showArrivalAlarm(destinationName);
-
-    _presentSafetyScreen();
+    if (!_alertScreenOpen) {
+      NotificationService().showArrivalAlarm(destinationName);
+      _presentSafetyScreen();
+    }
   }
 
   /// Public test & demonstration helper allowing simulation of GPS arrival.
@@ -702,6 +703,16 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _escalateEmergencyAlert({bool isManualSos = false}) async {
     if (_isEscalating) return;
     if (!isManualSos && _isPreparingSos) return; // Prevent timeouts from clashing with the 5-sec SOS countdown
+    if (!isManualSos) {
+      final claimed = await const LocalStorageService().claimAutomaticEscalation();
+      if (!claimed) {
+        debugPrint('[LisKo-UI] Escalation already claimed by another handler. Syncing idle state.');
+        if (mounted) {
+          _resetTripStateToIdle();
+        }
+        return;
+      }
+    }
     _isEscalating = true;
     Vibration.cancel();
     
@@ -769,7 +780,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           eventType = 'Need Help';
         }
       } else {
-        eventType = 'Timer Expired';
+        eventType = isArrived ? 'Arrival Unconfirmed' : 'Timer Expired';
       }
 
       final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
@@ -832,21 +843,41 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('Unhandled error in _escalateEmergencyAlert: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          tripActive = false;
-          isArrived = false;
-          isTimeoutWarning = false;
-          _isEscalating = false;
-          remaining = Duration.zero;
-          arrivalCountdown = 90;
-          expectedArrivalAt = null;
-          safetyCheckDeadline = null;
-          tripId = '';
-          tripStartedAt = null;
-        });
-      }
+      _resetTripStateToIdle();
       if (!_isTestEnvironment) FlutterBackgroundService().invoke('stopService');
+    }
+  }
+
+  void _resetTripStateToIdle() {
+    _safetyScreenOpen = false;
+    _alertScreenOpen = false;
+    _isPreparingSos = false;
+    _isEscalating = false;
+    tripTimer?.cancel();
+    _arrivalTimer?.cancel();
+    Vibration.cancel();
+    NotificationService().cancelArrivalAlarm();
+    _geofenceService.stopMonitoring();
+
+    if (mounted) {
+      setState(() {
+        tripActive = false;
+        isArrived = false;
+        isTimeoutWarning = false;
+        remaining = Duration.zero;
+        arrivalCountdown = 90;
+        expectedArrivalAt = null;
+        safetyCheckDeadline = null;
+        tripId = '';
+        tripStartedAt = null;
+        selectedTab = 0;
+      });
+
+      try {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      } catch (_) {}
     }
   }
 
@@ -1004,71 +1035,78 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _triggerEmergencyFlow({bool immediate = false}) async {
     if (_alertScreenOpen || _isPreparingSos) return;
 
-    final permService = PermissionService();
-    await permService.checkTripRequirements(context);
-
-    // Wait for the user to return if they were sent to OS settings.
-    // A small delay ensures the OS has time to transition the app to a paused state
-    // before we evaluate the while condition.
-    await Future.delayed(const Duration(milliseconds: 500));
-    while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
-
-    if (!mounted) return;
-
     _alertScreenOpen = true;
     _isPreparingSos = true; // Lock background timeouts
+    await const LocalStorageService().saveEmergencyActive(true);
 
-    // Check location service status before showing emergency countdown
-    final serviceEnabled = await permService.isLocationServiceEnabled();
-    if (serviceEnabled) {
-      // Small pause check if native location dialog appears
+    bool? executed;
+    try {
+      if (!mounted) return;
+      final permService = PermissionService();
+      await permService.checkTripRequirements(context);
+
+      // Wait for the user to return if they were sent to OS settings.
+      // A small delay ensures the OS has time to transition the app to a paused state
+      // before we evaluate the while condition.
       await Future.delayed(const Duration(milliseconds: 500));
       while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
         await Future.delayed(const Duration(milliseconds: 500));
       }
-    }
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final executed = await Navigator.push<bool>(
-      context,
-      PageRouteBuilder(
-        opaque: false,
-        fullscreenDialog: true,
-        pageBuilder: (context, _, __) => EmergencyAlertScreen(
-          isManualSos: true,
-          immediateExecute: immediate,
-          onExecute: () => _escalateEmergencyAlert(isManualSos: true),
-          onCancel: () {
-            _isPreparingSos = false;
-            if (isArrived && arrivalCountdown == 0) {
-                _endTrip(safe: false);
-            }
-          },
-        ),
-      ),
-    );
-
-    if (executed == true && mounted) {
-      try {
-        if (Navigator.of(context).canPop()) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        }
-      } catch (_) {}
-    }
-
-    if (mounted) {
-      _alertScreenOpen = false;
-      _isPreparingSos = false;
-
-      if (executed != true && (isArrived || isTimeoutWarning) && safetyCheckDeadline != null && !_isEscalating) {
-        final now = DateTime.now();
-        if (now.isBefore(safetyCheckDeadline!) && !_safetyScreenOpen) {
-          _presentSafetyScreen();
+      // Check location service status before showing emergency countdown
+      final serviceEnabled = await permService.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        // Small pause check if native location dialog appears
+        await Future.delayed(const Duration(milliseconds: 500));
+        while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+          await Future.delayed(const Duration(milliseconds: 500));
         }
       }
+
+      if (!mounted) return;
+
+      executed = await Navigator.push<bool>(
+        context,
+        PageRouteBuilder(
+          opaque: false,
+          fullscreenDialog: true,
+          pageBuilder: (context, _, __) => EmergencyAlertScreen(
+            isManualSos: true,
+            immediateExecute: immediate,
+            onExecute: () => _escalateEmergencyAlert(isManualSos: true),
+            onCancel: () {
+              _isPreparingSos = false;
+              if (isArrived && arrivalCountdown == 0) {
+                _endTrip(safe: false);
+              }
+            },
+          ),
+        ),
+      );
+
+      if (executed == true && mounted) {
+        try {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        } catch (_) {}
+      }
+    } finally {
+      if (mounted) {
+        _alertScreenOpen = false;
+        _isPreparingSos = false;
+
+        if (executed != true && (isArrived || isTimeoutWarning) && safetyCheckDeadline != null && !_isEscalating) {
+          final now = DateTime.now();
+          if (now.isBefore(safetyCheckDeadline!) && !_safetyScreenOpen) {
+            NotificationService().showArrivalAlarm(destination);
+            _presentSafetyScreen();
+          }
+        }
+      }
+      await const LocalStorageService().saveEmergencyActive(false);
     }
   }
 
