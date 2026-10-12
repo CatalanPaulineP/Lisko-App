@@ -403,7 +403,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _extendTrip();
   }
 
-  /// Immediately triggers the emergency SOS flow (bypasses 5-second countdown).
+  /// Public action handler callable from NotificationService or SOS Widget when user triggers SOS.
   void handleSosAction() async {
     if (!mounted) return;
     Vibration.cancel();
@@ -411,26 +411,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
-    final isForeground = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-
-    if (isForeground) {
-      _triggerEmergencyFlow(immediate: false);
-    } else {
-      if (_isPreparingSos) return;
-      _isPreparingSos = true;
-
-      await Future.delayed(const Duration(seconds: 5));
-
-      if (!mounted) return;
-      if (_isPreparingSos) {
-        await _escalateEmergencyAlert(isManualSos: true);
-        if (mounted) {
-          setState(() {
-            _isPreparingSos = false;
-          });
-        }
-      }
-    }
+    _triggerEmergencyFlow(immediate: false);
   }
 
   Future<bool> _startTrip(String selectedDestination, Duration duration) async {
@@ -1235,6 +1216,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               ContactsTab(
                 key: const ValueKey('contacts'),
+                isSelected: selectedTab == 2,
                 addContactKey: _addContactKey,
                 importContactsKey: _importContactsKey,
               ),

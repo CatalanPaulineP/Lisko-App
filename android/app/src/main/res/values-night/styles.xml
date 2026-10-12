@@ -7,4 +7,8 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- Dedicated Theme for SosEmergencyActivity: eliminates white launch flash -->
+    <style name="SosEmergencyTheme" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowBackground">#EF4444</item>
+    </style>
 </resources>

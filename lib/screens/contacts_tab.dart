@@ -8,23 +8,9 @@
 // secondary contacts with deletion options, and hosts bottom sheet modals for
 // editing, importing, and adding contacts.
 //
-// State Synchronization & Modal Architecture:
-// - SharedPreferences Persistence: Automatically queries `LocalStorageService.readContacts()`
-//   on initialization and immediately persists additions, edits, or removals.
-// - Primary Emergency Contact Card: Features a soft crimson background (`#FFF2F3`),
-//   pill badge indicator, circular avatar with initials, and a three-dots (`⋮`)
-//   options menu triggering `EditContactBottomSheet`.
-// - Phone Contacts Import: `ImportContactsBottomSheet` presents mock device contacts
-//   (Dianne, Elly, ash, Rothen, Rainn) for rapid single-tap contact imports.
-// - Add Contact Modal: `AddNewContactBottomSheet` includes Full Name, Relationship chips,
-//   and the smart Philippine phone input container (`PhilippinePhoneInputField`) with
-//   dynamic button activation upon valid input.
-//
-// ISO/IEC 25010 Software Quality Standards Alignment:
-// - Functional Suitability & Privacy: Zero-surveillance local persistence protects
-//   student contact lists from external exposure.
-// - Usability: Standardized 48dp minimum interactive touch targets, clear confirmation
-//   feedback, and seamless modal transitions without UI overflow.
+// Native Device Security Gate:
+// Optionally protected via native device authentication (PIN, pattern, password, or
+// biometrics) when `protect_contacts_enabled` is enabled in Settings.
 // ==============================================================================
 
 import 'package:flutter/material.dart';
@@ -34,6 +20,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
+import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/app_icon.dart';
@@ -41,39 +28,122 @@ import 'home_tab.dart';
 import 'onboarding_flow.dart';
 
 /// Tab displaying the user's trusted contacts directory with real-time state synchronization,
-/// primary emergency card, edit popup menu, and modal bottom sheets.
+/// primary emergency card, edit popup menu, and optional native device lock protection.
 class ContactsTab extends StatefulWidget {
+  static bool isSessionUnlocked = false;
+
   final GlobalKey? addContactKey;
   final GlobalKey? importContactsKey;
+  final bool isSelected;
 
   const ContactsTab({
     super.key,
     this.addContactKey,
     this.importContactsKey,
+    this.isSelected = false,
   });
 
   @override
   State<ContactsTab> createState() => _ContactsTabState();
 }
 
-class _ContactsTabState extends State<ContactsTab> {
+class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
   final LocalStorageService _storage = const LocalStorageService();
   List<ContactPerson> _contacts = [];
   bool _isLoading = true;
+  bool _protectContactsEnabled = false;
+  bool _isUnlocked = false;
+  bool _isAuthenticating = false;
 
   @override
   void initState() {
     super.initState();
-    _loadContacts();
+    WidgetsBinding.instance.addObserver(this);
+    _loadContactsAndProtectionState();
   }
 
-  Future<void> _loadContacts() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(ContactsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected) {
+      _checkProtectionAndAuthenticate();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      ContactsTab.isSessionUnlocked = false;
+      if (_protectContactsEnabled && mounted) {
+        setState(() {
+          _isUnlocked = false;
+        });
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (widget.isSelected) {
+        _checkProtectionAndAuthenticate();
+      }
+    }
+  }
+
+  Future<void> _loadContactsAndProtectionState() async {
     final loaded = await _storage.readContacts();
     if (mounted) {
       setState(() {
         _contacts = loaded;
         _isLoading = false;
       });
+      await _checkProtectionAndAuthenticate();
+    }
+  }
+
+  Future<void> _checkProtectionAndAuthenticate() async {
+    if (ContactsTab.isSessionUnlocked) {
+      setState(() {
+        _isUnlocked = true;
+      });
+    }
+
+    final protectEnabled = await _storage.readProtectContactsEnabled();
+    if (!mounted) return;
+
+    if (!protectEnabled) {
+      setState(() {
+        _protectContactsEnabled = false;
+        _isUnlocked = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _protectContactsEnabled = true;
+      _isUnlocked = ContactsTab.isSessionUnlocked;
+    });
+  }
+
+  Future<void> _triggerDeviceAuth() async {
+    if (_isAuthenticating || !_protectContactsEnabled) return;
+    _isAuthenticating = true;
+
+    final success = await AuthService.authenticate(
+      reason: 'Authenticate to access your trusted emergency contacts',
+    );
+
+    _isAuthenticating = false;
+
+    if (mounted) {
+      setState(() {
+        _isUnlocked = success;
+      });
+      if (success) {
+        ContactsTab.isSessionUnlocked = true;
+      }
     }
   }
 
@@ -116,7 +186,6 @@ class _ContactsTabState extends State<ContactsTab> {
       );
     }
   }
-
 
   bool get _isTestMode {
     final binding = WidgetsBinding.instance.runtimeType.toString();
@@ -343,12 +412,99 @@ class _ContactsTabState extends State<ContactsTab> {
     }
   }
 
+  Widget _buildLockedContactsView() {
+    return Column(
+      children: [
+        ContactsHeader(
+          contactCount: _contacts.length,
+          onAddTap: () {},
+          addKey: widget.addContactKey,
+        ),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.lock_rounded,
+                        color: AppColors.primary,
+                        size: 36,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Contacts Protected',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.header,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Authenticate using your device security (PIN, pattern, or biometrics) to view and manage trusted emergency contacts.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _triggerDeviceAuth,
+                      icon: const Icon(Icons.lock_open_rounded, size: 20),
+                      label: Text(
+                        'Unlock with Device Security',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
+    }
+
+    if (_protectContactsEnabled && !_isUnlocked) {
+      return _buildLockedContactsView();
     }
 
     final primaryContact = _contacts.isNotEmpty
@@ -366,7 +522,7 @@ class _ContactsTabState extends State<ContactsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Top Header Bar matching image_6c39af.png
+        // Top Header Bar
         ContactsHeader(
           contactCount: _contacts.length,
           onAddTap: _openAddContactModal,
@@ -380,7 +536,7 @@ class _ContactsTabState extends State<ContactsTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Primary Emergency Recipients Card matching image_6c39af.png
+                  // Primary Emergency Recipients Card
                   PrimaryEmergencyContactCard(
                     contact: primaryContact,
                     onEditTap: () => _openEditContactModal(primaryContact, 0),
@@ -870,7 +1026,7 @@ class SecondaryContactListItem extends StatelessWidget {
   }
 }
 
-/// Edit Contact Modal Bottom Sheet matching image_6c410d.png
+/// Edit Contact Modal Bottom Sheet
 class EditContactBottomSheet extends StatefulWidget {
   const EditContactBottomSheet({
     super.key,
@@ -1154,7 +1310,7 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
   }
 }
 
-/// Add New Contact Bottom Sheet matching image_6c44f3.png
+/// Add New Contact Bottom Sheet
 class AddNewContactBottomSheet extends StatefulWidget {
   const AddNewContactBottomSheet({super.key, required this.onAdded});
 
@@ -1384,7 +1540,7 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
                 hasError: false,
               ),
               const SizedBox(height: 24),
-              // Add Contact Action Button (gradient when valid, grey when disabled)
+              // Add Contact Action Button
               GradientButton(
                 label: 'Add Contact',
                 onPressed: _isValid ? _handleAdd : null,
@@ -1488,6 +1644,3 @@ class PhilippinePhoneInputField extends StatelessWidget {
     );
   }
 }
-
-
-

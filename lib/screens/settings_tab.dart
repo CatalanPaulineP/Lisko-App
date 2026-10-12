@@ -20,9 +20,12 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
+import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../services/permission_service.dart';
+import 'contacts_tab.dart';
 import 'faq_screen.dart';
+import 'sos_widget_detail_screen.dart';
 import 'user_guide_screen.dart';
 import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
@@ -50,6 +53,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
   String _alertMode = 'Vibration Only';
   double? _homeLat;
   double? _homeLng;
+  bool _protectContacts = false;
 
   bool _hasContacts = false;
   bool _hasNotifications = false;
@@ -99,6 +103,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     final homeCoords = await _storage.readHomeCoordinates();
     final alertMode = await _storage.readAlertMode();
     final defaultMins = await _storage.readDefaultTravelDuration();
+    final protectContacts = await _storage.readProtectContactsEnabled();
     if (mounted) {
       setState(() {
         if (hasHome) {
@@ -110,6 +115,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
         }
         _alertMode = alertMode;
         _defaultDuration = '$defaultMins mins';
+        _protectContacts = protectContacts;
       });
     }
   }
@@ -343,6 +349,55 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     );
   }
 
+  void _openSosWidgetDetailScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const SosWidgetDetailScreen(),
+      ),
+    );
+  }
+
+  Future<void> _toggleProtectContacts(bool newval) async {
+    if (newval) {
+      final authenticated = await AuthService.authenticate(
+        reason: 'Confirm device lock credentials to enable contacts protection',
+      );
+      if (!authenticated) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Authentication required to enable contacts protection',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              backgroundColor: AppColors.header,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      // Lock ContactsTab immediately so accessing Contacts Tab requires authentication
+      ContactsTab.isSessionUnlocked = false;
+    } else {
+      ContactsTab.isSessionUnlocked = true;
+    }
+
+    await _storage.saveProtectContactsEnabled(newval);
+    if (mounted) {
+      setState(() {
+        _protectContacts = newval;
+      });
+    }
+  }
+
   void _openExpiryAlertModeModal() {
     showModalBottomSheet<void>(
       context: context,
@@ -529,6 +584,29 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           title: 'Covert SMS Emergency Dispatch',
                           subtitle: '3-cycle haptic escalation before offline SMS trigger',
                         ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildWidgetPinRow(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Section 3: Privacy & Security Card
+                  _buildSectionTitle('PRIVACY & SECURITY'),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: _cardDecoration(),
+                    child: Column(
+                      children: [
+                        _buildSwitchRow(
+                          semanticIcon: Icons.lock_outline_rounded,
+                          iconBg: const Color(0xFFFFDAD8),
+                          iconColor: AppColors.primary,
+                          title: 'Protect Trusted Contacts',
+                          subtitle: 'Require device PIN, pattern, or biometrics to view contacts',
+                          value: _protectContacts,
+                          onChanged: _toggleProtectContacts,
+                        ),
                       ],
                     ),
                   ),
@@ -664,6 +742,74 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildWidgetPinRow() {
+    return _buildActionRow(
+      iconStr: AppIcons.warning,
+      semanticIcon: Icons.widgets_rounded,
+      iconBg: const Color(0xFFFFDAD8),
+      iconColor: AppColors.primary,
+      title: 'Home Screen SOS Widget',
+      subtitle: 'Pin quick distress shortcut to launcher',
+      onTap: _openSosWidgetDetailScreen,
+    );
+  }
+
+  Widget _buildSwitchRow({
+    required IconData semanticIcon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+            child: Center(
+              child: Icon(semanticIcon, color: iconColor, size: 18),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.header,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.body,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            activeTrackColor: AppColors.primary,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 

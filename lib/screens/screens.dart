@@ -5,7 +5,7 @@
 // Role & Architectural Context:
 // Central barrel export exposing all primary application screen views:
 // Splash, Welcome, 5-Step Onboarding, Main Dashboard, Home, Active Trip, Trips,
-// Contacts, and Settings.
+// Contacts, Settings, FAQ, User Guide, and SOS Widget Detail.
 //
 // ISO/IEC 25010 Software Quality Standards Alignment:
 // - Maintainability (Modularity & Reusability): Clean barrel export structure
@@ -19,9 +19,8 @@ export 'home_tab.dart';
 export 'main_dashboard_screen.dart';
 export 'onboarding_flow.dart';
 export 'settings_tab.dart';
+export 'sos_widget_detail_screen.dart';
 export 'splash_screen.dart';
 export 'trips_tab.dart';
 export 'user_guide_screen.dart';
 export 'welcome_screen.dart';
-
-

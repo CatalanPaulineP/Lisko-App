@@ -3,9 +3,9 @@
 // File: lib/screens/user_guide_screen.dart
 //
 // Role & Architectural Context:
-// Interactive, vertically scrollable user guide providing 13 expandable/collapsible
+// Interactive, vertically scrollable user guide providing 14 expandable/collapsible
 // accordion sections detailing setup, trip safety, emergency actions, contacts,
-// location privacy, and safety reminders.
+// widget shortcuts, location privacy, and safety reminders.
 // ==============================================================================
 
 import 'package:flutter/material.dart';
@@ -14,7 +14,7 @@ import 'package:iconify_flutter/iconify_flutter.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 
-/// Screen presenting 13 expandable guide sections and a sticky confirmation CTA button.
+/// Screen presenting 14 expandable guide sections and a sticky confirmation CTA button.
 class UserGuideScreen extends StatelessWidget {
   const UserGuideScreen({super.key});
 
@@ -130,70 +130,80 @@ class UserGuideScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 12),
 
-                  // 7. Need Help (AMBER - ASSISTANCE)
+                  // 7. SOS Distress Widget (RED - HOME SHORTCUT)
+                  _GuideSectionCard(
+                    iconStr: AppIcons.warning,
+                    title: '7. SOS Distress Widget',
+                    accentColor: _redAccent,
+                    iconBgColor: _redBg,
+                    child: _SosWidgetContent(),
+                  ),
+                  SizedBox(height: 12),
+
+                  // 8. Need Help (AMBER - ASSISTANCE)
                   _GuideSectionCard(
                     iconStr: AppIcons.infoOutline,
-                    title: '7. Need Help',
+                    title: '8. Need Help',
                     accentColor: _amberAccent,
                     iconBgColor: _amberBg,
                     child: _NeedHelpContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 8. Trusted Contacts (NAVY / SLATE)
+                  // 9. Trusted Contacts (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.people,
-                    title: '8. Trusted Contacts',
+                    title: '9. Trusted Contacts',
                     accentColor: _navyAccent,
                     iconBgColor: _navyBg,
                     child: _TrustedContactsContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 9. Set Your Home Location (NAVY / SLATE)
+                  // 10. Set Your Home Location (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.home,
-                    title: '9. Set Your Home Location',
+                    title: '10. Set Your Home Location',
                     accentColor: _navyAccent,
                     iconBgColor: _navyBg,
                     child: _HomeLocationContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 10. Emergency SMS & Location (AMBER)
+                  // 11. Emergency SMS & Location (AMBER)
                   _GuideSectionCard(
                     iconStr: AppIcons.chat,
-                    title: '10. Emergency SMS & Location',
+                    title: '11. Emergency SMS & Location',
                     accentColor: _amberAccent,
                     iconBgColor: _amberBg,
                     child: _SmsLocationContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 11. Notifications (NAVY / SLATE)
+                  // 12. Notifications (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.notifications,
-                    title: '11. Notifications',
+                    title: '12. Notifications',
                     accentColor: _navyAccent,
                     iconBgColor: _navyBg,
                     child: _NotificationsContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 12. Privacy & Non-Surveillance (NAVY / SLATE)
+                  // 13. Privacy & Non-Surveillance (NAVY / SLATE)
                   _GuideSectionCard(
                     iconStr: AppIcons.shield,
-                    title: '12. Privacy & Non-Surveillance',
+                    title: '13. Privacy & Non-Surveillance',
                     accentColor: _navyAccent,
                     iconBgColor: _navyBg,
                     child: _PrivacyContent(),
                   ),
                   SizedBox(height: 12),
 
-                  // 13. Safety Reminders (GREEN)
+                  // 14. Safety Reminders (GREEN)
                   _GuideSectionCard(
                     iconStr: AppIcons.check,
-                    title: '13. Safety Reminders',
+                    title: '14. Safety Reminders',
                     accentColor: _greenAccent,
                     iconBgColor: _greenBg,
                     child: _SafetyRemindersContent(),
@@ -628,7 +638,37 @@ class _EmergencySosContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 7: Need Help
+// Section 7: SOS Distress Widget
+// ==============================================================================
+class _SosWidgetContent extends StatelessWidget {
+  const _SosWidgetContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'The SOS Widget lets you trigger an emergency alert directly from your Home Screen.',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.header,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const _BulletItem('In-App Shortcut (Fastest): Go to Settings -> Alarm & Safety Protocol -> Home Screen SOS Widget and tap "Add to Home Screen".'),
+        const _BulletItem('Manual Launcher Setup: Long-press an empty space on your home screen -> Select "Widgets" -> LisKo -> Place the SOS widget.'),
+        const _BulletItem('Tap the widget anytime for instant 1-tap activation.'),
+        const _BulletItem('Includes a 5-second countdown with vibration to cancel accidental taps.'),
+        const _BulletItem('Dispatches emergency SMS with your live location when the countdown completes.'),
+      ],
+    );
+  }
+}
+
+// ==============================================================================
+// Section 8: Need Help
 // ==============================================================================
 class _NeedHelpContent extends StatelessWidget {
   const _NeedHelpContent();
@@ -663,7 +703,7 @@ class _NeedHelpContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 8: Trusted Contacts
+// Section 9: Trusted Contacts
 // ==============================================================================
 class _TrustedContactsContent extends StatelessWidget {
   const _TrustedContactsContent();
@@ -707,17 +747,40 @@ class _TrustedContactsContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Row(
+              const Row(
                 children: [
                   _RelationshipChip('Parent'),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   _RelationshipChip('Guardian'),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   _RelationshipChip('Others'),
                 ],
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Contact Privacy & Security (Optional Lock)',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.header,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'You can protect your trusted contacts list from unauthorized viewing by enabling "Protect Trusted Contacts" in Settings -> Privacy & Security. This requires your phone\'s fingerprint, face unlock, PIN, or pattern to view or edit contacts.',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: AppColors.body,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const _InfoNoteBox(
+          text: 'Note: Even when the Contacts tab is locked, the Emergency SOS feature and Home Screen Widget will still dispatch emergency SMS alerts with your live location seamlessly in the background without delay.',
         ),
       ],
     );
@@ -725,7 +788,7 @@ class _TrustedContactsContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 9: Set Your Home Location
+// Section 10: Set Your Home Location
 // ==============================================================================
 class _HomeLocationContent extends StatelessWidget {
   const _HomeLocationContent();
@@ -763,7 +826,7 @@ class _HomeLocationContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 10: Emergency SMS & Location
+// Section 11: Emergency SMS & Location
 // ==============================================================================
 class _SmsLocationContent extends StatelessWidget {
   const _SmsLocationContent();
@@ -822,7 +885,7 @@ class _SmsLocationContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 11: Notifications
+// Section 12: Notifications
 // ==============================================================================
 class _NotificationsContent extends StatelessWidget {
   const _NotificationsContent();
@@ -857,7 +920,7 @@ class _NotificationsContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 12: Privacy & Non-Surveillance
+// Section 13: Privacy & Non-Surveillance
 // ==============================================================================
 class _PrivacyContent extends StatelessWidget {
   const _PrivacyContent();
@@ -892,7 +955,7 @@ class _PrivacyContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 13: Safety Reminders
+// Section 14: Safety Reminders
 // ==============================================================================
 class _SafetyRemindersContent extends StatelessWidget {
   const _SafetyRemindersContent();

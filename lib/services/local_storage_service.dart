@@ -198,6 +198,30 @@ class LocalStorageService {
     }
   }
 
+  static const _protectContactsKey = 'protect_contacts_enabled';
+
+  /// Reads whether trusted contacts protection via device security is enabled.
+  Future<bool> readProtectContactsEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_protectContactsKey) ?? false;
+    } catch (e) {
+      developer.log('LocalStorageService: Failed to read protect_contacts_enabled: $e');
+      return false;
+    }
+  }
+
+  /// Saves the trusted contacts protection preference.
+  Future<void> saveProtectContactsEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_protectContactsKey, enabled);
+      developer.log('LocalStorageService: Saved protect_contacts_enabled ($enabled).');
+    } catch (e) {
+      developer.log('LocalStorageService: Failed to save protect_contacts_enabled: $e');
+    }
+  }
+
   /// Reads the Timer Expiry Alert Mode. Defaults to 'Vibration Only'.
   Future<String> readAlertMode() async {
     try {

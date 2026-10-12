@@ -22,6 +22,10 @@
     <!-- Full-screen alarm intent — wakes lock screen when safety check fires -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
 
+    <!-- Biometric & Device Lock Authentication Permissions -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
+
     <!-- Foreground service permissions required for Android 14+ (API 34+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
@@ -35,7 +39,6 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
@@ -54,6 +57,41 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- Dedicated Isolated Emergency Activity for Home Screen SOS Widget -->
+        <activity
+            android:name=".SosEmergencyActivity"
+            android:exported="true"
+            android:theme="@style/SosEmergencyTheme"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="com.example.flutter_app.sos_widget"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="lisko" android:host="trigger-sos"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.example.flutter_app.ACTION_TRIGGER_SOS"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+
+        <!-- LisKo Home Screen SOS Widget Provider -->
+        <receiver
+            android:name=".SosWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sos_widget_info" />
+        </receiver>
 
         <!-- flutter_background_service foreground service declaration.
              foregroundServiceType="location" is required on Android 14+ (API 34+)

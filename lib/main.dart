@@ -3,41 +3,31 @@
 // File: lib/main.dart
 //
 // Role & Architectural Context:
-// Application bootstrapper and root widget coordinator. Initializes binary
-// messenger bindings and launches `LiskoApp` immediately so the LisKo branded
-// splash screen renders within milliseconds. Asynchronous initializations
-// (NotificationService, BackgroundService, Firebase, SharedPreferences) execute
-// concurrently while the Flutter SplashScreen is visible.
-//
-// Notification Background Response Handler:
-// `notificationBackgroundResponseHandler` is a top-level @pragma function that
-// runs in a separate Dart isolate when the user taps a notification action button
-// while the app is fully terminated. It persists the action ID to SharedPreferences
-// so `_LaunchGate` can dispatch it to HomeScreenState on the next boot.
-//
-// ISO/IEC 25010 Software Quality Standards Alignment:
-// - Reliability (Fault-Tolerant Launch): Firebase / SharedPreferences errors
-//   safely default to WelcomeScreen without crashing or hanging.
-// - Performance Efficiency (Zero Black-Screen Startup): Instantaneous Flutter
-//   frame rendering eliminates cold-start launch latency.
-// - Usability (Visual Continuity): Fade transition eliminates jarring flashes.
+// Application bootstrapper and root widget coordinator. Configures standard
+// LisKo application routes and standalone emergency overlay route "/sos_emergency".
+// Uses `onGenerateInitialRoutes` to isolate "/sos_emergency" from "_LaunchGate",
+// ensuring zero route interruption or splash delay during SOS widget triggers.
 // ==============================================================================
 
 import 'dart:async';
 
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart' hide FirebaseService;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'constants/app_colors.dart';
 import 'constants/app_theme.dart';
 import 'firebase_options.dart';
+import 'screens/emergency_alert_screen.dart';
 import 'screens/main_dashboard_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
-import 'services/local_storage_service.dart';
-import 'services/notification_service.dart';
 import 'services/background_service_setup.dart';
+import 'services/firebase_service.dart';
+import 'services/local_storage_service.dart';
+import 'services/location_service.dart';
+import 'services/notification_service.dart';
+import 'services/sms_alert_service.dart';
 
 export 'constants/app_colors.dart';
 export 'constants/app_icons.dart';
@@ -46,17 +36,106 @@ export 'screens/screens.dart';
 export 'services/local_storage_service.dart';
 export 'widgets/widgets.dart';
 
+/// Global navigator key allowing runtime root route manipulation.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 /// Stopwatch tracking high-precision startup milestone timestamps.
 final Stopwatch _startupStopwatch = Stopwatch();
 
 /// Main application entry point invoked by the Flutter engine.
-/// Mounts [LiskoApp] immediately to render the splash screen without blocking.
-void main() {
+void main() async {
   _startupStopwatch.start();
   debugPrint('[LisKo Startup] 0ms: main() entered');
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: WidgetsBinding initialized, calling runApp()');
+
   runApp(const LiskoApp());
+}
+
+/// Asynchronously initializes required safety background services when launched in standalone SOS mode.
+void initBackgroundServicesForSos() {
+  NotificationService().initialize().catchError((e) {
+    debugPrint('NotificationService init notice: $e');
+  });
+  initializeBackgroundService().catchError((e) {
+    debugPrint('BackgroundService init notice: $e');
+  });
+  _initFirebaseSafely().catchError((e) {
+    debugPrint('Firebase init notice: $e');
+  });
+}
+
+Future<void> _initFirebaseSafely() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (error) {
+    debugPrint('Firebase initialization notice: $error');
+  }
+}
+
+/// Standalone dispatch function executed when SOS widget countdown completes without cancelling.
+Future<void> executeStandaloneSosDispatch() async {
+  try {
+    double? lat;
+    double? lng;
+    double? acc;
+    String? locError;
+
+    // Acquire emergency location
+    final locResult = await LocationService().acquireEmergencyLocation();
+    lat = locResult.latitude;
+    lng = locResult.longitude;
+    acc = locResult.accuracy;
+    locError = locResult.locationError;
+
+    bool permissionDenied = (locError == 'Permission Denied');
+    List<String> sentList = [];
+
+    try {
+      sentList = await SmsAlertService().sendManualSos(
+        latitude: lat,
+        longitude: lng,
+        accuracy: acc,
+        locationError: locError,
+      );
+      await NotificationService().showEmergencySentNotification(
+        sentList,
+        permissionDenied: permissionDenied,
+      );
+    } catch (e) {
+      bool pd = e.toString().contains('SMS_PERMISSION_DENIED') || permissionDenied;
+      await NotificationService().showEmergencySentNotification(
+        [],
+        permissionDenied: pd,
+      );
+    }
+
+    // Persist history & Firebase event
+    final storage = const LocalStorageService();
+    final history = await storage.readTripHistory();
+    final eventId = DateTime.now().millisecondsSinceEpoch.toString();
+    final newTrip = TripRecord(
+      id: eventId,
+      destination: 'Manual SOS',
+      durationMinutes: 0,
+      status: 'Manual SOS',
+      timestamp: DateTime.now(),
+    );
+    await storage.saveTripHistory([...history, newTrip]);
+    FirebaseService().refreshLocalTrips();
+
+    FirebaseService().logEmergencyEvent(
+      eventId: eventId,
+      deviceId: 'local_device',
+      tripId: '',
+      latitude: lat ?? 0.0,
+      longitude: lng ?? 0.0,
+      emergencyType: 'SOS',
+    );
+  } catch (e) {
+    debugPrint('[Standalone SOS Dispatch Error] $e');
+  }
 }
 
 // Backward-compatible color constants preserved for legacy test suites.
@@ -77,23 +156,53 @@ bool get _isTestMode {
 /// Controls testing mode startup behavior. When true, always routes to WelcomeScreen.
 bool forceFreshStartupForTesting = true;
 
-/// Application root widget configuring Material 3 theme and initial launch gate.
+/// Application root widget configuring Material 3 theme and initial routes.
 class LiskoApp extends StatelessWidget {
   const LiskoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'Lisko',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const _LaunchGate(),
+      onGenerateInitialRoutes: (initialRoute) {
+        if (initialRoute == '/sos_emergency') {
+          return [
+            PageRouteBuilder(
+              settings: const RouteSettings(name: '/sos_emergency'),
+              pageBuilder: (_, __, ___) => EmergencyAlertScreen(
+                isManualSos: true,
+                isStandalone: true,
+                onExecute: executeStandaloneSosDispatch,
+                onCancel: () {},
+              ),
+              transitionDuration: Duration.zero,
+            ),
+          ];
+        }
+        return [
+          MaterialPageRoute(
+            settings: const RouteSettings(name: '/'),
+            builder: (context) => const _LaunchGate(),
+          ),
+        ];
+      },
+      routes: {
+        '/': (context) => const _LaunchGate(),
+        '/sos_emergency': (context) => EmergencyAlertScreen(
+              isManualSos: true,
+              isStandalone: true,
+              onExecute: executeStandaloneSosDispatch,
+              onCancel: () {},
+            ),
+      },
     );
   }
 }
 
 /// Initial gate handling splash delay, onboarding state check, and route dispatching.
-/// Also picks up any pending notification action stored by the background handler.
 class _LaunchGate extends StatefulWidget {
   const _LaunchGate();
 
@@ -130,7 +239,6 @@ class _LaunchGateState extends State<_LaunchGate> {
     try {
       _updateStatus('Preparing safety services...');
 
-      // Execute all required initializations concurrently while SplashScreen is visible
       await Future.wait([
         NotificationService().initialize().then((_) {
           debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: NotificationService initialized');
@@ -144,6 +252,7 @@ class _LaunchGateState extends State<_LaunchGate> {
       ]);
 
       _updateStatus('Loading your preferences...');
+
       final setupCompleted = _isTestMode
           ? (forceFreshStartupForTesting ? false : await _storage.readSetupCompleted())
           : await _storage.readSetupCompleted();
@@ -185,16 +294,6 @@ class _LaunchGateState extends State<_LaunchGate> {
         context,
         createRoute(const WelcomeScreen(), transition: RouteTransition.fade),
       );
-    }
-  }
-
-  static Future<void> _initFirebaseSafely() async {
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    } catch (error) {
-      debugPrint('Firebase initialization notice: $error');
     }
   }
 
