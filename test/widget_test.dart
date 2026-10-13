@@ -1113,4 +1113,15 @@ void main() {
     expect(TripHistoryExportService.getDisplayStatus(trips[1]), 'EXPIRED');
     expect(TripHistoryExportService.formatDuration(45), '45 mins');
   });
+
+  test('protect_contacts_enabled setting persists and defaults to false', () async {
+    const storage = LocalStorageService();
+    expect(await storage.readProtectContactsEnabled(), false);
+
+    await storage.saveProtectContactsEnabled(true);
+    expect(await storage.readProtectContactsEnabled(), true);
+
+    await storage.saveProtectContactsEnabled(false);
+    expect(await storage.readProtectContactsEnabled(), false);
+  });
 }

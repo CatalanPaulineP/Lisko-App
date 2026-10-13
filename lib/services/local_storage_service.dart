@@ -232,6 +232,27 @@ class LocalStorageService {
 
   static const _completionFeedbackKey = 'show_trip_completed_feedback';
   static const _emergencyActiveKey = 'user_emergency_active';
+  static const _protectContactsEnabledKey = 'protect_contacts_enabled';
+
+  /// Reads whether trusted contacts protection via device authentication is enabled.
+  Future<bool> readProtectContactsEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_protectContactsEnabledKey) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Saves whether trusted contacts protection via device authentication is enabled.
+  Future<bool> saveProtectContactsEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return await prefs.setBool(_protectContactsEnabledKey, enabled);
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Saves whether a user-initiated emergency countdown (Need Help / Manual SOS) is currently active.
   Future<void> saveEmergencyActive(bool value) async {
