@@ -22,12 +22,14 @@ class AllNotificationsScreen extends StatefulWidget {
     required this.yesterdayNotifications,
     required this.earlierNotifications,
     required this.onItemTap,
+    required this.onMarkAllAsRead,
   });
 
   final List<AppNotificationItem> todayNotifications;
   final List<AppNotificationItem> yesterdayNotifications;
   final List<AppNotificationItem> earlierNotifications;
   final ValueChanged<String> onItemTap;
+  final VoidCallback onMarkAllAsRead;
 
   @override
   State<AllNotificationsScreen> createState() => _AllNotificationsScreenState();
@@ -88,6 +90,29 @@ class _AllNotificationsScreenState extends State<AllNotificationsScreen> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          if ([...widget.todayNotifications, ...widget.yesterdayNotifications, ...widget.earlierNotifications].any((n) => !n.isRead))
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: TextButton(
+                onPressed: () {
+                  widget.onMarkAllAsRead();
+                  setState(() {});
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                ),
+                child: Text(
+                  'Mark all as read',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

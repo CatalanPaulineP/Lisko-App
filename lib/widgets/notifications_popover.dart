@@ -67,6 +67,7 @@ class NotificationsPopover extends StatelessWidget {
     required this.onClose,
     required this.onItemTap,
     required this.onViewAll,
+    required this.onMarkAllAsRead,
   });
 
   final List<AppNotificationItem> todayNotifications;
@@ -74,6 +75,7 @@ class NotificationsPopover extends StatelessWidget {
   final VoidCallback onClose;
   final ValueChanged<String> onItemTap;
   final VoidCallback onViewAll;
+  final VoidCallback onMarkAllAsRead;
 
   @override
   Widget build(BuildContext context) {
@@ -126,34 +128,62 @@ class NotificationsPopover extends StatelessWidget {
                   children: [
                     // Header Bar
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          Expanded(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    'Notifications',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                _buildUnreadBadge(allItems),
+                              ],
+                            ),
+                          ),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                'Notifications',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF1E293B),
+                              if (allItems.any((n) => !n.isRead))
+                                InkWell(
+                                  onTap: onMarkAllAsRead,
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                    child: Text(
+                                      'Mark all read',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                onPressed: onClose,
+                                tooltip: 'Close notifications',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: Color(0xFF64748B),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              _buildUnreadBadge(allItems),
                             ],
-                          ),
-                          IconButton(
-                            onPressed: onClose,
-                            tooltip: 'Close notifications',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-                            icon: const Icon(
-                              Icons.close_rounded,
-                              size: 20,
-                              color: Color(0xFF64748B),
-                            ),
                           ),
                         ],
                       ),
@@ -307,89 +337,94 @@ class NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Icon Badge
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: item.iconColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Icon(
-                  item.icon,
-                  size: 18,
-                  color: item.iconColor,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
+    final bool isUnread = !item.isRead;
 
-            // Title, Message & TimeAgo
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13.5,
-                            fontWeight: item.isRead ? FontWeight.w600 : FontWeight.w800,
-                            color: const Color(0xFF1E293B),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        item.timeAgo,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item.message,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF64748B),
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Unread Indicator Dot
-            if (!item.isRead) ...[
-              const SizedBox(width: 8),
+    return Material(
+      color: isUnread ? const Color(0xFFFFF5F5) : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon Badge
               Container(
-                margin: const EdgeInsets.only(top: 4),
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: item.iconColor.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
+                child: Center(
+                  child: Icon(
+                    item.icon,
+                    size: 18,
+                    color: item.iconColor,
+                  ),
+                ),
               ),
+              const SizedBox(width: 10),
+
+              // Title, Message & TimeAgo
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13.5,
+                              fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600,
+                              color: const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          item.timeAgo,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      item.message,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF64748B),
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Unread Indicator Dot
+              if (isUnread) ...[
+                const SizedBox(width: 8),
+                Container(
+                  margin: const EdgeInsets.only(top: 5),
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter_app/main.dart';
+import 'package:flutter_app/services/emergency_dispatch_service.dart';
 import 'package:flutter_app/services/geofence_service.dart';
 import 'package:flutter_app/services/sms_alert_service.dart';
 import 'package:flutter_app/services/trip_history_export_service.dart';
@@ -888,6 +889,7 @@ void main() {
               onClose: () {},
               onItemTap: (_) {},
               onViewAll: () {},
+              onMarkAllAsRead: () {},
             ),
           ),
         ),
@@ -946,6 +948,7 @@ void main() {
             yesterdayNotifications: yesterdayList,
             earlierNotifications: const [],
             onItemTap: (id) => tappedId = id,
+            onMarkAllAsRead: () {},
           ),
         ),
       );
@@ -984,6 +987,7 @@ void main() {
             yesterdayNotifications: const [],
             earlierNotifications: const [],
             onItemTap: (_) {},
+            onMarkAllAsRead: () {},
           ),
         ),
       );
@@ -1112,5 +1116,15 @@ void main() {
     expect(TripHistoryExportService.getDisplayStatus(trips[0]), 'ARRIVED');
     expect(TripHistoryExportService.getDisplayStatus(trips[1]), 'EXPIRED');
     expect(TripHistoryExportService.formatDuration(45), '45 mins');
+  });
+
+  test('EmergencyDispatchService executes manual SOS dispatch without throwing', () async {
+    final dispatcher = EmergencyDispatchService();
+    final sentList = await dispatcher.executeManualSosDispatch(
+      destination: 'Campus',
+      totalDuration: const Duration(minutes: 45),
+    );
+
+    expect(sentList, isA<List<String>>());
   });
 }

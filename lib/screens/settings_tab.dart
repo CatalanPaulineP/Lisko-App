@@ -23,6 +23,7 @@ import '../constants/app_icons.dart';
 import '../services/local_storage_service.dart';
 import '../services/permission_service.dart';
 import 'faq_screen.dart';
+import 'sos_widget_detail_screen.dart';
 import 'user_guide_screen.dart';
 import '../services/location_service.dart';
 import '../widgets/app_icon.dart';
@@ -344,6 +345,15 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     );
   }
 
+  void _openSosWidgetModal() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const SosWidgetDetailModalBottomSheet(),
+    );
+  }
+
   void _openExpiryAlertModeModal() {
     showModalBottomSheet<void>(
       context: context,
@@ -520,6 +530,16 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                     decoration: _cardDecoration(),
                     child: Column(
                       children: [
+                        _buildActionRow(
+                          iconStr: AppIcons.shield,
+                          semanticIcon: Icons.widgets_rounded,
+                          iconBg: const Color(0xFFFFDAD8),
+                          iconColor: AppColors.primary,
+                          title: 'Home Screen SOS Widget',
+                          subtitle: 'Add an SOS shortcut to your Home Screen.',
+                          onTap: _openSosWidgetModal,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildActionRow(
                           rowKey: widget.expiryAlertKey,
                           iconStr: AppIcons.vibration,

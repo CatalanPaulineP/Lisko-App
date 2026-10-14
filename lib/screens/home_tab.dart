@@ -407,6 +407,7 @@ class _HomeHeaderState extends State<HomeHeader> {
                   onClose: _hideNotificationsPopover,
                   onItemTap: _handleItemTap,
                   onViewAll: _handleViewAll,
+                  onMarkAllAsRead: _markAllNotificationsAsRead,
                 ),
               ),
             ),
@@ -433,9 +434,23 @@ class _HomeHeaderState extends State<HomeHeader> {
           yesterdayNotifications: _yesterdayNotifications,
           earlierNotifications: _earlierNotifications,
           onItemTap: _handleItemTap,
+          onMarkAllAsRead: _markAllNotificationsAsRead,
         ),
       ),
     );
+  }
+
+  void _markAllNotificationsAsRead() {
+    final allItems = _buildNotificationItems();
+    final newReadIds = Set<String>.from(_readIds);
+    for (final item in allItems) {
+      newReadIds.add(item.id);
+    }
+    setState(() {
+      _readIds = newReadIds;
+    });
+    const LocalStorageService().saveReadNotificationIds(newReadIds);
+    _overlayEntry?.markNeedsBuild();
   }
 
   void _handleItemTap(String id) {

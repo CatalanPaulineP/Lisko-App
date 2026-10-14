@@ -54,6 +54,31 @@
             </intent-filter>
         </activity>
 
+        <!-- Dedicated Transient SOS Widget Activity -->
+        <activity
+            android:name=".SosEmergencyActivity"
+            android:exported="false"
+            android:theme="@style/LaunchTheme"
+            android:launchMode="singleInstance"
+            android:taskAffinity="com.lisko.safety.sos_widget"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"/>
+
+        <!-- Home Screen SOS AppWidget Provider -->
+        <receiver
+            android:name=".SosWidgetProvider"
+            android:exported="true"
+            android:label="LisKo SOS Widget">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.lisko.safety.ACTION_TRIGGER_SOS" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sos_widget_info" />
+        </receiver>
+
         <!-- flutter_background_service foreground service declaration.
              foregroundServiceType="location" is required on Android 14+ (API 34+)
              for any foreground service that accesses device location during active trips.

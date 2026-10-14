@@ -402,6 +402,7 @@ class LocalStorageService {
   Future<bool> readSetupCompleted() async {
     try {
       final preferences = await SharedPreferences.getInstance();
+      await preferences.reload();
       return preferences.getBool(_setupCompletedKey) ?? false;
     } catch (e, st) {
       developer.log(
@@ -411,6 +412,14 @@ class LocalStorageService {
       );
       return false;
     }
+  }
+
+  /// Strict setup check for safety-critical/widget code that allows exceptions
+  /// to propagate so callers can distinguish verified false from storage errors.
+  Future<bool> readSetupCompletedStrict() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.reload();
+    return preferences.getBool(_setupCompletedKey) ?? false;
   }
 
   static const _walkthroughKey = 'walkthrough_completed_v2';

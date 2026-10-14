@@ -4,13 +4,22 @@ import 'package:vibration/vibration.dart';
 import '../constants/app_colors.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
-  const EmergencyAlertScreen({super.key, required this.onExecute, required this.onCancel, this.isManualSos = true, this.onExtend, this.immediateExecute = false});
+  const EmergencyAlertScreen({
+    super.key,
+    required this.onExecute,
+    required this.onCancel,
+    this.isManualSos = true,
+    this.onExtend,
+    this.immediateExecute = false,
+    this.skipCompletionDelay = false,
+  });
 
   final Future<void> Function() onExecute;
   final VoidCallback onCancel;
   final bool isManualSos;
   final VoidCallback? onExtend;
   final bool immediateExecute;
+  final bool skipCompletionDelay;
 
   @override
   State<EmergencyAlertScreen> createState() => _EmergencyAlertScreenState();
@@ -63,11 +72,13 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
         _executing = false;
         _done = true;
       });
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted && Navigator.of(context).canPop()) {
-          Navigator.of(context).pop(true);
-        }
-      });
+      if (!widget.skipCompletionDelay) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop(true);
+          }
+        });
+      }
     }
   }
 

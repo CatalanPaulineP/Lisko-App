@@ -35,6 +35,7 @@ import 'firebase_options.dart';
 import 'screens/main_dashboard_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'screens/widget_sos_emergency_screen.dart';
 import 'services/local_storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/background_service_setup.dart';
@@ -87,7 +88,26 @@ class LiskoApp extends StatelessWidget {
       title: 'Lisko',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const _LaunchGate(),
+      onGenerateInitialRoutes: (initialRoute) {
+        if (initialRoute == '/sos_emergency') {
+          return [
+            MaterialPageRoute(
+              settings: const RouteSettings(name: '/sos_emergency'),
+              builder: (_) => const WidgetSosEmergencyScreen(),
+            ),
+          ];
+        }
+        return [
+          MaterialPageRoute(
+            settings: const RouteSettings(name: '/'),
+            builder: (_) => const _LaunchGate(),
+          ),
+        ];
+      },
+      routes: {
+        '/': (context) => const _LaunchGate(),
+        '/sos_emergency': (context) => const WidgetSosEmergencyScreen(),
+      },
     );
   }
 }

@@ -41,6 +41,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/geofence_service.dart';
 
+import '../services/emergency_dispatch_service.dart';
 import '../services/sms_alert_service.dart';
 import '../services/permission_service.dart';
 import '../widgets/walkthrough_overlay.dart';
@@ -723,27 +724,41 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       String? locError;
 
       // Acquire emergency location using shared LocationService
-      final locResult = await LocationService().acquireEmergencyLocation(
-        cachedTripPosition: _cachedActiveTripPosition,
-      );
-
-      lat = locResult.latitude;
-      lng = locResult.longitude;
-      acc = locResult.accuracy;
-      locError = locResult.locationError;
-
-      List<String> sentList = [];
-      bool permissionDenied = (locError == 'Permission Denied');
-      try {
-        debugPrint('Dispatching SMS alert (isManualSos: $isManualSos)...');
-        if (isManualSos) {
-          sentList = await _smsAlertService.sendManualSos(
-            latitude: lat,
-            longitude: lng,
-            accuracy: acc,
-            locationError: locError,
+      if (isManualSos) {
+        final sentList = await EmergencyDispatchService().executeManualSosDispatch(
+          cachedPosition: _cachedActiveTripPosition,
+          tripId: tripId,
+          destination: destination,
+          totalDuration: totalDuration,
+          startedAt: tripStartedAt,
+          expectedArrivalAt: expectedArrivalAt,
+        );
+        if (mounted) {
+          final statusMessage = sentList.isEmpty
+              ? "Failed to request Manual SOS SMS."
+              : "Manual SOS SMS request sent to ${sentList.join(", ")}.";
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: sentList.isEmpty ? AppColors.body : AppColors.primary,
+              duration: const Duration(seconds: 5),
+              content: Text(statusMessage),
+            ),
           );
-        } else {
+        }
+      } else {
+        final locResult = await LocationService().acquireEmergencyLocation(
+          cachedTripPosition: _cachedActiveTripPosition,
+        );
+
+        lat = locResult.latitude;
+        lng = locResult.longitude;
+        acc = locResult.accuracy;
+        locError = locResult.locationError;
+
+        List<String> sentList = [];
+        bool permissionDenied = (locError == 'Permission Denied');
+        try {
+          debugPrint('Dispatching SMS alert (isManualSos: $isManualSos)...');
           sentList = await _smsAlertService.dispatchEmergencyAlert(
             destination: destination,
             latitude: lat,
@@ -752,68 +767,74 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             locationError: locError,
             isArrived: isArrived,
           );
+          debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
+          await NotificationService().showEmergencySentNotification(sentList, permissionDenied: permissionDenied);
+        } catch (e) {
+          if (e.toString().contains('SMS_PERMISSION_DENIED')) {
+            permissionDenied = true;
+            await NotificationService().showEmergencySentNotification([], permissionDenied: true);
+          } else {
+            await NotificationService().showEmergencySentNotification([], permissionDenied: false);
+          }
         }
-        debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
-        await NotificationService().showEmergencySentNotification(sentList, permissionDenied: permissionDenied);
-      } catch (e) {
-        if (e.toString().contains('SMS_PERMISSION_DENIED')) {
-          permissionDenied = true;
-          await NotificationService().showEmergencySentNotification([], permissionDenied: true);
-        } else {
-          await NotificationService().showEmergencySentNotification([], permissionDenied: false);
-        }
-      }
-      
-      const LocalStorageService().saveActiveTrip(isActive: false);
 
-      // Log the trip locally as Alert
-      final storage = const LocalStorageService();
-      final history = await storage.readTripHistory();
-      
-      String eventType = 'Alert';
-      String eventDestination = destination;
-      if (isManualSos) {
-        if (tripId.isEmpty) {
-          eventDestination = 'Manual SOS';
-          eventType = 'Manual SOS';
-        } else {
-          eventType = 'Need Help';
-        }
-      } else {
-        eventType = isArrived ? 'Arrival Unconfirmed' : 'Timer Expired';
-      }
+        const LocalStorageService().saveActiveTrip(isActive: false);
 
-      final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
-      final newTrip = TripRecord(
-        id: eventId,
-        destination: eventDestination,
-        durationMinutes: totalDuration.inMinutes,
-        status: eventType,
-        timestamp: DateTime.now(),
-      );
-      await storage.saveTripHistory([...history, newTrip]);
-      FirebaseService().refreshLocalTrips();
+        // Log the trip locally as Alert
+        final storage = const LocalStorageService();
+        final history = await storage.readTripHistory();
 
-      if (tripId.isNotEmpty && tripStartedAt != null) {
-        FirebaseService().saveOrUpdateTrip(
-          tripId: tripId,
-          destination: destination,
-          estimatedTravelMinutes: totalDuration.inMinutes,
-          startedAt: tripStartedAt!,
-          expectedArrivalAt: expectedArrivalAt,
-          completedAt: DateTime.now(),
-          status: isManualSos ? 'help_requested' : 'expired',
+        String eventType = isArrived ? 'Arrival Unconfirmed' : 'Timer Expired';
+        String eventDestination = destination;
+
+        final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
+        final newTrip = TripRecord(
+          id: eventId,
+          destination: eventDestination,
+          durationMinutes: totalDuration.inMinutes,
+          status: eventType,
+          timestamp: DateTime.now(),
         );
-      }
+        await storage.saveTripHistory([...history, newTrip]);
+        FirebaseService().refreshLocalTrips();
 
-      FirebaseService().logEmergencyEvent(
-        eventId: eventId,
-        deviceId: 'local_device',
-        tripId: tripId,
-        latitude: lat ?? 0.0,
-        longitude: lng ?? 0.0,
-        emergencyType: isManualSos ? 'SOS' : 'TIMEOUT_ESCALATION',
-      );
+        if (tripId.isNotEmpty && tripStartedAt != null) {
+          FirebaseService().saveOrUpdateTrip(
+            tripId: tripId,
+            destination: destination,
+            estimatedTravelMinutes: totalDuration.inMinutes,
+            startedAt: tripStartedAt!,
+            expectedArrivalAt: expectedArrivalAt,
+            completedAt: DateTime.now(),
+            status: 'expired',
+          );
+        }
+
+        FirebaseService().logEmergencyEvent(
+          eventId: eventId,
+          deviceId: 'local_device',
+          tripId: tripId,
+          latitude: lat ?? 0.0,
+          longitude: lng ?? 0.0,
+          emergencyType: 'TIMEOUT_ESCALATION',
+        );
+
+        if (mounted) {
+          final statusMessage = permissionDenied
+              ? "Failed to request Timer expiry SMS (Permission Denied)."
+              : sentList.isEmpty
+                  ? "Failed to request Timer expiry SMS."
+                  : "Timer expiry SMS request sent to ${sentList.join(", ")}.";
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: permissionDenied || sentList.isEmpty ? AppColors.body : AppColors.primary,
+              duration: const Duration(seconds: 5),
+              content: Text(statusMessage),
+            ),
+          );
+        }
+      }
 
       // Cleanup all background location monitoring and timers to ensure zero-surveillance
       tripTimer?.cancel();
@@ -823,23 +844,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _geofenceService.stopMonitoring();
 
       debugPrint('[Cleanup] All location monitoring stopped after emergency.');
-
-      if (mounted) {
-        final msgType = isManualSos ? "Manual SOS" : "Timer expiry";
-        final statusMessage = permissionDenied 
-            ? "Failed to request $msgType SMS (Permission Denied)."
-            : sentList.isEmpty 
-                ? "Failed to request $msgType SMS."
-                : "$msgType SMS request sent to ${sentList.join(", ")}.";
-                
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: permissionDenied || sentList.isEmpty ? AppColors.body : AppColors.primary,
-            duration: const Duration(seconds: 5),
-            content: Text(statusMessage),
-          ),
-        );
-      }
     } catch (e) {
       debugPrint('Unhandled error in _escalateEmergencyAlert: $e');
     } finally {
