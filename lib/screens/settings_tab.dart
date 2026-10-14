@@ -20,6 +20,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
+import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../services/permission_service.dart';
 import 'faq_screen.dart';
@@ -57,6 +58,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
   bool _hasNotifications = false;
   bool _hasSms = false;
   bool _hasLocation = false;
+  bool _protectContactsEnabled = false;
 
   @override
   void initState() {
@@ -101,6 +103,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     final homeCoords = await _storage.readHomeCoordinates();
     final alertMode = await _storage.readAlertMode();
     final defaultMins = await _storage.readDefaultTravelDuration();
+    final protectContacts = await _storage.readProtectContactsEnabled();
     if (mounted) {
       setState(() {
         if (hasHome) {
@@ -112,7 +115,81 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
         }
         _alertMode = alertMode;
         _defaultDuration = '$defaultMins mins';
+        _protectContactsEnabled = protectContacts;
       });
+    }
+  }
+
+  Future<void> _toggleProtectContacts(bool targetValue) async {
+    if (targetValue) {
+      final isSupported = await AuthService.isDeviceAuthSupported();
+      if (!isSupported) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Device security (PIN, pattern, or biometrics) is not configured or supported on this phone.',
+              ),
+              backgroundColor: AppColors.primary,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      final authenticated = await AuthService.authenticate(
+        reason: 'Authenticate to enable trusted contacts protection',
+      );
+
+      if (authenticated) {
+        await _storage.saveProtectContactsEnabled(true);
+        if (mounted) {
+          setState(() {
+            _protectContactsEnabled = true;
+          });
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Trusted contacts protection enabled.'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Authentication required to enable contacts protection.'),
+              backgroundColor: AppColors.body,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } else {
+      final authenticated = await AuthService.authenticate(
+        reason: 'Authenticate to disable trusted contacts protection',
+      );
+
+      if (authenticated) {
+        await _storage.saveProtectContactsEnabled(false);
+        if (mounted) {
+          setState(() {
+            _protectContactsEnabled = false;
+          });
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Trusted contacts protection disabled.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -530,6 +607,17 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                     decoration: _cardDecoration(),
                     child: Column(
                       children: [
+                        _buildSwitchRow(
+                          iconStr: AppIcons.shield,
+                          semanticIcon: Icons.lock_rounded,
+                          iconBg: const Color(0xFFFFDAD8),
+                          iconColor: AppColors.primary,
+                          title: 'Protect Trusted Contacts',
+                          subtitle: 'Require device authentication to view and manage trusted contacts.',
+                          value: _protectContactsEnabled,
+                          onChanged: _toggleProtectContacts,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildActionRow(
                           iconStr: AppIcons.shield,
                           semanticIcon: Icons.widgets_rounded,
@@ -813,6 +901,64 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
           offset: Offset(0, 2),
         ),
       ],
+    );
+  }
+
+  Widget _buildSwitchRow({
+    required String iconStr,
+    required IconData semanticIcon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+            child: Center(
+              child: AppIcon.badge(iconStr, color: iconColor, semanticIcon: semanticIcon),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.header,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.body,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Switch(
+            value: value,
+            activeThumbColor: AppColors.primary,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 

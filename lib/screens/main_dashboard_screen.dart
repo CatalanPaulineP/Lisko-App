@@ -1207,6 +1207,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 key: const ValueKey('contacts'),
                 addContactKey: _addContactKey,
                 importContactsKey: _importContactsKey,
+                isSelected: selectedTab == 2,
               ),
               SettingsTab(
                 key: const ValueKey('settings'),

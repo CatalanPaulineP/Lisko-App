@@ -1127,4 +1127,15 @@ void main() {
 
     expect(sentList, isA<List<String>>());
   });
+
+  test('protect_contacts_enabled setting persists and defaults to false', () async {
+    const storage = LocalStorageService();
+    expect(await storage.readProtectContactsEnabled(), false);
+
+    await storage.saveProtectContactsEnabled(true);
+    expect(await storage.readProtectContactsEnabled(), true);
+
+    await storage.saveProtectContactsEnabled(false);
+    expect(await storage.readProtectContactsEnabled(), false);
+  });
 }

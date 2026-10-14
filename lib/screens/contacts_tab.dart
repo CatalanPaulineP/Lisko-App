@@ -34,6 +34,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
+import '../services/auth_service.dart';
 import '../services/local_storage_service.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/app_icon.dart';
@@ -43,37 +44,96 @@ import 'onboarding_flow.dart';
 /// Tab displaying the user's trusted contacts directory with real-time state synchronization,
 /// primary emergency card, edit popup menu, and modal bottom sheets.
 class ContactsTab extends StatefulWidget {
+  static bool isSessionUnlocked = false;
+
   final GlobalKey? addContactKey;
   final GlobalKey? importContactsKey;
+  final bool isSelected;
 
   const ContactsTab({
     super.key,
     this.addContactKey,
     this.importContactsKey,
+    this.isSelected = false,
   });
 
   @override
   State<ContactsTab> createState() => _ContactsTabState();
 }
 
-class _ContactsTabState extends State<ContactsTab> {
+class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
   final LocalStorageService _storage = const LocalStorageService();
   List<ContactPerson> _contacts = [];
   bool _isLoading = true;
+  bool _protectContactsEnabled = false;
+  bool _isUnlocked = false;
+  bool _isAuthenticating = false;
 
   @override
   void initState() {
     super.initState();
-    _loadContacts();
+    WidgetsBinding.instance.addObserver(this);
+    _loadContactsAndProtectionState();
   }
 
-  Future<void> _loadContacts() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(ContactsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected && !oldWidget.isSelected) {
+      _loadContactsAndProtectionState();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      ContactsTab.isSessionUnlocked = false;
+      if (_protectContactsEnabled && mounted) {
+        setState(() {
+          _isUnlocked = false;
+        });
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _loadContactsAndProtectionState();
+    }
+  }
+
+  Future<void> _loadContactsAndProtectionState() async {
     final loaded = await _storage.readContacts();
+    final protectEnabled = await _storage.readProtectContactsEnabled();
     if (mounted) {
       setState(() {
         _contacts = loaded;
         _isLoading = false;
+        _protectContactsEnabled = protectEnabled;
+        _isUnlocked = !protectEnabled || ContactsTab.isSessionUnlocked;
       });
+    }
+  }
+
+  Future<void> _triggerDeviceAuth() async {
+    if (_isAuthenticating || !_protectContactsEnabled) return;
+    _isAuthenticating = true;
+
+    final success = await AuthService.authenticate(
+      reason: 'Authenticate to view and manage trusted emergency contacts',
+    );
+
+    _isAuthenticating = false;
+
+    if (mounted) {
+      setState(() {
+        _isUnlocked = success;
+      });
+      if (success) {
+        ContactsTab.isSessionUnlocked = true;
+      }
     }
   }
 
@@ -343,12 +403,99 @@ class _ContactsTabState extends State<ContactsTab> {
     }
   }
 
+  Widget _buildLockedContactsView() {
+    return Column(
+      children: [
+        ContactsHeader(
+          contactCount: _contacts.length,
+          onAddTap: () {},
+          addKey: widget.addContactKey,
+        ),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.lock_rounded,
+                        color: AppColors.primary,
+                        size: 36,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Contacts Protected',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.header,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Authenticate using your device security to view and manage trusted emergency contacts.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.body,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _triggerDeviceAuth,
+                      icon: const Icon(Icons.lock_open_rounded, size: 20),
+                      label: Text(
+                        'Unlock with Device Security',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
+    }
+
+    if (_protectContactsEnabled && !_isUnlocked) {
+      return _buildLockedContactsView();
     }
 
     final primaryContact = _contacts.isNotEmpty
