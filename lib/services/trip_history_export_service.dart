@@ -163,7 +163,7 @@ class TripHistoryExportService {
             pw.Container(
               padding: const pw.EdgeInsets.all(12),
               decoration: pw.BoxDecoration(
-                color: PdfColor.fromHex('#F8FAFC'),
+                color: PdfColor.fromHex('#FFFFFF'),
                 borderRadius: pw.BorderRadius.circular(8),
                 border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
               ),

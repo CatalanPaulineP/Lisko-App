@@ -63,136 +63,240 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
+    return DraggableScrollableSheet(
+      initialChildSize: 0.88,
+      minChildSize: 0.5,
+      maxChildSize: 0.88,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Handle Bar
               Center(
                 child: Container(
                   width: 40,
                   height: 4,
+                  margin: const EdgeInsets.only(top: 8, bottom: 8),
                   decoration: BoxDecoration(
                     color: AppColors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Home Screen SOS Widget',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.header,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Home Screen SOS Widget',
+                                textScaler: TextScaler.noScaling,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.header,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Add quick access to Emergency SOS from your phone\'s Home Screen.',
+                                textAlign: TextAlign.justify,
+                                textScaler: TextScaler.noScaling,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.body,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Add quick access to Emergency SOS from your phone\'s Home Screen.',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.body,
-                            height: 1.35,
-                          ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded, color: AppColors.body),
                         ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              // Preview Section Label
-              Text(
-                'PREVIEW',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF64748B),
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Static Widget Visual Card Preview
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFFDAD8), width: 1.5),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x29EF4444),
-                      blurRadius: 12,
-                      offset: Offset(0, 4),
+                    // Preview Section Label
+                    Text(
+                      'PREVIEW',
+                      textScaler: TextScaler.noScaling,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 1.1,
+                      ),
                     ),
-                  ],
-                ),
-                child: Row(
-                  children: [
+                    const SizedBox(height: 8),
+
+                    // Static Widget Visual Card Preview
                     Container(
-                      width: 38,
-                      height: 38,
-                      decoration: const BoxDecoration(
-                        color: Color(0x33FFFFFF),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.shield_outlined,
-                          color: Colors.white,
-                          size: 22,
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
                         ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFFDAD8), width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x29EF4444),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Text(
-                            'EMERGENCY SOS',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: const BoxDecoration(
+                              color: Color(0x33FFFFFF),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.shield_outlined,
+                                color: Colors.white,
+                                size: 22,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'EMERGENCY SOS',
+                                  textScaler: TextScaler.noScaling,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Tap to alert trusted contacts',
+                                  textScaler: TextScaler.noScaling,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFFFFDAD8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Explanation Note
+                    Text(
+                      'Tap the widget from your Home Screen to start the 5-second SOS countdown.',
+                      textAlign: TextAlign.justify,
+                      textScaler: TextScaler.noScaling,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.body,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Key Benefits & Protocol Section
+                    Text(
+                      'KEY BENEFITS & PROTOCOL',
+                      textScaler: TextScaler.noScaling,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    _buildBenefitCard(
+                      icon: Icons.flash_on_rounded,
+                      title: 'Rapid Emergency Access',
+                      description: 'Start the SOS countdown directly from your Home Screen without navigating through the main LisKo application.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildBenefitCard(
+                      icon: Icons.timer_rounded,
+                      title: '5-Second Safety Buffer',
+                      description: 'Provides a 5-second countdown with haptic vibration feedback and an instant 1-tap cancel button to prevent false alarms.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildBenefitCard(
+                      icon: Icons.sms_outlined,
+                      title: 'Automatic Location & SMS',
+                      description: 'Obtains the device\'s current location and sends a cellular emergency SMS to trusted contacts when the countdown completes.',
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Pin Button CTA
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: () => _pinWidget(context),
+                              icon: const Icon(Icons.add_to_home_screen_rounded, size: 20),
+                              label: Text(
+                                'Add to Home Screen',
+                                textScaler: TextScaler.noScaling,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           Text(
-                            'Tap to alert trusted contacts',
+                            'If automatic setup isn\'t supported by your launcher, add LisKo manually from your phone\'s Widgets menu.',
+                            textAlign: TextAlign.justify,
+                            textScaler: TextScaler.noScaling,
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: const Color(0xFFFFDAD8),
+                              color: AppColors.body,
+                              height: 1.35,
                             ),
                           ),
                         ],
@@ -201,92 +305,10 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
-
-              // Explanation Note
-              Center(
-                child: Text(
-                  'Tap the widget from your Home Screen to start the 5-second SOS countdown.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.body,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Key Benefits & Protocol Section
-              Text(
-                'KEY BENEFITS & PROTOCOL',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF64748B),
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              _buildBenefitCard(
-                icon: Icons.flash_on_rounded,
-                title: 'Rapid Emergency Access',
-                description: 'Start the SOS countdown directly from your Home Screen without navigating through the main LisKo application.',
-              ),
-              const SizedBox(height: 10),
-              _buildBenefitCard(
-                icon: Icons.timer_rounded,
-                title: '5-Second Safety Buffer',
-                description: 'Provides a 5-second countdown with haptic vibration feedback and an instant 1-tap cancel button to prevent false alarms.',
-              ),
-              const SizedBox(height: 10),
-              _buildBenefitCard(
-                icon: Icons.sms_outlined,
-                title: 'Automatic Location & SMS',
-                description: 'Obtains the device\'s current location and sends a cellular emergency SMS to trusted contacts when the countdown completes.',
-              ),
-              const SizedBox(height: 20),
-
-              // Pin Button CTA
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => _pinWidget(context),
-                  icon: const Icon(Icons.add_to_home_screen_rounded, size: 20),
-                  label: Text(
-                    'Add to Home Screen',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: Text(
-                  'If automatic setup isn\'t supported by your launcher, add LisKo manually from your phone\'s Widgets menu.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.body,
-                    height: 1.35,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -298,9 +320,9 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.canvas,
+        color: const Color(0xFFFFEBEE),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFFFDAD8)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,7 +331,7 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFDAD8),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: AppColors.primary, size: 18),
@@ -321,6 +343,7 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
               children: [
                 Text(
                   title,
+                  textScaler: TextScaler.noScaling,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
@@ -330,6 +353,8 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   description,
+                  textAlign: TextAlign.justify,
+                  textScaler: TextScaler.noScaling,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

@@ -103,8 +103,11 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GlobalKey _settingsTabKey = GlobalKey();
   final GlobalKey _homeLocationKey = GlobalKey();
   final GlobalKey _expiryAlertKey = GlobalKey();
+  final GlobalKey _protectContactsKey = GlobalKey();
+  final GlobalKey _sosWidgetKey = GlobalKey();
 
   bool showWalkthrough = false;
+  int walkthroughStep = 0;
 
   bool get _isTestEnvironment {
     final binding = WidgetsBinding.instance.runtimeType.toString();
@@ -1213,6 +1216,10 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 key: const ValueKey('settings'),
                 homeLocationKey: _homeLocationKey,
                 expiryAlertKey: _expiryAlertKey,
+                protectContactsKey: _protectContactsKey,
+                sosWidgetKey: _sosWidgetKey,
+                isWalkthroughActive: showWalkthrough,
+                walkthroughStep: walkthroughStep,
               ),
             ],
           ),
@@ -1323,6 +1330,13 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               settingsTabKey: _settingsTabKey,
               homeLocationKey: _homeLocationKey,
               expiryAlertKey: _expiryAlertKey,
+              protectContactsKey: _protectContactsKey,
+              sosWidgetKey: _sosWidgetKey,
+              onStepChanged: (step) {
+                setState(() {
+                  walkthroughStep = step;
+                });
+              },
               onTabChangeRequested: (tabIndex) {
                 setState(() {
                   selectedTab = tabIndex;
