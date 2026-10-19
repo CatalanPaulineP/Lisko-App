@@ -65,9 +65,21 @@ class LocalStorageService {
         return [];
       }
       final decoded = jsonDecode(raw) as List<dynamic>;
-      return decoded
+      final allTrips = decoded
           .map((item) => TripRecord.fromJson(item as Map<String, dynamic>))
           .toList();
+
+      final cutoff = DateTime.now().subtract(const Duration(days: 30));
+      final retainedTrips = allTrips
+          .where((t) => !t.timestamp.isBefore(cutoff))
+          .toList();
+
+      if (retainedTrips.length < allTrips.length) {
+        final encoded = jsonEncode(retainedTrips.map((t) => t.toJson()).toList());
+        await preferences.setString(_tripHistoryKey, encoded);
+      }
+
+      return retainedTrips;
     } catch (e, st) {
       developer.log('Failed to read trip history', error: e, stackTrace: st);
       return [];

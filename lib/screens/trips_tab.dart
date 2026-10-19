@@ -124,8 +124,6 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
             final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
             final startOfWeekMidnight = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
             return t.timestamp.isAfter(startOfWeekMidnight.subtract(const Duration(milliseconds: 1)));
-          } else if (_selectedTimeFilter == 'This Month') {
-            return t.timestamp.year == now.year && t.timestamp.month == now.month;
           }
           return true;
         }).toList();
@@ -219,7 +217,7 @@ class TripFilterChips extends StatelessWidget {
   final String selectedFilter;
   final ValueChanged<String> onFilterSelected;
 
-  static const List<String> filters = ['All', 'This Week', 'This Month'];
+  static const List<String> filters = ['All', 'This Week'];
 
   @override
   Widget build(BuildContext context) {

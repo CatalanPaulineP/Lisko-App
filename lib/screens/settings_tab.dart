@@ -15,7 +15,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_colors.dart';
@@ -468,74 +467,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     );
   }
 
-  /// Temporary diagnostic method testing Geolocator.getCurrentPosition directly.
-  Future<void> _runGpsDiagnostic() async {
-    debugPrint('\n==================================================');
-    debugPrint('[GPS-DIAGNOSTIC] STARTING DIRECT GPS TEST');
-    debugPrint('==================================================');
 
-    final startTime = DateTime.now();
-
-    try {
-      final isEnabled = await Geolocator.isLocationServiceEnabled();
-
-      if (!isEnabled) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('GPS Diagnostic Aborted: Location Service is OFF.')),
-          );
-        }
-        return;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('GPS Diagnostic Started... Requesting current position (20s max)'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 20),
-      );
-
-      final endTime = DateTime.now();
-      final elapsed = endTime.difference(startTime).inMilliseconds / 1000.0;
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 8),
-            content: Text(
-              'SUCCESS in ${elapsed.toStringAsFixed(1)}s!\n'
-              'Lat: ${position.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)}\n'
-              'Acc: ${position.accuracy.toStringAsFixed(0)}m',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      final endTime = DateTime.now();
-      final elapsed = endTime.difference(startTime).inMilliseconds / 1000.0;
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.primary,
-            duration: const Duration(seconds: 8),
-            content: Text(
-              'FAILED after ${elapsed.toStringAsFixed(1)}s!\n'
-              'Error [${e.runtimeType}]: $e',
-            ),
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -746,15 +678,6 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           title: 'Terms of Use & Safety Disclaimer',
                           onTap: _openTermsModal,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
-                        _buildActionRow(
-                          iconStr: AppIcons.location,
-                          semanticIcon: Icons.my_location_rounded,
-                          iconBg: const Color(0xFFFFDAD8),
-                          iconColor: AppColors.primary,
-                          title: 'TEST GPS CURRENT POSITION (DIAGNOSTIC)',
-                          onTap: _runGpsDiagnostic,
-                        ),
                       ],
                     ),
                   ),
@@ -774,7 +697,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Zero-Surveillance Architecture • Offline-First',
+                          'Privacy-Conscious Architecture • Offline-First',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,

@@ -41,7 +41,9 @@ class FirebaseService {
     final firestore = _firestore;
     if (firestore == null) return [];
     try {
+      final cutoff = DateTime.now().subtract(const Duration(days: 30));
       final snapshot = await firestore.collection('trips')
+          .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(cutoff))
           .orderBy('startedAt', descending: true)
           .get();
       
@@ -77,7 +79,10 @@ class FirebaseService {
     for (final t in _currentTrips) { map[t.id] = t; }
     for (final t in _currentEvents) { map[t.id] = t; }
     
-    final combined = map.values.toList();
+    final cutoff = DateTime.now().subtract(const Duration(days: 30));
+    final combined = map.values
+        .where((t) => !t.timestamp.isBefore(cutoff))
+        .toList();
     combined.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     _tripsController!.add(combined);
   }
@@ -111,10 +116,13 @@ class FirebaseService {
         if (firestore == null) return;
 
         final installId = await const LocalStorageService().getOrCreateInstallationId();
+        final cutoff = DateTime.now().subtract(const Duration(days: 30));
+        final cutoffTimestamp = Timestamp.fromDate(cutoff);
 
         _subTrips = firestore
             .collection('trips')
             .where('installationId', isEqualTo: installId)
+            .where('startedAt', isGreaterThanOrEqualTo: cutoffTimestamp)
             .orderBy('startedAt', descending: true)
             .snapshots()
             .listen((snapshot) {
@@ -138,6 +146,8 @@ class FirebaseService {
             .collection('emergency_events')
             .where('installationId', isEqualTo: installId)
             .where('tripId', isEqualTo: '')
+            .where('triggeredAt', isGreaterThanOrEqualTo: cutoffTimestamp)
+            .orderBy('triggeredAt', descending: true)
             .snapshots()
             .listen((snapshot) {
           _currentEvents = snapshot.docs.map((doc) {

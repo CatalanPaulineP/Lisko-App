@@ -476,10 +476,11 @@ void main() {
   testWidgets(
     'trips tab displays hero header, summary metrics, and recent trips list correctly',
     (tester) async {
+      final now = DateTime.now();
       final mockTrips = [
-        TripRecord(id: '1', destination: 'Campus - Home', durationMinutes: 50, status: 'Completed', timestamp: DateTime(2026, 6, 10)),
-        TripRecord(id: '2', destination: 'Campus - Home', durationMinutes: 45, status: 'Extended', timestamp: DateTime(2026, 6, 8), wasExtended: true),
-        TripRecord(id: '3', destination: 'Home - Campus', durationMinutes: 30, status: 'Alert', timestamp: DateTime(2026, 6, 5)),
+        TripRecord(id: '1', destination: 'Campus - Home', durationMinutes: 50, status: 'Completed', timestamp: now.subtract(const Duration(days: 1))),
+        TripRecord(id: '2', destination: 'Campus - Home', durationMinutes: 45, status: 'Extended', timestamp: now.subtract(const Duration(days: 3)), wasExtended: true),
+        TripRecord(id: '3', destination: 'Home - Campus', durationMinutes: 30, status: 'Alert', timestamp: now.subtract(const Duration(days: 5))),
       ];
       final encoded = jsonEncode(mockTrips.map((t) => t.toJson()).toList());
       SharedPreferences.setMockInitialValues({'trip_history_json': encoded, 'walkthrough_completed_v2': true, 'setup_completed': true});
@@ -513,7 +514,7 @@ void main() {
       // Verify Filter Chips
       expect(find.text('All'), findsOneWidget);
       expect(find.text('This Week'), findsOneWidget);
-      expect(find.text('This Month'), findsOneWidget);
+      expect(find.text('This Month'), findsNothing);
 
       // Verify Section Filter Icon
       expect(find.byTooltip('Select date from calendar'), findsOneWidget);
@@ -684,7 +685,7 @@ void main() {
 
       // Verify Footer
       expect(find.text('Lisko v1.0.0 • PUP Santa Maria Campus'), findsOneWidget);
-      expect(find.text('Zero-Surveillance Architecture • Offline-First'), findsOneWidget);
+      expect(find.text('Privacy-Conscious Architecture • Offline-First'), findsOneWidget);
 
       // Open Home Geofence Modal
       await tester.tap(find.text('Home Location Pin'));
@@ -1137,5 +1138,51 @@ void main() {
 
     await storage.saveProtectContactsEnabled(false);
     expect(await storage.readProtectContactsEnabled(), false);
+  });
+
+  test('30-day trip history retention prunes old trips and retains recent trips', () async {
+    const storage = LocalStorageService();
+    final now = DateTime.now();
+
+    final recentTrip = TripRecord(
+      id: 'trip_recent_1d',
+      destination: 'Campus',
+      durationMinutes: 30,
+      status: 'arrived',
+      timestamp: now.subtract(const Duration(days: 1)),
+    );
+
+    final boundaryTrip = TripRecord(
+      id: 'trip_boundary_29d',
+      destination: 'Home',
+      durationMinutes: 45,
+      status: 'arrived',
+      timestamp: now.subtract(const Duration(days: 29)),
+    );
+
+    final oldTrip = TripRecord(
+      id: 'trip_old_35d',
+      destination: 'Mall',
+      durationMinutes: 60,
+      status: 'arrived',
+      timestamp: now.subtract(const Duration(days: 35)),
+    );
+
+    await storage.saveTripHistory([recentTrip, boundaryTrip, oldTrip]);
+
+    final retained = await storage.readTripHistory();
+
+    // Verify 1-day old and 29-day old trips are retained
+    expect(retained.any((t) => t.id == 'trip_recent_1d'), true);
+    expect(retained.any((t) => t.id == 'trip_boundary_29d'), true);
+
+    // Verify 35-day old trip is pruned
+    expect(retained.any((t) => t.id == 'trip_old_35d'), false);
+    expect(retained.length, 2);
+
+    // Verify pruned state persists in SharedPreferences on re-read
+    final reRead = await storage.readTripHistory();
+    expect(reRead.length, 2);
+    expect(reRead.any((t) => t.id == 'trip_old_35d'), false);
   });
 }
