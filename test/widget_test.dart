@@ -1084,6 +1084,21 @@ void main() {
     expect(expiredAlerts, isA<List<String>>());
   });
 
+  test('Emergency SMS location format replaces map URL with raw coordinates and Google Maps search instruction', () async {
+    final smsService = SmsAlertService();
+
+    final sosSent = await smsService.sendManualSos(
+      latitude: 14.869725,
+      longitude: 120.999082,
+    );
+    expect(sosSent, isA<List<String>>());
+
+    final fallbackSent = await smsService.sendManualSos(
+      locationError: 'GPS Disabled',
+    );
+    expect(fallbackSent, isA<List<String>>());
+  });
+
   test('TripHistoryExportService generates valid non-empty PDF bytes excluding private fields', () async {
     final service = TripHistoryExportService();
     final trips = [

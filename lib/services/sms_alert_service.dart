@@ -68,19 +68,18 @@ class SmsAlertService {
       final lngStr = longitude.toStringAsFixed(6);
       final rawAddr = await _reverseGeocode(latitude, longitude);
 
-      String locLine;
+      final coordsBlock = 'Coordinates: $latStr, $lngStr\n'
+          'Search these coordinates in Google Maps.';
+
       if (rawAddr != null && rawAddr.trim().isNotEmpty) {
         var cleanAddr = rawAddr.trim();
         if (cleanAddr.toLowerCase().startsWith('near ')) {
           cleanAddr = cleanAddr.substring(5).trim();
         }
-        locLine = 'Loc: $cleanAddr';
+        return 'Loc: $cleanAddr\n$coordsBlock';
       } else {
-        locLine = 'Loc: See map location below';
+        return coordsBlock;
       }
-
-      final mapLine = 'Map: https://www.google.com/maps?q=$latStr,$lngStr';
-      return '$locLine\n$mapLine';
     } else {
       return 'Loc: ${locationError ?? "Location unavailable"}';
     }
