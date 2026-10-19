@@ -6,21 +6,23 @@
 // Interactive walkthrough tutorial overlay with dynamic GlobalKey runtime anchoring,
 // speech bubble arrow pointer tail, and animated bouncing hand pointer.
 //
-// Sequence: 13 numbered steps + 1 final completion step
-// 1 of 13: Home Tab Overview (Center modal)
-// 2 of 13: Setting up a Trip (Highlights SET UP TRIP button)
-// 3 of 13: Send Distress Signal (Highlights SOS button)
-// 4 of 13: Trips Tab (Highlights Trips Tab in bottom nav)
-// 5 of 13: Trips Summary (Highlights Summary Card)
-// 6 of 13: Filter by Time Range (Highlights Time Filter Chips)
-// 7 of 13: Find a Specific Date (Highlights Calendar Filter Icon)
-// 8 of 13: Contacts Tab (Highlights Contacts Tab in bottom nav)
-// 9 of 13: Add Trusted Contact (Highlights Add Button)
-// 10 of 13: Import from Contacts (Highlights Import Button)
-// 11 of 13: Settings Tab (Highlights Settings Tab in bottom nav)
-// 12 of 13: Home Location Pin (Highlights Home Pin)
-// 13 of 13: Expiry Alert Mode (Highlights Timer Expiry)
-// Final: All Done! (Center completion modal, GET STARTED button)
+// Sequence: 15 numbered steps + 1 final completion step
+// 1 of 15: Home Tab Overview (Center modal)
+// 2 of 15: Setting up a Trip (Highlights SET UP TRIP button)
+// 3 of 15: Send Distress Signal (Highlights SOS button)
+// 4 of 15: Trips Tab (Highlights Trips Tab in bottom nav)
+// 5 of 15: Trips Summary (Highlights Summary Card)
+// 6 of 15: Filter by Time Range (Highlights Time Filter Chips)
+// 7 of 15: Find a Specific Date (Highlights Calendar Filter Icon)
+// 8 of 15: Contacts Tab (Highlights Contacts Tab in bottom nav)
+// 9 of 15: Add Trusted Contact (Highlights Add Button)
+// 10 of 15: Import from Contacts (Highlights Import Button)
+// 11 of 15: Settings Tab (Highlights Settings Tab in bottom nav)
+// 12 of 15: Home Location Pin (Highlights Home Pin)
+// 13 of 15: Expiry Alert Mode (Highlights Timer Expiry)
+// 14 of 15: Protect Trusted Contacts (Highlights Protect Trusted Contacts row)
+// 15 of 15: Home Screen SOS Widget (Highlights Home Screen SOS Widget row)
+// Final: All Done! (Center completion modal, FINISH button)
 // ==============================================================================
 
 import 'package:flutter/material.dart';
@@ -65,6 +67,8 @@ enum TargetPosition {
   settingsTabIcon,
   settingsHomePin,
   settingsTimerExpiry,
+  settingsProtectContacts,
+  settingsSosWidget,
 }
 
 enum ArrowDirection { down, up, right }
@@ -74,6 +78,7 @@ class WalkthroughOverlay extends StatefulWidget {
     super.key,
     required this.onTabChangeRequested,
     required this.onDismiss,
+    this.onStepChanged,
     this.setUpTripKey,
     this.sosKey,
     this.tripsTabKey,
@@ -86,10 +91,13 @@ class WalkthroughOverlay extends StatefulWidget {
     this.settingsTabKey,
     this.homeLocationKey,
     this.expiryAlertKey,
+    this.protectContactsKey,
+    this.sosWidgetKey,
   });
 
   final ValueChanged<int> onTabChangeRequested;
   final VoidCallback onDismiss;
+  final ValueChanged<int>? onStepChanged;
   final GlobalKey? setUpTripKey;
   final GlobalKey? sosKey;
   final GlobalKey? tripsTabKey;
@@ -102,6 +110,8 @@ class WalkthroughOverlay extends StatefulWidget {
   final GlobalKey? settingsTabKey;
   final GlobalKey? homeLocationKey;
   final GlobalKey? expiryAlertKey;
+  final GlobalKey? protectContactsKey;
+  final GlobalKey? sosWidgetKey;
 
   @override
   State<WalkthroughOverlay> createState() => _WalkthroughOverlayState();
@@ -132,39 +142,39 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
   ];
 
   static const List<WalkthroughStep> _steps = [
-    // Step 1 of 13: Home Tab Overview
+    // Step 1 of 15: Home Tab Overview
     WalkthroughStep(
       title: 'Home Tab',
-      stepNumberText: '1 of 13',
+      stepNumberText: '1 of 15',
       description:
           'Welcome to your dashboard. From here, you can set up active trips and quickly send emergency alerts when needed.',
       targetPosition: TargetPosition.center,
       targetTab: 0,
     ),
-    // Step 2 of 13: Setting up a Trip
+    // Step 2 of 15: Setting up a Trip
     WalkthroughStep(
       title: 'Setting up a Trip',
-      stepNumberText: '2 of 13',
+      stepNumberText: '2 of 15',
       description:
           'Tap Set Up Trip to set your destination and estimated travel duration before heading out.',
       targetPosition: TargetPosition.setUpTripButton,
       targetTab: 0,
       arrowDirection: ArrowDirection.down,
     ),
-    // Step 3 of 13: Send Distress Signal
+    // Step 3 of 15: Send Distress Signal
     WalkthroughStep(
       title: 'Send Distress Signal',
-      stepNumberText: '3 of 13',
+      stepNumberText: '3 of 15',
       description:
           'Tap once to alert your trusted contacts when you need emergency assistance.',
       targetPosition: TargetPosition.sosButton,
       targetTab: 0,
       arrowDirection: ArrowDirection.down,
     ),
-    // Step 4 of 13: Trips Tab Navigation
+    // Step 4 of 15: Trips Tab Navigation
     WalkthroughStep(
       title: 'Trips Tab',
-      stepNumberText: '4 of 13',
+      stepNumberText: '4 of 15',
       description:
           'Tap here to view and manage your trip history, summaries, filters, and dates.',
       targetPosition: TargetPosition.tripsTabIcon,
@@ -172,40 +182,40 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       arrowDirection: ArrowDirection.down,
       showNextButton: false,
     ),
-    // Step 5 of 13: Trips Summary
+    // Step 5 of 15: Trips Summary
     WalkthroughStep(
       title: 'Trips Summary',
-      stepNumberText: '5 of 13',
+      stepNumberText: '5 of 15',
       description:
           'View a quick breakdown of your recorded trips by Total, Arrived, Extended, or Alerts. Tap any segment to filter your list.',
       targetPosition: TargetPosition.tripsSummaryCard,
       targetTab: 1,
       arrowDirection: ArrowDirection.up,
     ),
-    // Step 6 of 13: Filter by Time Range
+    // Step 6 of 15: Filter by Time Range
     WalkthroughStep(
       title: 'Filter by Time Range',
-      stepNumberText: '6 of 13',
+      stepNumberText: '6 of 15',
       description:
-          'Filter your trip history by selecting All, This Week, or This Month to quickly view specific logs.',
+          'Filter your trip history by selecting All or This Week to quickly view specific logs.',
       targetPosition: TargetPosition.tripsFilterChips,
       targetTab: 1,
       arrowDirection: ArrowDirection.up,
     ),
-    // Step 7 of 13: Find a Specific Date
+    // Step 7 of 15: Find a Specific Date
     WalkthroughStep(
       title: 'Find a Specific Date',
-      stepNumberText: '7 of 13',
+      stepNumberText: '7 of 15',
       description:
           'Use the date filter when you want to find trips from a specific day.',
       targetPosition: TargetPosition.tripsFilterIcon,
       targetTab: 1,
       arrowDirection: ArrowDirection.right,
     ),
-    // Step 8 of 13: Contacts Tab Transition
+    // Step 8 of 15: Contacts Tab Transition
     WalkthroughStep(
       title: 'Contacts Tab',
-      stepNumberText: '8 of 13',
+      stepNumberText: '8 of 15',
       description:
           'Tap here to view and manage the trusted contacts who receive your emergency alerts.',
       targetPosition: TargetPosition.contactsTabIcon,
@@ -213,30 +223,30 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       arrowDirection: ArrowDirection.down,
       showNextButton: false,
     ),
-    // Step 9 of 13: Add Trusted Contact
+    // Step 9 of 15: Add Trusted Contact
     WalkthroughStep(
       title: 'Add a Trusted Contact',
-      stepNumberText: '9 of 13',
+      stepNumberText: '9 of 15',
       description:
           'Tap the Add button to manually enter a new emergency contact’s details.',
       targetPosition: TargetPosition.addContactButton,
       targetTab: 2,
       arrowDirection: ArrowDirection.up,
     ),
-    // Step 10 of 13: Import from Contacts
+    // Step 10 of 15: Import from Contacts
     WalkthroughStep(
       title: 'Import from Contacts',
-      stepNumberText: '10 of 13',
+      stepNumberText: '10 of 15',
       description:
           'Import a trusted contact directly from your phone’s contact list.',
       targetPosition: TargetPosition.importContactsButton,
       targetTab: 2,
       arrowDirection: ArrowDirection.up,
     ),
-    // Step 11 of 13: Settings Tab Transition
+    // Step 11 of 15: Settings Tab Transition
     WalkthroughStep(
       title: 'Settings Tab',
-      stepNumberText: '11 of 13',
+      stepNumberText: '11 of 15',
       description:
           'Tap here to manage your home location, alert modes, and app preferences.',
       targetPosition: TargetPosition.settingsTabIcon,
@@ -244,25 +254,45 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       arrowDirection: ArrowDirection.down,
       showNextButton: false,
     ),
-    // Step 12 of 13: Home Location Pin
+    // Step 12 of 15: Home Location Pin
     WalkthroughStep(
       title: 'Home Location Pin',
-      stepNumberText: '12 of 13',
+      stepNumberText: '12 of 15',
       description:
           'Set your home coordinates to enable automatic arrival detection when you get home.',
       targetPosition: TargetPosition.settingsHomePin,
       targetTab: 3,
       arrowDirection: ArrowDirection.up,
     ),
-    // Step 13 of 13: Expiry Alert Mode
+    // Step 13 of 15: Expiry Alert Mode
     WalkthroughStep(
       title: 'Expiry Alert Mode',
-      stepNumberText: '13 of 13',
+      stepNumberText: '13 of 15',
       description:
           'Choose between vibration or sound alerts for when your trip timer is about to expire.',
       targetPosition: TargetPosition.settingsTimerExpiry,
       targetTab: 3,
-      arrowDirection: ArrowDirection.up,
+      arrowDirection: ArrowDirection.down,
+    ),
+    // Step 14 of 15: Protect Trusted Contacts
+    WalkthroughStep(
+      title: 'Protect Trusted Contacts',
+      stepNumberText: '14 of 15',
+      description:
+          'Use your device authentication to protect your trusted contacts from unauthorized changes.',
+      targetPosition: TargetPosition.settingsProtectContacts,
+      targetTab: 3,
+      arrowDirection: ArrowDirection.down,
+    ),
+    // Step 15 of 15: Home Screen SOS Widget
+    WalkthroughStep(
+      title: 'Home Screen SOS Widget',
+      stepNumberText: '15 of 15',
+      description:
+          'Learn how to add a Home Screen shortcut that starts the 5-second SOS countdown and sends an emergency SMS when the countdown completes.',
+      targetPosition: TargetPosition.settingsSosWidget,
+      targetTab: 3,
+      arrowDirection: ArrowDirection.down,
     ),
     // Final Step: All Done!
     WalkthroughStep(
@@ -332,6 +362,7 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
         _completionController.forward(from: 0.0);
       }
       widget.onTabChangeRequested(_steps[next].targetTab);
+      widget.onStepChanged?.call(next);
       Future.delayed(const Duration(milliseconds: 150), () {
         if (mounted) {
           setState(() {
@@ -435,6 +466,18 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
         return null;
       case TargetPosition.settingsTimerExpiry:
         final rect = _getRectFromKey(widget.expiryAlertKey);
+        if (rect != null) {
+          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
+        }
+        return null;
+      case TargetPosition.settingsProtectContacts:
+        final rect = _getRectFromKey(widget.protectContactsKey);
+        if (rect != null) {
+          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
+        }
+        return null;
+      case TargetPosition.settingsSosWidget:
+        final rect = _getRectFromKey(widget.sosWidgetKey);
         if (rect != null) {
           return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
         }
@@ -807,7 +850,7 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
         Text(
           step.description,
           textScaler: TextScaler.noScaling,
-          textAlign: isLast ? TextAlign.center : TextAlign.start,
+          textAlign: isLast ? TextAlign.center : TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13.5,
             height: 1.4,
@@ -885,7 +928,7 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
                   elevation: 2,
                 ),
                 child: Text(
-                  'GET STARTED',
+                  'FINISH',
                   textScaler: TextScaler.noScaling,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,

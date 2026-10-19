@@ -130,12 +130,12 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
 
         final safeCount = timeFilteredTrips.where((t) => ['completed', 'arrived', 'arrived safely'].contains(t.status.toLowerCase())).length;
         final extendedCount = timeFilteredTrips.where((t) => t.wasExtended || ['extended', 'trip extended'].contains(t.status.toLowerCase())).length;
-        final alertsCount = timeFilteredTrips.where((t) => ['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired'].contains(t.status.toLowerCase())).length;
+        final alertsCount = timeFilteredTrips.where((t) => ['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired', 'arrival unconfirmed'].contains(t.status.toLowerCase())).length;
 
         final filteredTrips = timeFilteredTrips.where((t) {
           if (_selectedFilter == 'Completed') return ['completed', 'arrived', 'arrived safely'].contains(t.status.toLowerCase());
           if (_selectedFilter == 'Extended') return t.wasExtended || ['extended', 'trip extended'].contains(t.status.toLowerCase());
-          if (_selectedFilter == 'Alert') return ['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired'].contains(t.status.toLowerCase());
+          if (_selectedFilter == 'Alert') return ['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired', 'arrival unconfirmed'].contains(t.status.toLowerCase());
           return true;
         }).toList();
 
@@ -774,6 +774,7 @@ class RecentTripsList extends StatelessWidget {
 
                       bool isStandaloneSos = (statusLower == 'alert' && trip.destination == 'Manual SOS') || statusLower == 'manual sos';
                       bool isExpired = statusLower == 'expired' || statusLower == 'timer expired';
+                      bool isUnconfirmed = statusLower == 'arrival unconfirmed';
                       bool isArrived = ['completed', 'arrived', 'arrived safely'].contains(statusLower);
                       bool isAlert = ['alert', 'help_requested', 'need help'].contains(statusLower);
                       bool isExtended = trip.wasExtended || ['extended', 'trip extended'].contains(statusLower);
@@ -783,6 +784,8 @@ class RecentTripsList extends StatelessWidget {
                         displayStatus = 'ARRIVED';
                       } else if (isExpired) {
                         displayStatus = 'EXPIRED';
+                      } else if (isUnconfirmed) {
+                        displayStatus = 'UNCONFIRMED';
                       } else if (isStandaloneSos || isAlert) {
                         displayStatus = 'ALERT';
                       } else if (isExtended) {

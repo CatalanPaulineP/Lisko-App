@@ -36,10 +36,18 @@ class SettingsTab extends StatefulWidget {
     super.key,
     this.homeLocationKey,
     this.expiryAlertKey,
-  });
+    this.protectContactsKey,
+    this.sosWidgetKey,
+    this.isWalkthroughActive = false,
+    this.walkthroughStep = 0,
+});
 
   final GlobalKey? homeLocationKey;
   final GlobalKey? expiryAlertKey;
+  final GlobalKey? protectContactsKey;
+  final GlobalKey? sosWidgetKey;
+  final bool isWalkthroughActive;
+  final int walkthroughStep;
 
   @override
   State<SettingsTab> createState() => _SettingsTabState();
@@ -47,6 +55,7 @@ class SettingsTab extends StatefulWidget {
 
 class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
   final LocalStorageService _storage = const LocalStorageService();
+  final ScrollController _scrollController = ScrollController();
 
   String _defaultDuration = '45 mins';
   String _alertMode = 'Vibration Only';
@@ -68,8 +77,14 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
   }
 
   @override
+  void didUpdateWidget(SettingsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -425,6 +440,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const SosWidgetDetailModalBottomSheet(),
     );
@@ -477,6 +493,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
         const SettingsHeader(),
         Expanded(
           child: SingleChildScrollView(
+            controller: _scrollController,
             physics: const ClampingScrollPhysics(),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -540,6 +557,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                     child: Column(
                       children: [
                         _buildSwitchRow(
+                          rowKey: widget.protectContactsKey,
                           iconStr: AppIcons.shield,
                           semanticIcon: Icons.lock_rounded,
                           iconBg: const Color(0xFFFFDAD8),
@@ -551,6 +569,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildActionRow(
+                          rowKey: widget.sosWidgetKey,
                           iconStr: AppIcons.shield,
                           semanticIcon: Icons.widgets_rounded,
                           iconBg: const Color(0xFFFFDAD8),
@@ -836,8 +855,10 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     required String subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
+    Key? rowKey,
   }) {
     return Padding(
+      key: rowKey,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
@@ -1008,8 +1029,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     required String title,
     String? subtitle,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Padding(      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Container(

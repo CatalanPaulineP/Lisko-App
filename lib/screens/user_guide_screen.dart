@@ -15,21 +15,31 @@ import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 
 /// Screen presenting 13 expandable guide sections and a sticky confirmation CTA button.
-class UserGuideScreen extends StatelessWidget {
+class UserGuideScreen extends StatefulWidget {
   const UserGuideScreen({super.key});
+
+  @override
+  State<UserGuideScreen> createState() => _UserGuideScreenState();
+}
+
+class _UserGuideScreenState extends State<UserGuideScreen> {
+  // Accordion state: track which index is currently expanded. null = all collapsed.
+  int? _expandedIndex;
+
+  void _handleToggle(int index) {
+    setState(() {
+      _expandedIndex = _expandedIndex == index ? null : index;
+    });
+  }
 
   // Semantic Design System Palette Tokens
   static const _greenAccent = AppColors.successText; // #047857
   static const _greenBg = AppColors.successContainer; // #DDF7ED
 
-  static const _amberAccent = Color(0xFFD97706); // Amber 600
   static const _amberBg = Color(0xFFFEF3C7); // Amber 100
 
   static const _redAccent = AppColors.primary; // #DB2B38
   static const _redBg = AppColors.primaryContainer; // #FFDAD8
-
-  static const _navyAccent = AppColors.header; // #1E293B
-  static const _navyBg = AppColors.canvas; // #F8FAFC
 
   @override
   Widget build(BuildContext context) {
@@ -66,139 +76,193 @@ class UserGuideScreen extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                children: const [
-                  _HeaderIntroBanner(),
-                  SizedBox(height: 16),
-                  
-                  // 1. Getting Started (GREEN)
+                children: [
+                  const _HeaderIntroBanner(),
+                  const _ColorLegend(),
+                  const SizedBox(height: 8),
+
+                  // 1. Getting Started (GREEN - CAT 1)
                   _GuideSectionCard(
+                    index: 0,
+                    isExpanded: _expandedIndex == 0,
+                    onToggle: () => _handleToggle(0),
                     iconStr: AppIcons.checkCircle,
                     title: '1. Getting Started',
                     accentColor: _greenAccent,
+                    backgroundColor: const Color(0xFFE8F5E9),
                     iconBgColor: _greenBg,
-                    child: _GettingStartedContent(),
+                    child: const _GettingStartedContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 2. Start a Trip (NAVY / SLATE)
+                  // 2. Start a Trip (RED - CAT 4)
                   _GuideSectionCard(
+                    index: 1,
+                    isExpanded: _expandedIndex == 1,
+                    onToggle: () => _handleToggle(1),
                     iconStr: AppIcons.navigation,
                     title: '2. Start a Trip',
-                    accentColor: _navyAccent,
-                    iconBgColor: _navyBg,
-                    child: _StartTripContent(),
+                    accentColor: _redAccent,
+                    backgroundColor: const Color(0xFFFFEBEE),
+                    iconBgColor: _redBg,
+                    child: const _StartTripContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 3. During Your Trip (AMBER)
+                  // 3. During Your Trip (RED - CAT 4)
                   _GuideSectionCard(
+                    index: 2,
+                    isExpanded: _expandedIndex == 2,
+                    onToggle: () => _handleToggle(2),
                     iconStr: AppIcons.schedule,
                     title: '3. During Your Trip',
-                    accentColor: _amberAccent,
-                    iconBgColor: _amberBg,
-                    child: _DuringTripContent(),
+                    accentColor: _redAccent,
+                    backgroundColor: const Color(0xFFFFEBEE),
+                    iconBgColor: _redBg,
+                    child: const _DuringTripContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 4. Destination Reached (GREEN)
+                  // 4. Destination Reached (RED - CAT 4)
                   _GuideSectionCard(
+                    index: 3,
+                    isExpanded: _expandedIndex == 3,
+                    onToggle: () => _handleToggle(3),
                     iconStr: AppIcons.checkCircle,
                     title: '4. Destination Reached',
-                    accentColor: _greenAccent,
-                    iconBgColor: _greenBg,
-                    child: _DestinationReachedContent(),
+                    accentColor: _redAccent,
+                    backgroundColor: const Color(0xFFFFEBEE),
+                    iconBgColor: _redBg,
+                    child: const _DestinationReachedContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 5. If You Don't Respond (AMBER - WARNING)
+                  // 5. If You Don't Respond (RED - CAT 4)
                   _GuideSectionCard(
+                    index: 4,
+                    isExpanded: _expandedIndex == 4,
+                    onToggle: () => _handleToggle(4),
                     iconStr: AppIcons.warning,
                     title: "5. If You Don't Respond",
-                    accentColor: _amberAccent,
-                    iconBgColor: _amberBg,
-                    child: _NoResponseContent(),
+                    accentColor: _redAccent,
+                    backgroundColor: const Color(0xFFFFEBEE),
+                    iconBgColor: _redBg,
+                    child: const _NoResponseContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 6. Emergency SOS (RED - STRONGEST EMERGENCY)
+                  // 6. Emergency SOS (RED - CAT 4)
                   _GuideSectionCard(
+                    index: 5,
+                    isExpanded: _expandedIndex == 5,
+                    onToggle: () => _handleToggle(5),
                     iconStr: AppIcons.warning,
                     title: '6. Emergency SOS',
                     accentColor: _redAccent,
+                    backgroundColor: const Color(0xFFFFEBEE),
                     iconBgColor: _redBg,
-                    child: _EmergencySosContent(),
+                    child: const _EmergencySosContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 7. Need Help (AMBER - ASSISTANCE)
+                  // 7. Need Help (RED - CAT 4)
                   _GuideSectionCard(
+                    index: 6,
+                    isExpanded: _expandedIndex == 6,
+                    onToggle: () => _handleToggle(6),
                     iconStr: AppIcons.infoOutline,
                     title: '7. Need Help',
-                    accentColor: _amberAccent,
-                    iconBgColor: _amberBg,
-                    child: _NeedHelpContent(),
+                    accentColor: _redAccent,
+                    backgroundColor: const Color(0xFFFFEBEE),
+                    iconBgColor: _redBg,
+                    child: const _NeedHelpContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 8. Trusted Contacts (NAVY / SLATE)
+                  // 8. Trusted Contacts (GREEN - CAT 1)
                   _GuideSectionCard(
+                    index: 7,
+                    isExpanded: _expandedIndex == 7,
+                    onToggle: () => _handleToggle(7),
                     iconStr: AppIcons.people,
                     title: '8. Trusted Contacts',
-                    accentColor: _navyAccent,
-                    iconBgColor: _navyBg,
-                    child: _TrustedContactsContent(),
+                    accentColor: _greenAccent,
+                    backgroundColor: const Color(0xFFE8F5E9),
+                    iconBgColor: _greenBg,
+                    child: const _TrustedContactsContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 9. Set Your Home Location (NAVY / SLATE)
+                  // 9. Set Your Home Location (YELLOW - CAT 2)
                   _GuideSectionCard(
+                    index: 8,
+                    isExpanded: _expandedIndex == 8,
+                    onToggle: () => _handleToggle(8),
                     iconStr: AppIcons.home,
                     title: '9. Set Your Home Location',
-                    accentColor: _navyAccent,
-                    iconBgColor: _navyBg,
-                    child: _HomeLocationContent(),
+                    accentColor: const Color(0xFFD97706),
+                    backgroundColor: const Color(0xFFFFFDE7),
+                    iconBgColor: _amberBg,
+                    child: const _HomeLocationContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 10. Emergency SMS & Location (AMBER)
+                  // 10. Emergency SMS & Location (YELLOW - CAT 2)
                   _GuideSectionCard(
+                    index: 9,
+                    isExpanded: _expandedIndex == 9,
+                    onToggle: () => _handleToggle(9),
                     iconStr: AppIcons.chat,
                     title: '10. Emergency SMS & Location',
-                    accentColor: _amberAccent,
+                    accentColor: const Color(0xFFD97706),
+                    backgroundColor: const Color(0xFFFFFDE7),
                     iconBgColor: _amberBg,
-                    child: _SmsLocationContent(),
+                    child: const _SmsLocationContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 11. Notifications (NAVY / SLATE)
+                  // 11. Notifications (ORANGE - CAT 3)
                   _GuideSectionCard(
+                    index: 10,
+                    isExpanded: _expandedIndex == 10,
+                    onToggle: () => _handleToggle(10),
                     iconStr: AppIcons.notifications,
                     title: '11. Notifications',
-                    accentColor: _navyAccent,
-                    iconBgColor: _navyBg,
-                    child: _NotificationsContent(),
+                    accentColor: const Color(0xFFFF9800),
+                    backgroundColor: const Color(0xFFFFF3E0),
+                    iconBgColor: _amberBg,
+                    child: const _NotificationsContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 12. Privacy & Non-Surveillance (NAVY / SLATE)
+                  // 12. Privacy & Non-Surveillance (GREEN - CAT 1)
                   _GuideSectionCard(
+                    index: 11,
+                    isExpanded: _expandedIndex == 11,
+                    onToggle: () => _handleToggle(11),
                     iconStr: AppIcons.shield,
                     title: '12. Privacy & Non-Surveillance',
-                    accentColor: _navyAccent,
-                    iconBgColor: _navyBg,
-                    child: _PrivacyContent(),
+                    accentColor: _greenAccent,
+                    backgroundColor: const Color(0xFFE8F5E9),
+                    iconBgColor: _greenBg,
+                    child: const _PrivacyContent(),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                  // 13. Safety Reminders (GREEN)
+                  // 13. Safety Reminders (GREEN - CAT 1)
                   _GuideSectionCard(
+                    index: 12,
+                    isExpanded: _expandedIndex == 12,
+                    onToggle: () => _handleToggle(12),
                     iconStr: AppIcons.check,
                     title: '13. Safety Reminders',
                     accentColor: _greenAccent,
+                    backgroundColor: const Color(0xFFE8F5E9),
                     iconBgColor: _greenBg,
-                    child: _SafetyRemindersContent(),
+                    child: const _SafetyRemindersContent(),
                   ),
-                  SizedBox(height: 16),
+
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -256,9 +320,9 @@ class _HeaderIntroBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFC0BD)),
+        border: Border.all(color: AppColors.primary, width: 1.5),
       ),
       child: Row(
         children: [
@@ -290,6 +354,7 @@ class _HeaderIntroBanner extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Your essential guide to setting up, traveling, and using safety alerts effectively.',
+                  textAlign: TextAlign.justify,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -306,41 +371,124 @@ class _HeaderIntroBanner extends StatelessWidget {
   }
 }
 
+/// Small color-code legend for visual categorization.
+class _ColorLegend extends StatelessWidget {
+  const _ColorLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 12, bottom: 4),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _LegendItem(color: Color(0xFF2E7D32), label: 'Safety & Setup'),
+              SizedBox(width: 12),
+              _Separator(),
+              SizedBox(width: 12),
+              _LegendItem(color: Color(0xFFD97706), label: 'Active Tracking'),
+            ],
+          ),
+          SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _LegendItem(color: Color(0xFFFF9800), label: 'Proactive Alert'),
+              SizedBox(width: 12),
+              _Separator(),
+              SizedBox(width: 12),
+              _LegendItem(color: Color(0xFFD32F2F), label: 'Emergency'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  const _LegendItem({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.body,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Separator extends StatelessWidget {
+  const _Separator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      '|',
+      style: TextStyle(
+        color: AppColors.border,
+        fontSize: 11,
+        fontWeight: FontWeight.w300,
+      ),
+    );
+  }
+}
+
 /// Expandable accordion card holding a section's title, icon, and custom child.
-class _GuideSectionCard extends StatefulWidget {
+class _GuideSectionCard extends StatelessWidget {
   const _GuideSectionCard({
+    required this.index,
+    required this.isExpanded,
+    required this.onToggle,
     required this.iconStr,
     required this.title,
     required this.child,
     this.accentColor,
+    this.backgroundColor = Colors.white,
     this.iconBgColor,
   });
 
+  final int index;
+  final bool isExpanded;
+  final VoidCallback onToggle;
   final String iconStr;
   final String title;
   final Widget child;
   final Color? accentColor;
+  final Color backgroundColor;
   final Color? iconBgColor;
 
   @override
-  State<_GuideSectionCard> createState() => _GuideSectionCardState();
-}
-
-class _GuideSectionCardState extends State<_GuideSectionCard> {
-  bool _isExpanded = false;
-
-  @override
   Widget build(BuildContext context) {
-    final themeColor = widget.accentColor ?? AppColors.header;
-    final bgContainerColor = widget.iconBgColor ?? (widget.accentColor ?? AppColors.body).withValues(alpha: 0.1);
+    final themeColor = accentColor ?? AppColors.header;
+    final bgContainerColor = iconBgColor ?? (accentColor ?? AppColors.body).withValues(alpha: 0.1);
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isExpanded ? themeColor.withValues(alpha: 0.4) : AppColors.border,
-          width: _isExpanded ? 1.5 : 1,
+          color: isExpanded ? themeColor.withValues(alpha: 0.4) : AppColors.border,
+          width: isExpanded ? 1.5 : 1,
         ),
         boxShadow: const [
           BoxShadow(
@@ -350,57 +498,63 @@ class _GuideSectionCardState extends State<_GuideSectionCard> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: bgContainerColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Iconify(
-                      widget.iconStr,
-                      color: themeColor,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.header,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          children: [
+            Container(
+              color: backgroundColor,
+              child: InkWell(
+                onTap: onToggle,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: bgContainerColor,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Iconify(
+                          iconStr,
+                          color: themeColor,
+                          size: 20,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.header,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        isExpanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        color: isExpanded ? themeColor : AppColors.body,
+                        size: 24,
+                      ),
+                    ],
                   ),
-                  Icon(
-                    _isExpanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.body,
-                    size: 24,
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-          if (_isExpanded) ...[
-            const Divider(height: 1, thickness: 1, color: AppColors.border),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: widget.child,
-            ),
+            if (isExpanded) ...[
+              Divider(height: 1, thickness: 1, color: themeColor.withValues(alpha: 0.1)),
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.all(16),
+                child: child,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -419,6 +573,7 @@ class _GettingStartedContent extends StatelessWidget {
       children: [
         Text(
           'Before using LisKo, make sure your basic safety setup is ready.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -453,6 +608,7 @@ class _StartTripContent extends StatelessWidget {
       children: [
         Text(
           'Set up your trip before you begin traveling.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -485,6 +641,7 @@ class _DuringTripContent extends StatelessWidget {
       children: [
         Text(
           'LisKo helps you keep track of your expected arrival time while you travel.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -513,6 +670,7 @@ class _DestinationReachedContent extends StatelessWidget {
       children: [
         Text(
           'When LisKo detects that you have reached your destination, it asks you to confirm your safety.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -564,6 +722,7 @@ class _NoResponseContent extends StatelessWidget {
       children: [
         Text(
           'If you do not respond to the safety confirmation within 90 seconds, LisKo automatically sends an emergency alert to your trusted contacts.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -592,6 +751,7 @@ class _EmergencySosContent extends StatelessWidget {
       children: [
         Text(
           'Use Emergency SOS when you need immediate assistance.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -601,6 +761,7 @@ class _EmergencySosContent extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'When an emergency alert is triggered, LisKo attempts to obtain your current location and sends an emergency SMS to your trusted contacts.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -611,6 +772,7 @@ class _EmergencySosContent extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           'The alert may contain:',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -640,6 +802,7 @@ class _NeedHelpContent extends StatelessWidget {
       children: [
         Text(
           'Use Need Help when you have reached your destination but do not feel safe or need assistance.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -650,6 +813,7 @@ class _NeedHelpContent extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           'LisKo sends an emergency alert to your trusted contacts and attempts to include your current emergency location.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -675,6 +839,7 @@ class _TrustedContactsContent extends StatelessWidget {
       children: [
         Text(
           'Trusted contacts are the people who can receive safety and emergency SMS messages from LisKo.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -691,7 +856,7 @@ class _TrustedContactsContent extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.canvas,
+            color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
@@ -700,6 +865,7 @@ class _TrustedContactsContent extends StatelessWidget {
             children: [
               Text(
                 'Relationship categories:',
+                textAlign: TextAlign.justify,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -737,6 +903,7 @@ class _HomeLocationContent extends StatelessWidget {
       children: [
         Text(
           'Set your Home Location while you are physically at home.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -746,6 +913,7 @@ class _HomeLocationContent extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'LisKo uses your saved Home Location to recognize when you reach home during a trip.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -775,6 +943,7 @@ class _SmsLocationContent extends StatelessWidget {
       children: [
         Text(
           "LisKo uses your phone's cellular SMS capability to send emergency messages to your trusted contacts.",
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -789,7 +958,7 @@ class _SmsLocationContent extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF3C7),
+            color: const Color(0xFFFFFDE7),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFFDE68A)),
           ),
@@ -805,6 +974,7 @@ class _SmsLocationContent extends StatelessWidget {
               Expanded(
                 child: Text(
                   'SMS delivery depends on your SIM card, cellular service, phone settings, and network conditions.',
+                  textAlign: TextAlign.justify,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -834,6 +1004,7 @@ class _NotificationsContent extends StatelessWidget {
       children: [
         Text(
           'Keep LisKo notifications enabled so you can receive travel and safety alerts even while using another app.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -844,6 +1015,7 @@ class _NotificationsContent extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           "Notification behavior may also depend on your phone's notification settings and battery/background restrictions.",
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -869,6 +1041,7 @@ class _PrivacyContent extends StatelessWidget {
       children: [
         Text(
           'LisKo is designed as a travel safety companion, not a continuous tracking system.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -879,6 +1052,7 @@ class _PrivacyContent extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           'Location information is used when needed for trip safety features, such as destination detection and emergency assistance.',
+          textAlign: TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -944,6 +1118,7 @@ class _BulletItem extends StatelessWidget {
           Expanded(
             child: Text(
               text,
+              textAlign: TextAlign.justify,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -978,6 +1153,7 @@ class _ChecklistBullet extends StatelessWidget {
           Expanded(
             child: Text(
               text,
+              textAlign: TextAlign.justify,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -1025,6 +1201,7 @@ class _StepItem extends StatelessWidget {
           Expanded(
             child: Text(
               text,
+              textAlign: TextAlign.justify,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -1083,6 +1260,7 @@ class _ActionRowBadge extends StatelessWidget {
           Expanded(
             child: Text(
               description,
+              textAlign: TextAlign.justify,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -1147,6 +1325,7 @@ class _InfoNoteBox extends StatelessWidget {
           Expanded(
             child: Text(
               text,
+              textAlign: TextAlign.justify,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
