@@ -3,7 +3,7 @@
 // File: lib/screens/user_guide_screen.dart
 //
 // Role & Architectural Context:
-// Interactive, vertically scrollable user guide providing 13 expandable/collapsible
+// Interactive, vertically scrollable user guide providing 14 expandable/collapsible
 // accordion sections detailing setup, trip safety, emergency actions, contacts,
 // location privacy, and safety reminders.
 // ==============================================================================
@@ -14,7 +14,7 @@ import 'package:iconify_flutter/iconify_flutter.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 
-/// Screen presenting 13 expandable guide sections and a sticky confirmation CTA button.
+/// Screen presenting 14 expandable guide sections and a sticky confirmation CTA button.
 class UserGuideScreen extends StatefulWidget {
   const UserGuideScreen({super.key});
 
@@ -165,13 +165,27 @@ class _UserGuideScreenState extends State<UserGuideScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 7. Need Help (RED - CAT 4)
+                  // 7. SOS Distress Widget (RED - CAT 4)
                   _GuideSectionCard(
                     index: 6,
                     isExpanded: _expandedIndex == 6,
                     onToggle: () => _handleToggle(6),
+                    iconStr: AppIcons.warning,
+                    title: '7. SOS Distress Widget',
+                    accentColor: _redAccent,
+                    backgroundColor: const Color(0xFFFFEBEE),
+                    iconBgColor: _redBg,
+                    child: const _SosWidgetContent(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 8. Need Help (RED - CAT 4)
+                  _GuideSectionCard(
+                    index: 7,
+                    isExpanded: _expandedIndex == 7,
+                    onToggle: () => _handleToggle(7),
                     iconStr: AppIcons.infoOutline,
-                    title: '7. Need Help',
+                    title: '8. Need Help',
                     accentColor: _redAccent,
                     backgroundColor: const Color(0xFFFFEBEE),
                     iconBgColor: _redBg,
@@ -179,13 +193,13 @@ class _UserGuideScreenState extends State<UserGuideScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 8. Trusted Contacts (GREEN - CAT 1)
+                  // 9. Trusted Contacts (GREEN - CAT 1)
                   _GuideSectionCard(
-                    index: 7,
-                    isExpanded: _expandedIndex == 7,
-                    onToggle: () => _handleToggle(7),
+                    index: 8,
+                    isExpanded: _expandedIndex == 8,
+                    onToggle: () => _handleToggle(8),
                     iconStr: AppIcons.people,
-                    title: '8. Trusted Contacts',
+                    title: '9. Trusted Contacts',
                     accentColor: _greenAccent,
                     backgroundColor: const Color(0xFFE8F5E9),
                     iconBgColor: _greenBg,
@@ -193,13 +207,13 @@ class _UserGuideScreenState extends State<UserGuideScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 9. Set Your Home Location (YELLOW - CAT 2)
+                  // 10. Set Your Home Location (YELLOW - CAT 2)
                   _GuideSectionCard(
-                    index: 8,
-                    isExpanded: _expandedIndex == 8,
-                    onToggle: () => _handleToggle(8),
+                    index: 9,
+                    isExpanded: _expandedIndex == 9,
+                    onToggle: () => _handleToggle(9),
                     iconStr: AppIcons.home,
-                    title: '9. Set Your Home Location',
+                    title: '10. Set Your Home Location',
                     accentColor: const Color(0xFFD97706),
                     backgroundColor: const Color(0xFFFFFDE7),
                     iconBgColor: _amberBg,
@@ -207,13 +221,13 @@ class _UserGuideScreenState extends State<UserGuideScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 10. Emergency SMS & Location (YELLOW - CAT 2)
+                  // 11. Emergency SMS & Location (YELLOW - CAT 2)
                   _GuideSectionCard(
-                    index: 9,
-                    isExpanded: _expandedIndex == 9,
-                    onToggle: () => _handleToggle(9),
+                    index: 10,
+                    isExpanded: _expandedIndex == 10,
+                    onToggle: () => _handleToggle(10),
                     iconStr: AppIcons.chat,
-                    title: '10. Emergency SMS & Location',
+                    title: '11. Emergency SMS & Location',
                     accentColor: const Color(0xFFD97706),
                     backgroundColor: const Color(0xFFFFFDE7),
                     iconBgColor: _amberBg,
@@ -221,13 +235,13 @@ class _UserGuideScreenState extends State<UserGuideScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 11. Notifications (ORANGE - CAT 3)
+                  // 12. Notifications (ORANGE - CAT 3)
                   _GuideSectionCard(
-                    index: 10,
-                    isExpanded: _expandedIndex == 10,
-                    onToggle: () => _handleToggle(10),
+                    index: 11,
+                    isExpanded: _expandedIndex == 11,
+                    onToggle: () => _handleToggle(11),
                     iconStr: AppIcons.notifications,
-                    title: '11. Notifications',
+                    title: '12. Notifications',
                     accentColor: const Color(0xFFFF9800),
                     backgroundColor: const Color(0xFFFFF3E0),
                     iconBgColor: _amberBg,
@@ -235,13 +249,13 @@ class _UserGuideScreenState extends State<UserGuideScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 12. Privacy & Non-Surveillance (GREEN - CAT 1)
+                  // 13. Privacy & Non-Surveillance (GREEN - CAT 1)
                   _GuideSectionCard(
-                    index: 11,
-                    isExpanded: _expandedIndex == 11,
-                    onToggle: () => _handleToggle(11),
+                    index: 12,
+                    isExpanded: _expandedIndex == 12,
+                    onToggle: () => _handleToggle(12),
                     iconStr: AppIcons.shield,
-                    title: '12. Privacy & Non-Surveillance',
+                    title: '13. Privacy & Non-Surveillance',
                     accentColor: _greenAccent,
                     backgroundColor: const Color(0xFFE8F5E9),
                     iconBgColor: _greenBg,
@@ -249,13 +263,13 @@ class _UserGuideScreenState extends State<UserGuideScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 13. Safety Reminders (GREEN - CAT 1)
+                  // 14. Safety Reminders (GREEN - CAT 1)
                   _GuideSectionCard(
-                    index: 12,
-                    isExpanded: _expandedIndex == 12,
-                    onToggle: () => _handleToggle(12),
+                    index: 13,
+                    isExpanded: _expandedIndex == 13,
+                    onToggle: () => _handleToggle(13),
                     iconStr: AppIcons.check,
-                    title: '13. Safety Reminders',
+                    title: '14. Safety Reminders',
                     accentColor: _greenAccent,
                     backgroundColor: const Color(0xFFE8F5E9),
                     iconBgColor: _greenBg,
@@ -332,11 +346,7 @@ class _HeaderIntroBanner extends StatelessWidget {
               color: AppColors.primary,
               shape: BoxShape.circle,
             ),
-            child: const Iconify(
-              AppIcons.book,
-              color: Colors.white,
-              size: 22,
-            ),
+            child: const Iconify(AppIcons.book, color: Colors.white, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -480,14 +490,17 @@ class _GuideSectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeColor = accentColor ?? AppColors.header;
-    final bgContainerColor = iconBgColor ?? (accentColor ?? AppColors.body).withValues(alpha: 0.1);
+    final bgContainerColor =
+        iconBgColor ?? (accentColor ?? AppColors.body).withValues(alpha: 0.1);
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isExpanded ? themeColor.withValues(alpha: 0.4) : AppColors.border,
+          color: isExpanded
+              ? themeColor.withValues(alpha: 0.4)
+              : AppColors.border,
           width: isExpanded ? 1.5 : 1,
         ),
         boxShadow: const [
@@ -507,7 +520,10 @@ class _GuideSectionCard extends StatelessWidget {
               child: InkWell(
                 onTap: onToggle,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -516,11 +532,7 @@ class _GuideSectionCard extends StatelessWidget {
                           color: bgContainerColor,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Iconify(
-                          iconStr,
-                          color: themeColor,
-                          size: 20,
-                        ),
+                        child: Iconify(iconStr, color: themeColor, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -546,7 +558,11 @@ class _GuideSectionCard extends StatelessWidget {
               ),
             ),
             if (isExpanded) ...[
-              Divider(height: 1, thickness: 1, color: themeColor.withValues(alpha: 0.1)),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: themeColor.withValues(alpha: 0.1),
+              ),
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.all(16),
@@ -582,13 +598,22 @@ class _GettingStartedContent extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         const _BulletItem('Add at least one trusted contact.'),
-        const _BulletItem('Allow SMS permission so LisKo can send emergency messages.'),
-        const _BulletItem('Allow location permission when required for trip and emergency location features.'),
-        const _BulletItem('Enable notifications so you can receive travel and safety alerts.'),
-        const _BulletItem('Set your Home Location while you are physically at home.'),
+        const _BulletItem(
+          'Allow SMS permission so LisKo can send emergency messages.',
+        ),
+        const _BulletItem(
+          'Allow location permission when required for trip and emergency location features.',
+        ),
+        const _BulletItem(
+          'Enable notifications so you can receive travel and safety alerts.',
+        ),
+        const _BulletItem(
+          'Set your Home Location while you are physically at home.',
+        ),
         const SizedBox(height: 12),
         _InfoNoteBox(
-          text: 'Your trusted contacts are the people LisKo can notify when you need help or when an emergency alert is triggered.',
+          text:
+              'Your trusted contacts are the people LisKo can notify when you need help or when an emergency alert is triggered.',
         ),
       ],
     );
@@ -622,7 +647,9 @@ class _StartTripContent extends StatelessWidget {
         const _StepItem(number: 4, text: 'Review your trip details.'),
         const _StepItem(number: 5, text: 'Tap Start Trip to begin.'),
         const SizedBox(height: 12),
-        const _InfoNoteBox(text: 'The timer starts only after you tap Start Trip.'),
+        const _InfoNoteBox(
+          text: 'The timer starts only after you tap Start Trip.',
+        ),
       ],
     );
   }
@@ -650,8 +677,12 @@ class _DuringTripContent extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         const _BulletItem('Your trip timer counts down after the trip starts.'),
-        const _BulletItem('LisKo can detect when you reach your selected destination.'),
-        const _BulletItem('LisKo is designed as a travel safety companion, not a continuous tracking system.'),
+        const _BulletItem(
+          'LisKo can detect when you reach your selected destination.',
+        ),
+        const _BulletItem(
+          'LisKo is designed as a travel safety companion, not a continuous tracking system.',
+        ),
       ],
     );
   }
@@ -684,7 +715,8 @@ class _DestinationReachedContent extends StatelessWidget {
           title: "I'm Safe",
           badgeColor: AppColors.success,
           textColor: Colors.white,
-          description: 'Confirms that you arrived safely. A Safe Arrival SMS is sent to your primary trusted contact.',
+          description:
+              'Confirms that you arrived safely. A Safe Arrival SMS is sent to your primary trusted contact.',
         ),
         const SizedBox(height: 10),
 
@@ -693,7 +725,8 @@ class _DestinationReachedContent extends StatelessWidget {
           title: '+15 min',
           badgeColor: const Color(0xFFD97706),
           textColor: Colors.white,
-          description: 'Adds 15 minutes to your trip. This does not send an emergency alert.',
+          description:
+              'Adds 15 minutes to your trip. This does not send an emergency alert.',
         ),
         const SizedBox(height: 10),
 
@@ -702,7 +735,8 @@ class _DestinationReachedContent extends StatelessWidget {
           title: 'Need Help',
           badgeColor: AppColors.primary,
           textColor: Colors.white,
-          description: 'Requests assistance and sends an emergency alert to your trusted contacts.',
+          description:
+              'Requests assistance and sends an emergency alert to your trusted contacts.',
         ),
       ],
     );
@@ -731,8 +765,12 @@ class _NoResponseContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        const _BulletItem('The emergency alert attempts to include your available emergency location information and a Google Maps location link.'),
-        const _BulletItem('LisKo may use vibration and notification alerts to get your attention during the safety confirmation.'),
+        const _BulletItem(
+          'The emergency alert attempts to include your available emergency location information and GPS coordinates.',
+        ),
+        const _BulletItem(
+          'LisKo may use vibration and notification alerts to get your attention during the safety confirmation.',
+        ),
       ],
     );
   }
@@ -790,7 +828,49 @@ class _EmergencySosContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 7: Need Help
+// Section 7: SOS Distress Widget
+// ==============================================================================
+class _SosWidgetContent extends StatelessWidget {
+  const _SosWidgetContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "The Home Screen SOS Widget gives you a quick way to start LisKo's emergency SOS flow directly from your phone's Home Screen.",
+          textAlign: TextAlign.justify,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.header,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 10),
+        const _BulletItem(
+          'To add it from LisKo, go to Settings and open Home Screen SOS Widget, then select Add to Home Screen.',
+        ),
+        const _BulletItem(
+          'You may also add it manually from your Android Home Screen\'s Widgets menu, depending on your device launcher.',
+        ),
+        const _BulletItem(
+          'Tapping the widget starts the 5-second SOS countdown.',
+        ),
+        const _BulletItem(
+          'You can cancel during the countdown if the widget was tapped accidentally.',
+        ),
+        const _BulletItem(
+          'If the countdown completes, LisKo sends an emergency SMS to your trusted contacts and attempts to include your available emergency location.',
+        ),
+      ],
+    );
+  }
+}
+
+// ==============================================================================
+// Section 8: Need Help
 // ==============================================================================
 class _NeedHelpContent extends StatelessWidget {
   const _NeedHelpContent();
@@ -827,7 +907,7 @@ class _NeedHelpContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 8: Trusted Contacts
+// Section 9: Trusted Contacts
 // ==============================================================================
 class _TrustedContactsContent extends StatelessWidget {
   const _TrustedContactsContent();
@@ -849,8 +929,12 @@ class _TrustedContactsContent extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         const _BulletItem('You can have 1 to 5 trusted contacts.'),
-        const _BulletItem('The first contact is the primary emergency contact.'),
-        const _BulletItem('The primary contact receives Safe Arrival SMS messages.'),
+        const _BulletItem(
+          'The first contact is the primary emergency contact.',
+        ),
+        const _BulletItem(
+          'The primary contact receives Safe Arrival SMS messages.',
+        ),
         const _BulletItem('Emergency alerts are sent to all trusted contacts.'),
         const SizedBox(height: 12),
         Container(
@@ -885,13 +969,39 @@ class _TrustedContactsContent extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 14),
+        Text(
+          'Contact Privacy & Security',
+          textAlign: TextAlign.start,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.header,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'You can protect your trusted contacts from unauthorized viewing or changes by enabling Protect Trusted Contacts in Settings. When enabled, LisKo uses your device authentication, such as your PIN, pattern, fingerprint, or other supported device security.',
+          textAlign: TextAlign.justify,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: AppColors.body,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _InfoNoteBox(
+          text:
+              'Protecting the Contacts tab does not disable LisKo\'s emergency SMS functions. Emergency alerts can still use your saved trusted contacts when an SOS or automatic escalation occurs.',
+        ),
       ],
     );
   }
 }
 
 // ==============================================================================
-// Section 9: Set Your Home Location
+// Section 10: Set Your Home Location
 // ==============================================================================
 class _HomeLocationContent extends StatelessWidget {
   const _HomeLocationContent();
@@ -923,7 +1033,8 @@ class _HomeLocationContent extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         const _InfoNoteBox(
-          text: 'For more accurate home arrival detection, set your Home Location while you are at home.',
+          text:
+              'For more accurate home arrival detection, set your Home Location while you are at home.',
         ),
       ],
     );
@@ -931,7 +1042,7 @@ class _HomeLocationContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 10: Emergency SMS & Location
+// Section 11: Emergency SMS & Location
 // ==============================================================================
 class _SmsLocationContent extends StatelessWidget {
   const _SmsLocationContent();
@@ -952,8 +1063,12 @@ class _SmsLocationContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        const _BulletItem('Emergency location is requested when an emergency alert is triggered.'),
-        const _BulletItem('If a current GPS location cannot be obtained, LisKo may use available recent location information or indicate that the location is unavailable.'),
+        const _BulletItem(
+          'Emergency location is requested when an emergency alert is triggered.',
+        ),
+        const _BulletItem(
+          'If a current GPS location cannot be obtained, LisKo may use available recent location information or indicate that the location is unavailable.',
+        ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(12),
@@ -992,7 +1107,7 @@ class _SmsLocationContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 11: Notifications
+// Section 12: Notifications
 // ==============================================================================
 class _NotificationsContent extends StatelessWidget {
   const _NotificationsContent();
@@ -1029,7 +1144,7 @@ class _NotificationsContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 12: Privacy & Non-Surveillance
+// Section 13: Privacy & Non-Surveillance
 // ==============================================================================
 class _PrivacyContent extends StatelessWidget {
   const _PrivacyContent();
@@ -1066,7 +1181,7 @@ class _PrivacyContent extends StatelessWidget {
 }
 
 // ==============================================================================
-// Section 13: Safety Reminders
+// Section 14: Safety Reminders
 // ==============================================================================
 class _SafetyRemindersContent extends StatelessWidget {
   const _SafetyRemindersContent();
@@ -1080,12 +1195,19 @@ class _SafetyRemindersContent extends StatelessWidget {
         const _ChecklistBullet('Make sure your SIM card can send SMS.'),
         const _ChecklistBullet('Keep LisKo notifications enabled.'),
         const _ChecklistBullet('Keep your trusted contacts updated.'),
-        const _ChecklistBullet('Allow required permissions when using trip and emergency features.'),
-        const _ChecklistBullet("Make sure your phone's Location Services are available when needed."),
-        const _ChecklistBullet('In a real emergency, contact the appropriate emergency service when possible.'),
+        const _ChecklistBullet(
+          'Allow required permissions when using trip and emergency features.',
+        ),
+        const _ChecklistBullet(
+          "Make sure your phone's Location Services are available when needed.",
+        ),
+        const _ChecklistBullet(
+          'In a real emergency, contact the appropriate emergency service when possible.',
+        ),
         const SizedBox(height: 12),
         _InfoNoteBox(
-          text: 'LisKo is a safety support tool and should not replace emergency services.',
+          text:
+              'LisKo is a safety support tool and should not replace emergency services.',
         ),
       ],
     );
