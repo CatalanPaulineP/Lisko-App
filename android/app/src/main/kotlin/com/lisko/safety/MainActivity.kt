@@ -21,13 +21,21 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "isRequestPinAppWidgetSupported", "isPinSupported" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val appWidgetManager = getSystemService(AppWidgetManager::class.java)
+                        result.success(appWidgetManager.isRequestPinAppWidgetSupported)
+                    } else {
+                        result.success(false)
+                    }
+                }
                 "pinSosWidget" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         val appWidgetManager = getSystemService(AppWidgetManager::class.java)
                         val myProvider = ComponentName(this, SosWidgetProvider::class.java)
                         if (appWidgetManager.isRequestPinAppWidgetSupported) {
-                            appWidgetManager.requestPinAppWidget(myProvider, null, null)
-                            result.success(true)
+                            val success = appWidgetManager.requestPinAppWidget(myProvider, null, null)
+                            result.success(success)
                         } else {
                             result.success(false)
                         }

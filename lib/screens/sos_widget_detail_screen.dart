@@ -18,14 +18,23 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
   const SosWidgetDetailModalBottomSheet({super.key});
 
   Future<void> _pinWidget(BuildContext context) async {
+    final isSupported = await SosWidgetService.isPinSupported();
+    if (!context.mounted) return;
+
+    if (!isSupported) {
+      _showUnsupportedDialog(context);
+      return;
+    }
+
     final success = await SosWidgetService.requestPinWidget();
     if (!context.mounted) return;
+
     if (success) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Widget request sent. Confirm placement on your Home Screen or use manual setup below.',
+            'Widget request sent. Confirm placement on your Home Screen prompt.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -40,25 +49,94 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Your launcher requires manual widget setup. Long-press Home Screen -> Widgets -> LisKo',
+      _showUnsupportedDialog(context);
+    }
+  }
+
+  void _showUnsupportedDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            'Automatic Widget Pinning Not Supported',
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.header,
             ),
           ),
-          backgroundColor: AppColors.header,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Your phone's launcher doesn't support adding widgets directly from the app.",
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.body,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'To add the LisKo SOS Widget manually:',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.header,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  'Long press your Home Screen → Widgets → LisKo → Add the SOS Widget.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.header,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
           ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                'Got It',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -126,7 +204,10 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.body,
+                          ),
                         ),
                       ],
                     ),
@@ -148,7 +229,10 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                     // Static Widget Visual Card Preview
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
@@ -156,7 +240,10 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                           end: Alignment.bottomCenter,
                         ),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFFFDAD8), width: 1.5),
+                        border: Border.all(
+                          color: const Color(0xFFFFDAD8),
+                          width: 1.5,
+                        ),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x29EF4444),
@@ -243,19 +330,22 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                     _buildBenefitCard(
                       icon: Icons.flash_on_rounded,
                       title: 'Rapid Emergency Access',
-                      description: 'Start the SOS countdown directly from your Home Screen without navigating through the main LisKo application.',
+                      description:
+                          'Start the SOS countdown directly from your Home Screen without navigating through the main LisKo application.',
                     ),
                     const SizedBox(height: 10),
                     _buildBenefitCard(
                       icon: Icons.timer_rounded,
                       title: '5-Second Safety Buffer',
-                      description: 'Provides a 5-second countdown with haptic vibration feedback and an instant 1-tap cancel button to prevent false alarms.',
+                      description:
+                          'Provides a 5-second countdown with haptic vibration feedback and an instant 1-tap cancel button to prevent false alarms.',
                     ),
                     const SizedBox(height: 10),
                     _buildBenefitCard(
                       icon: Icons.sms_outlined,
                       title: 'Automatic Location & SMS',
-                      description: 'Obtains the device\'s current location and sends a cellular emergency SMS to trusted contacts when the countdown completes.',
+                      description:
+                          'Obtains the device\'s current location and sends a cellular emergency SMS to trusted contacts when the countdown completes.',
                     ),
                     const SizedBox(height: 16),
 
@@ -269,7 +359,10 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                             width: double.infinity,
                             child: FilledButton.icon(
                               onPressed: () => _pinWidget(context),
-                              icon: const Icon(Icons.add_to_home_screen_rounded, size: 20),
+                              icon: const Icon(
+                                Icons.add_to_home_screen_rounded,
+                                size: 20,
+                              ),
                               label: Text(
                                 'Add to Home Screen',
                                 textScaler: TextScaler.noScaling,
@@ -280,7 +373,9 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                               ),
                               style: FilledButton.styleFrom(
                                 backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -289,7 +384,7 @@ class SosWidgetDetailModalBottomSheet extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'If automatic setup isn\'t supported by your launcher, add LisKo manually from your phone\'s Widgets menu.',
+                            'If no widget prompt appears, long press your Home Screen → Widgets → LisKo and add the SOS Widget manually.',
                             textAlign: TextAlign.justify,
                             textScaler: TextScaler.noScaling,
                             style: GoogleFonts.plusJakartaSans(
