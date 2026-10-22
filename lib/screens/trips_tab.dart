@@ -44,12 +44,14 @@ class TripsTab extends StatefulWidget {
     this.summaryKey,
     this.filterChipsKey,
     this.calendarIconKey,
+    this.exportKey,
   });
 
   final VoidCallback? onStartNewTrip;
   final GlobalKey? summaryKey;
   final GlobalKey? filterChipsKey;
   final GlobalKey? calendarIconKey;
+  final GlobalKey? exportKey;
 
   @override
   State<TripsTab> createState() => _TripsTabState();
@@ -156,6 +158,7 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
                   context: context,
                 );
               },
+              exportKey: widget.exportKey,
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -374,9 +377,11 @@ class TripsHeader extends StatelessWidget {
     required this.onFilterChanged,
     this.onExportTap,
     this.summaryKey,
+    this.exportKey,
   });
 
   final GlobalKey? summaryKey;
+  final GlobalKey? exportKey;
   final int tripCount;
   final int safeCount;
   final int extendedCount;
@@ -452,6 +457,7 @@ class TripsHeader extends StatelessWidget {
                     ),
                     if (onExportTap != null)
                       Material(
+                        key: exportKey,
                         color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(

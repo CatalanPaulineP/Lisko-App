@@ -71,19 +71,19 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int selectedTab = 0;
   bool tripActive = false;
   bool tripStaged = false;
-  String stagedDestination = 'Campus';
-  Duration stagedDuration = const Duration(minutes: 45);
+  String stagedDestination = '';
+  Duration stagedDuration = Duration.zero;
   bool isArrived = false;
   int arrivalCountdown = 90;
   bool isTimeoutWarning = false;
   int timeoutCountdown = 90;
 
 
-  Duration remaining = const Duration(minutes: 45);
+  Duration remaining = Duration.zero;
   DateTime? expectedArrivalAt;
   DateTime? safetyCheckDeadline;
-  Duration totalDuration = const Duration(minutes: 45);
-  String destination = 'Campus';
+  Duration totalDuration = Duration.zero;
+  String destination = '';
   String tripId = '';
   DateTime? tripStartedAt;
   Timer? tripTimer;
@@ -97,6 +97,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GlobalKey _tripsSummaryKey = GlobalKey();
   final GlobalKey _tripsFilterChipsKey = GlobalKey();
   final GlobalKey _tripsCalendarIconKey = GlobalKey();
+  final GlobalKey _tripsExportKey = GlobalKey();
   final GlobalKey _contactsTabKey = GlobalKey();
   final GlobalKey _addContactKey = GlobalKey();
   final GlobalKey _importContactsKey = GlobalKey();
@@ -106,8 +107,78 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GlobalKey _protectContactsKey = GlobalKey();
   final GlobalKey _sosWidgetKey = GlobalKey();
 
+  // New Walkthrough Keys for Trip Modal
+  final GlobalKey _tripModalDestinationKey = GlobalKey();
+  final GlobalKey _tripModalTimerKey = GlobalKey();
+  final GlobalKey _tripModalSaveButtonKey = GlobalKey();
+  final GlobalKey _activeTripStartButtonKey = GlobalKey();
+
   bool showWalkthrough = false;
   int walkthroughStep = 0;
+  int walkthroughEndStep = 18;
+  OverlayEntry? _walkthroughOverlayEntry;
+
+  void _removeWalkthroughOverlay() {
+    _walkthroughOverlayEntry?.remove();
+    _walkthroughOverlayEntry = null;
+    if (mounted) {
+      setState(() {
+        showWalkthrough = false;
+      });
+    }
+  }
+
+  void _showWalkthroughOverlay() {
+    _removeWalkthroughOverlay();
+
+    _walkthroughOverlayEntry = OverlayEntry(
+      builder: (context) => WalkthroughOverlay(
+        initialStep: walkthroughStep,
+        endStep: walkthroughEndStep,
+        setUpTripKey: _setUpTripKey,
+        sosKey: _sosKey,
+        tripsTabKey: _tripsTabKey,
+        tripsSummaryKey: _tripsSummaryKey,
+        tripsFilterChipsKey: _tripsFilterChipsKey,
+        tripsCalendarIconKey: _tripsCalendarIconKey,
+        tripsExportKey: _tripsExportKey,
+        contactsTabKey: _contactsTabKey,
+        addContactKey: _addContactKey,
+        importContactsKey: _importContactsKey,
+        settingsTabKey: _settingsTabKey,
+        homeLocationKey: _homeLocationKey,
+        expiryAlertKey: _expiryAlertKey,
+        protectContactsKey: _protectContactsKey,
+        sosWidgetKey: _sosWidgetKey,
+        tripModalDestinationKey: _tripModalDestinationKey,
+        tripModalTimerKey: _tripModalTimerKey,
+        tripModalSaveButtonKey: _tripModalSaveButtonKey,
+        activeTripStartButtonKey: _activeTripStartButtonKey,
+        onModalTriggerRequested: _openTripScheduler,
+        onStepChanged: (step) {
+          walkthroughStep = step;
+          if (step == 5 && !tripStaged) {
+            setState(() {
+              tripStaged = true;
+            });
+          }
+        },
+        onTabChangeRequested: (tabIndex) {
+          if (mounted) {
+            setState(() {
+              selectedTab = tabIndex;
+            });
+          }
+        },
+        onDismiss: _removeWalkthroughOverlay,
+      ),
+    );
+
+    Overlay.of(context, rootOverlay: true).insert(_walkthroughOverlayEntry!);
+    setState(() {
+      showWalkthrough = true;
+    });
+  }
 
   bool get _isTestEnvironment {
     final binding = WidgetsBinding.instance.runtimeType.toString();
@@ -118,9 +189,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _checkWalkthroughStatus() async {
     final completed = await const LocalStorageService().readWalkthroughCompleted();
     if (!completed && mounted) {
-      setState(() {
-        showWalkthrough = true;
-      });
+      _showWalkthroughOverlay();
     }
   }
 
@@ -134,6 +203,19 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // response router (both foreground and killed-app) can call trip methods
   // directly on the live HomeScreenState without a GlobalKey.
   // -------------------------------------------------------------------------
+  @override
+  void dispose() {
+    _removeWalkthroughOverlay();
+    WidgetsBinding.instance.removeObserver(this);
+    // Unregister so stale callbacks from a destroyed widget are never called.
+    NotificationService.onActionReceived = null;
+    Vibration.cancel();
+    tripTimer?.cancel();
+    _arrivalTimer?.cancel();
+    _geofenceService.stopMonitoring();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -321,17 +403,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  @override
-  void dispose() {
-    // Unregister so stale callbacks from a destroyed widget are never called.
-    NotificationService.onActionReceived = null;
-    Vibration.cancel();
-    tripTimer?.cancel();
-    _arrivalTimer?.cancel();
-    _geofenceService.stopMonitoring();
 
-    super.dispose();
-  }
 
   // -------------------------------------------------------------------------
   // Notification action router
@@ -1127,6 +1199,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       builder: (_) => TripSchedulerSheet(
         initialDestination: tripStaged ? stagedDestination : null,
         initialDuration: tripStaged ? stagedDuration : null,
+        destinationRowKey: _tripModalDestinationKey,
+        fineTuneKey: _tripModalTimerKey,
+        saveButtonKey: _tripModalSaveButtonKey,
         onSave: (selectedDestination, duration) async {
           setState(() {
             tripStaged = true;
@@ -1166,12 +1241,14 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         onSos: _triggerEmergencyFlow,
                         isArrived: isArrived,
                         arrivalRemainingSeconds: arrivalCountdown,
+                        sosKey: _sosKey,
                       )
                     : HomeDashboardTab(
                         key: _homeKey,
                         selectedTab: selectedTab,
                         setUpTripKey: _setUpTripKey,
                         sosKey: _sosKey,
+                        activeTripStartButtonKey: _activeTripStartButtonKey,
                         onSetUpTrip: _openTripScheduler,
                         onStartTrip: () => _startTrip(stagedDestination, stagedDuration),
                         onSos: () => _triggerEmergencyFlow(immediate: false),
@@ -1189,8 +1266,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         onCancelSetup: () {
                           setState(() {
                             tripStaged = false;
-                            stagedDestination = 'Campus';
-                            stagedDuration = const Duration(minutes: 45);
+                            stagedDestination = '';
+                            stagedDuration = Duration.zero;
                           });
                         },
                       ),
@@ -1200,6 +1277,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 summaryKey: _tripsSummaryKey,
                 filterChipsKey: _tripsFilterChipsKey,
                 calendarIconKey: _tripsCalendarIconKey,
+                exportKey: _tripsExportKey,
                 onStartNewTrip: () {
                   setState(() {
                     selectedTab = 0;
@@ -1220,6 +1298,17 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 sosWidgetKey: _sosWidgetKey,
                 isWalkthroughActive: showWalkthrough,
                 walkthroughStep: walkthroughStep,
+                onReplayWalkthrough: (stepIndex, endStepIndex, targetTab) {
+                  setState(() {
+                    selectedTab = targetTab;
+                    walkthroughStep = stepIndex;
+                    walkthroughEndStep = endStepIndex;
+                    tripStaged = false;
+                    stagedDestination = '';
+                    stagedDuration = Duration.zero;
+                  });
+                  _showWalkthroughOverlay();
+                },
               ),
             ],
           ),
@@ -1315,40 +1404,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
         ),
-        if (showWalkthrough)
-          Positioned.fill(
-            child: WalkthroughOverlay(
-              setUpTripKey: _setUpTripKey,
-              sosKey: _sosKey,
-              tripsTabKey: _tripsTabKey,
-              tripsSummaryKey: _tripsSummaryKey,
-              tripsFilterChipsKey: _tripsFilterChipsKey,
-              tripsCalendarIconKey: _tripsCalendarIconKey,
-              contactsTabKey: _contactsTabKey,
-              addContactKey: _addContactKey,
-              importContactsKey: _importContactsKey,
-              settingsTabKey: _settingsTabKey,
-              homeLocationKey: _homeLocationKey,
-              expiryAlertKey: _expiryAlertKey,
-              protectContactsKey: _protectContactsKey,
-              sosWidgetKey: _sosWidgetKey,
-              onStepChanged: (step) {
-                setState(() {
-                  walkthroughStep = step;
-                });
-              },
-              onTabChangeRequested: (tabIndex) {
-                setState(() {
-                  selectedTab = tabIndex;
-                });
-              },
-              onDismiss: () {
-                setState(() {
-                  showWalkthrough = false;
-                });
-              },
-            ),
-          ),
       ],
     );
   }

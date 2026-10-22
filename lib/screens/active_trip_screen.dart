@@ -48,7 +48,11 @@ class ActiveTripTab extends StatelessWidget {
     this.arrivalRemainingSeconds = 90,
     this.isTimeoutWarning = false,
     this.timeoutRemainingSeconds = 90,
+    this.sosKey,
   });
+
+  /// Key for the SOS button to be used in walkthrough spotlighting.
+  final GlobalKey? sosKey;
 
   /// Target destination name (e.g., "Home" or "Campus").
   final String destination;
@@ -170,6 +174,7 @@ class ActiveTripTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 PrimaryButton(
+                  key: sosKey,
                   label: 'Need Help / SOS',
                   onPressed: onSos,
                 ),

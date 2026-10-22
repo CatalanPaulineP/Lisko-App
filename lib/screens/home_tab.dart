@@ -43,18 +43,20 @@ class HomeDashboardTab extends StatelessWidget {
     required this.onStartTrip,
     required this.onSos,
     this.tripStaged = false,
-    this.stagedDestination = 'Campus',
-    this.stagedDuration = const Duration(minutes: 45),
+    this.stagedDestination = '',
+    this.stagedDuration = Duration.zero,
     this.onAdjustMinutes,
     this.onEditSetup,
     this.onCancelSetup,
     this.selectedTab = 0,
     this.setUpTripKey,
     this.sosKey,
+    this.activeTripStartButtonKey,
   });
 
   final GlobalKey? setUpTripKey;
   final GlobalKey? sosKey;
+  final GlobalKey? activeTripStartButtonKey;
 
   /// Active tab index for targeted component updates.
   final int selectedTab;
@@ -108,8 +110,8 @@ class HomeDashboardTab extends StatelessWidget {
                 children: [
                   const SizedBox(height: 12),
                   TripTimerCard(
-                    timeText: tripStaged ? _formatDuration(stagedDuration) : '--:--:--',
-                    statusText: tripStaged ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO TRIP SET UP',
+                    timeText: (tripStaged && stagedDuration.inSeconds > 0) ? _formatDuration(stagedDuration) : '--:--:--',
+                    statusText: (tripStaged && stagedDestination.isNotEmpty) ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO TRIP SET UP',
                     isActive: false,
                     isStaged: tripStaged,
                     onAdjustMinutes: onAdjustMinutes,
@@ -118,7 +120,7 @@ class HomeDashboardTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   HomeStartButton(
-                    key: setUpTripKey,
+                    buttonKey: tripStaged ? activeTripStartButtonKey : setUpTripKey,
                     onPressed: tripStaged ? onStartTrip : onSetUpTrip,
                     label: tripStaged ? 'START TRIP' : 'SET UP TRIP',
                   ),
@@ -611,10 +613,12 @@ class HomeStartButton extends StatefulWidget {
     super.key,
     required this.onPressed,
     this.label = 'SET UP TRIP',
+    this.buttonKey,
   });
 
   final VoidCallback onPressed;
   final String label;
+  final GlobalKey? buttonKey;
 
   @override
   State<HomeStartButton> createState() => _HomeStartButtonState();
@@ -648,6 +652,7 @@ class _HomeStartButtonState extends State<HomeStartButton> {
           ],
         ),
         child: ElevatedButton.icon(
+          key: widget.buttonKey,
           onPressed: _handlePressed,
           icon: const AppIcon.standard(
             AppIcons.navigation,

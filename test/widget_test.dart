@@ -650,9 +650,11 @@ void main() {
     (tester) async {
       SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
       await tester.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: Scaffold(
-            body: SettingsTab(),
+            body: SettingsTab(
+              onReplayWalkthrough: (int start, int end, int tab) {}
+            ),
           ),
         ),
       );
