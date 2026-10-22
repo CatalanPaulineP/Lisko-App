@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Safety Onboarding Wizard
 // File: lib/screens/onboarding_flow.dart
 //
@@ -12,7 +12,7 @@
 // - Step 4: SMS Permission (`SmsPermissionScreen` with privacy disclaimers)
 // - Step 5: Location Geofencing (`LocationPermissionScreen` with zero-surveillance notice)
 // - Final: "You're Ready!" completion summary (`SetupReadyScreen`)
-// 
+//
 // Smart Philippine Phone Validation & Zero-Blocker Logic:
 // `PhilippinePhoneInputFormatter` enforces Philippine mobile standards:
 // - Automatically intercepts and strips leading zeroes when students type out of habit (e.g. `0917...` -> `917...`).
@@ -40,6 +40,7 @@ import '../services/permission_service.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/onboarding_header_shell.dart';
+import 'contacts_tab.dart';
 import 'main_dashboard_screen.dart';
 import 'welcome_screen.dart';
 
@@ -197,7 +198,9 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Contacts permission is permanently denied. Please enable it in settings.'),
+              content: const Text(
+                'Contacts permission is permanently denied. Please enable it in settings.',
+              ),
               action: SnackBarAction(
                 label: 'Settings',
                 onPressed: () => openAppSettings(),
@@ -270,7 +273,9 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       context: context,
       builder: (BuildContext ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           contentPadding: const EdgeInsets.all(24),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -372,6 +377,27 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     }
   }
 
+  void _editContact(ContactPerson contact) {
+    final index = savedContacts.indexOf(contact);
+    if (index < 0) return;
+
+    showModalBottomSheet<ContactPerson>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => EditContactBottomSheet(
+        contact: contact,
+        onSaved: (edited) async {
+          setState(() {
+            savedContacts[index] = edited;
+          });
+          final storage = const LocalStorageService();
+          await storage.saveContacts(savedContacts);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SetupScaffold(
@@ -414,12 +440,14 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            ...savedContacts.map(
-              (contact) => Padding(
+            ...savedContacts.asMap().entries.map(
+              (entry) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: SavedContactCard(
-                  contact: contact,
-                  onRemove: () => _confirmDeleteContact(contact),
+                  contact: entry.value,
+                  isPrimary: entry.key == 0,
+                  onEdit: () => _editContact(entry.value),
+                  onRemove: () => _confirmDeleteContact(entry.value),
                 ),
               ),
             ),
@@ -453,7 +481,9 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Contact already exists in your trusted list'),
+                      content: Text(
+                        'Contact already exists in your trusted list',
+                      ),
                     ),
                   );
                 }
@@ -587,25 +617,21 @@ class _SetupCompleteScreenState extends State<SetupCompleteScreen>
     duration: const Duration(milliseconds: 900),
   );
 
-  late final Animation<double> _checkScale = Tween<double>(
-    begin: 0.0,
-    end: 1.0,
-  ).animate(
-    CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.0, 0.60, curve: Curves.easeOutBack),
-    ),
-  );
+  late final Animation<double> _checkScale = Tween<double>(begin: 0.0, end: 1.0)
+      .animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.0, 0.60, curve: Curves.easeOutBack),
+        ),
+      );
 
-  late final Animation<double> _checkOpacity = Tween<double>(
-    begin: 0.0,
-    end: 1.0,
-  ).animate(
-    CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.0, 0.40, curve: Curves.easeOut),
-    ),
-  );
+  late final Animation<double> _checkOpacity =
+      Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.0, 0.40, curve: Curves.easeOut),
+        ),
+      );
 
   @override
   void initState() {
@@ -662,7 +688,9 @@ class _SetupCompleteScreenState extends State<SetupCompleteScreen>
                 icon: Icons.home_rounded,
                 onPressed: () async {
                   await const LocalStorageService().setSetupCompleted(true);
-                  await const LocalStorageService().saveWalkthroughCompleted(false);
+                  await const LocalStorageService().saveWalkthroughCompleted(
+                    false,
+                  );
                   if (!context.mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
@@ -710,9 +738,7 @@ class _NotificationBellState extends State<NotificationBell>
   late final Animation<double> _pulseAnimation = Tween<double>(
     begin: 0.0,
     end: 1.0,
-  ).animate(
-    CurvedAnimation(parent: _controller, curve: Curves.easeOutQuad),
-  );
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuad));
 
   @override
   void initState() {
@@ -755,9 +781,13 @@ class _NotificationBellState extends State<NotificationBell>
                     height: 132,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.primaryContainer.withValues(alpha: ringAlpha),
+                      color: AppColors.primaryContainer.withValues(
+                        alpha: ringAlpha,
+                      ),
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: ringAlpha * 0.45),
+                        color: AppColors.primary.withValues(
+                          alpha: ringAlpha * 0.45,
+                        ),
                         width: 1.5,
                       ),
                     ),
@@ -883,8 +913,6 @@ class MockNotificationCard extends StatelessWidget {
     );
   }
 }
-
-
 
 class SetupCard extends StatelessWidget {
   const SetupCard({
@@ -1046,11 +1074,7 @@ class ManualContactCard extends StatelessWidget {
 
 /// Renders the stylized Philippine flag indicator matching the design specifications.
 class PhilippineFlagIndicator extends StatelessWidget {
-  const PhilippineFlagIndicator({
-    super.key,
-    this.width = 24,
-    this.height = 15,
-  });
+  const PhilippineFlagIndicator({super.key, this.width = 24, this.height = 15});
 
   final double width;
   final double height;
@@ -1139,11 +1163,7 @@ class PhilippinePhoneInputFormatter extends TextInputFormatter {
 }
 
 class ManualContactExpandedForm extends StatefulWidget {
-  const ManualContactExpandedForm({
-    super.key,
-    this.onSaved,
-    this.onCancel,
-  });
+  const ManualContactExpandedForm({super.key, this.onSaved, this.onCancel});
 
   final ValueChanged<ContactPerson>? onSaved;
   final VoidCallback? onCancel;
@@ -1215,22 +1235,20 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
   }
 
   void _saveContact() {
-    final name = nameController.text.trim();
+    final rawName = nameController.text;
+    final name = rawName.trim().replaceAll(RegExp(r'\s+'), ' ');
     final phone = phoneController.text.trim();
-    final otherRel = otherRelationshipController.text.trim();
+    final otherRel = otherRelationshipController.text.trim().replaceAll(
+      RegExp(r'\s+'),
+      ' ',
+    );
 
-    String? nError;
-    String? pError;
+    String? nError = validateFullName(rawName);
+    String? pError = _validatePhone(phone);
     String? oError;
 
-    if (name.isEmpty) {
-      nError = 'Contact name is required';
-    }
-
-    pError = _validatePhone(phone);
-
-    if (relationship == 'Other' && otherRel.isEmpty) {
-      oError = 'Please specify relationship';
+    if (relationship == 'Others' || relationship == 'Other') {
+      oError = validateCustomRelationship(otherRel);
     }
 
     if (nError != null || pError != null || oError != null) {
@@ -1242,7 +1260,9 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
       return;
     }
 
-    final selectedRel = relationship == 'Other' ? otherRel : relationship;
+    final selectedRel = (relationship == 'Others' || relationship == 'Other')
+        ? otherRel
+        : relationship;
     final formattedPhone = _formatPhone(phone);
     final initials = _extractInitials(name);
 
@@ -1321,8 +1341,10 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
               errorText: nameError,
               filled: true,
               fillColor: AppColors.canvas,
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 15, horizontal: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 15,
+                horizontal: 14,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: AppColors.border),
@@ -1337,8 +1359,10 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.5,
+                ),
               ),
             ),
           ),
@@ -1359,7 +1383,7 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
               otherRelationshipError = null;
             }),
           ),
-          if (relationship == 'Other') ...[
+          if (relationship == 'Others' || relationship == 'Other') ...[
             const SizedBox(height: 12),
             TextField(
               controller: otherRelationshipController,
@@ -1379,8 +1403,10 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
                 errorText: otherRelationshipError,
                 filled: true,
                 fillColor: AppColors.canvas,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 15, horizontal: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 14,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.border),
@@ -1395,8 +1421,10 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: AppColors.primary, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -1445,11 +1473,7 @@ class _ManualContactExpandedFormState extends State<ManualContactExpandedForm> {
                   ),
                 ),
                 // Subtle vertical divider line
-                Container(
-                  width: 1,
-                  height: 26,
-                  color: const Color(0xFFE2E8F0),
-                ),
+                Container(width: 1, height: 26, color: const Color(0xFFE2E8F0)),
                 const SizedBox(width: 12),
                 // Right Text Field: starts directly after +63 with placeholder hint "9XX XXX XXXX"
                 Expanded(
@@ -1537,20 +1561,27 @@ class SavedContactCard extends StatelessWidget {
   const SavedContactCard({
     super.key,
     required this.contact,
+    required this.onEdit,
     required this.onRemove,
+    this.isPrimary = false,
   });
 
   final ContactPerson contact;
+  final VoidCallback onEdit;
   final VoidCallback onRemove;
+  final bool isPrimary;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isPrimary ? const Color(0xFFFFF2F3) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isPrimary ? const Color(0xFFFFCDD2) : const Color(0xFFE2E8F0),
+          width: isPrimary ? 1.2 : 1.0,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A0F172A),
@@ -1559,84 +1590,142 @@ class SavedContactCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                contact.initials,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
+          if (isPrimary) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFDAD8),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.shield_rounded,
+                    size: 13,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Primary Emergency Contact',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  contact.name,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.header,
+          ],
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    contact.initials,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (contact.relationship.isNotEmpty) ...[
-                      Text(
-                        contact.relationship,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          '|',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ),
-                    ],
                     Text(
-                      contact.phone,
-                      style: const TextStyle(
+                      contact.name,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.header,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${contact.relationship} | ${contact.phone}',
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF64748B),
+                        color: AppColors.body,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: onRemove,
-            tooltip: 'Remove contact',
-            icon: const AppIcon.standard(
-              AppIcons.deleteOutline,
-              color: AppColors.primary,
-              semanticIcon: Icons.delete_outline_rounded,
-            ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.body,
+                ),
+                tooltip: 'Contact options',
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onSelected: (value) {
+                  if (value == 'edit') onEdit();
+                  if (value == 'remove') onRemove();
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.edit_rounded,
+                          size: 18,
+                          color: AppColors.header,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Edit',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.header,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'remove',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Delete',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
@@ -1654,11 +1743,7 @@ class RelationshipChips extends StatelessWidget {
   final String selected;
   final ValueChanged<String>? onChanged;
 
-  static const List<String> relationships = [
-    'Parent',
-    'Guardian',
-    'Others',
-  ];
+  static const List<String> relationships = ['Parent', 'Guardian', 'Others'];
 
   @override
   Widget build(BuildContext context) {
@@ -1677,10 +1762,12 @@ class RelationshipChips extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: onChanged == null ? null : () => onChanged!(label),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isSelected ? AppColors.primary : Colors.white,
-                  foregroundColor:
-                      isSelected ? Colors.white : const Color(0xFF64748B),
+                  backgroundColor: isSelected
+                      ? AppColors.primary
+                      : Colors.white,
+                  foregroundColor: isSelected
+                      ? Colors.white
+                      : const Color(0xFF64748B),
                   elevation: 0,
                   padding: EdgeInsets.zero,
                   side: BorderSide(
@@ -1817,13 +1904,15 @@ class ContactSelectionBottomSheet extends StatefulWidget {
   final ValueChanged<ContactPerson>? onContactSelected;
 
   @override
-  State<ContactSelectionBottomSheet> createState() => _ContactSelectionBottomSheetState();
+  State<ContactSelectionBottomSheet> createState() =>
+      _ContactSelectionBottomSheetState();
 }
 
-class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomSheet> {
+class _ContactSelectionBottomSheetState
+    extends State<ContactSelectionBottomSheet> {
   final PhoneContactService _contactService = PhoneContactService();
   final TextEditingController _searchController = TextEditingController();
-  
+
   List<Contact>? _allContacts;
   List<Contact>? _filteredContacts;
   bool _isLoading = true;
@@ -1855,7 +1944,8 @@ class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomShee
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load contacts. Please ensure permission is granted.';
+          _errorMessage =
+              'Failed to load contacts. Please ensure permission is granted.';
           _isLoading = false;
         });
       }
@@ -1865,7 +1955,10 @@ class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomShee
   void _onSearchChanged() {
     if (_allContacts == null) return;
     setState(() {
-      _filteredContacts = _contactService.filterContacts(_allContacts!, _searchController.text);
+      _filteredContacts = _contactService.filterContacts(
+        _allContacts!,
+        _searchController.text,
+      );
     });
   }
 
@@ -1885,14 +1978,18 @@ class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomShee
     }
 
     if (selectedPhone != null && mounted) {
-      final normalizedPhone = PhoneContactService.normalizePhoneNumber(selectedPhone);
+      final normalizedPhone = PhoneContactService.normalizePhoneNumber(
+        selectedPhone,
+      );
       final initials = ContactPerson.computeInitials(contact.displayName);
-      
-      widget.onContactSelected?.call(ContactPerson(
-        name: contact.displayName,
-        phone: normalizedPhone,
-        initials: initials,
-      ));
+
+      widget.onContactSelected?.call(
+        ContactPerson(
+          name: contact.displayName,
+          phone: normalizedPhone,
+          initials: initials,
+        ),
+      );
     }
   }
 
@@ -1957,7 +2054,10 @@ class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomShee
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search contacts...',
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.body),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.body,
+                ),
                 filled: true,
                 fillColor: AppColors.card,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -1968,9 +2068,7 @@ class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomShee
               ),
             ),
             const SizedBox(height: 16),
-            Expanded(
-              child: _buildContent(),
-            ),
+            Expanded(child: _buildContent()),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -2028,7 +2126,7 @@ class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomShee
       itemBuilder: (context, index) {
         final contact = _filteredContacts![index];
         final initials = ContactPerson.computeInitials(contact.displayName);
-        
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Material(
@@ -2074,9 +2172,9 @@ class _ContactSelectionBottomSheetState extends State<ContactSelectionBottomShee
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            contact.phones.length == 1 
-                              ? contact.phones.first.number 
-                              : '${contact.phones.length} phone numbers',
+                            contact.phones.length == 1
+                                ? contact.phones.first.number
+                                : '${contact.phones.length} phone numbers',
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.body,
@@ -2147,45 +2245,55 @@ class NumberSelectionBottomSheet extends StatelessWidget {
               style: const TextStyle(fontSize: 14, color: AppColors.body),
             ),
             const SizedBox(height: 20),
-            ...contact.phones.map((phone) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Material(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  onTap: () => Navigator.pop(context, phone.number),
+            ...contact.phones.map(
+              (phone) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Material(
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(14),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.phone_rounded, color: AppColors.primary, size: 20),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            phone.number,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.header,
+                  child: InkWell(
+                    onTap: () => Navigator.pop(context, phone.number),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.phone_rounded,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              phone.number,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.header,
+                              ),
                             ),
                           ),
-                        ),
-                        if (phone.label != PhoneLabel.mobile)
-                          Text(
-                            phone.label.toString().split('.').last.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.body,
+                          if (phone.label != PhoneLabel.mobile)
+                            Text(
+                              phone.label
+                                  .toString()
+                                  .split('.')
+                                  .last
+                                  .toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.body,
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            )),
+            ),
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
@@ -2226,7 +2334,8 @@ class SelectRelationshipBottomSheet extends StatefulWidget {
 class _SelectRelationshipBottomSheetState
     extends State<SelectRelationshipBottomSheet> {
   String relationship = 'Parent';
-  final TextEditingController _customRelationshipController = TextEditingController();
+  final TextEditingController _customRelationshipController =
+      TextEditingController();
 
   @override
   void dispose() {
@@ -2339,8 +2448,10 @@ class _SelectRelationshipBottomSheetState
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.success.withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(12),
@@ -2389,7 +2500,10 @@ class _SelectRelationshipBottomSheetState
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: AppColors.primary),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -2399,14 +2513,26 @@ class _SelectRelationshipBottomSheetState
               iconifyIcon: AppIcons.check,
               icon: Icons.check_rounded,
               onPressed: () {
-                final finalRel = relationship == 'Other'
-                    ? _customRelationshipController.text.trim()
-                    : relationship;
+                String finalRel = relationship;
+                if (relationship == 'Others' || relationship == 'Other') {
+                  final customText = _customRelationshipController.text
+                      .trim()
+                      .replaceAll(RegExp(r'\s+'), ' ');
+                  final customError = validateCustomRelationship(customText);
+                  if (customError != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(customError),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                    return;
+                  }
+                  finalRel = customText;
+                }
                 Navigator.pop(
                   context,
-                  widget.contact.copyWith(
-                    relationship: finalRel.isEmpty ? 'Other' : finalRel,
-                  ),
+                  widget.contact.copyWith(relationship: finalRel),
                 );
               },
             ),
@@ -2436,45 +2562,37 @@ class _SmsIllustrationState extends State<SmsIllustration>
     duration: const Duration(milliseconds: 700),
   );
 
-  late final Animation<double> _bubble1Opacity = Tween<double>(
-    begin: 0.0,
-    end: 1.0,
-  ).animate(
-    CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.12, 0.65, curve: Curves.easeOut),
-    ),
-  );
+  late final Animation<double> _bubble1Opacity =
+      Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.12, 0.65, curve: Curves.easeOut),
+        ),
+      );
 
-  late final Animation<Offset> _bubble1Slide = Tween<Offset>(
-    begin: const Offset(-0.15, 0.25),
-    end: Offset.zero,
-  ).animate(
-    CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.12, 0.65, curve: Curves.easeOutCubic),
-    ),
-  );
+  late final Animation<Offset> _bubble1Slide =
+      Tween<Offset>(begin: const Offset(-0.15, 0.25), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.12, 0.65, curve: Curves.easeOutCubic),
+        ),
+      );
 
-  late final Animation<double> _bubble2Opacity = Tween<double>(
-    begin: 0.0,
-    end: 1.0,
-  ).animate(
-    CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.35, 0.90, curve: Curves.easeOut),
-    ),
-  );
+  late final Animation<double> _bubble2Opacity =
+      Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.35, 0.90, curve: Curves.easeOut),
+        ),
+      );
 
-  late final Animation<Offset> _bubble2Slide = Tween<Offset>(
-    begin: const Offset(0.15, 0.25),
-    end: Offset.zero,
-  ).animate(
-    CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.35, 0.90, curve: Curves.easeOutCubic),
-    ),
-  );
+  late final Animation<Offset> _bubble2Slide =
+      Tween<Offset>(begin: const Offset(0.15, 0.25), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.35, 0.90, curve: Curves.easeOutCubic),
+        ),
+      );
 
   @override
   void initState() {
@@ -2588,8 +2706,12 @@ class MessageBubble extends StatelessWidget {
     final borderRadius = BorderRadius.only(
       topLeft: const Radius.circular(14),
       topRight: const Radius.circular(14),
-      bottomLeft: isSender ? const Radius.circular(14) : const Radius.circular(4),
-      bottomRight: isSender ? const Radius.circular(4) : const Radius.circular(14),
+      bottomLeft: isSender
+          ? const Radius.circular(14)
+          : const Radius.circular(4),
+      bottomRight: isSender
+          ? const Radius.circular(4)
+          : const Radius.circular(14),
     );
 
     return Container(
@@ -2653,16 +2775,12 @@ class _LocationIllustrationState extends State<LocationIllustration>
   late final Animation<double> _floatOffset = Tween<double>(
     begin: 0.0,
     end: -6.0,
-  ).animate(
-    CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-  );
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine));
 
   late final Animation<double> _scaleAnimation = Tween<double>(
     begin: 0.98,
     end: 1.03,
-  ).animate(
-    CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-  );
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine));
 
   @override
   void initState() {
@@ -2812,7 +2930,9 @@ class SuccessIllustration extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.success.withValues(alpha: 0.25 * opacity),
+                      color: AppColors.success.withValues(
+                        alpha: 0.25 * opacity,
+                      ),
                       blurRadius: 28,
                       spreadRadius: 4,
                       offset: const Offset(0, 8),
@@ -2949,23 +3069,29 @@ class _SetupChecklistState extends State<SetupChecklist> {
           final startInterval = 0.25 + (index * 0.12);
           final endInterval = (startInterval + 0.28).clamp(0.0, 1.0);
 
-          final slideAnimation = Tween<Offset>(
-            begin: const Offset(0.0, 0.30),
-            end: Offset.zero,
-          ).animate(
-            CurvedAnimation(
-              parent: widget.controller!,
-              curve: Interval(startInterval, endInterval, curve: Curves.easeOutCubic),
-            ),
-          );
+          final slideAnimation =
+              Tween<Offset>(
+                begin: const Offset(0.0, 0.30),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: widget.controller!,
+                  curve: Interval(
+                    startInterval,
+                    endInterval,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+              );
 
-          final opacityAnimation = Tween<double>(
-            begin: 0.0,
-            end: 1.0,
-          ).animate(
+          final opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
             CurvedAnimation(
               parent: widget.controller!,
-              curve: Interval(startInterval, endInterval, curve: Curves.easeOut),
+              curve: Interval(
+                startInterval,
+                endInterval,
+                curve: Curves.easeOut,
+              ),
             ),
           );
 
@@ -2997,7 +3123,9 @@ class _SetupChecklistState extends State<SetupChecklist> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              isReady ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+              isReady
+                  ? Icons.check_circle_rounded
+                  : Icons.warning_amber_rounded,
               color: isReady ? AppColors.success : const Color(0xFFD97706),
               size: 20,
             ),
@@ -3073,6 +3201,3 @@ class InfoBox extends StatelessWidget {
     );
   }
 }
-
-
-

@@ -67,23 +67,21 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GeofenceService _geofenceService = GeofenceService();
   final SmsAlertService _smsAlertService = SmsAlertService();
 
-
   int selectedTab = 0;
   bool tripActive = false;
   bool tripStaged = false;
-  String stagedDestination = 'Campus';
-  Duration stagedDuration = const Duration(minutes: 45);
+  String stagedDestination = '';
+  Duration stagedDuration = Duration.zero;
   bool isArrived = false;
   int arrivalCountdown = 90;
   bool isTimeoutWarning = false;
   int timeoutCountdown = 90;
 
-
-  Duration remaining = const Duration(minutes: 45);
+  Duration remaining = Duration.zero;
   DateTime? expectedArrivalAt;
   DateTime? safetyCheckDeadline;
-  Duration totalDuration = const Duration(minutes: 45);
-  String destination = 'Campus';
+  Duration totalDuration = Duration.zero;
+  String destination = '';
   String tripId = '';
   DateTime? tripStartedAt;
   Timer? tripTimer;
@@ -97,6 +95,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GlobalKey _tripsSummaryKey = GlobalKey();
   final GlobalKey _tripsFilterChipsKey = GlobalKey();
   final GlobalKey _tripsCalendarIconKey = GlobalKey();
+  final GlobalKey _tripsExportKey = GlobalKey();
   final GlobalKey _contactsTabKey = GlobalKey();
   final GlobalKey _addContactKey = GlobalKey();
   final GlobalKey _importContactsKey = GlobalKey();
@@ -106,8 +105,80 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final GlobalKey _protectContactsKey = GlobalKey();
   final GlobalKey _sosWidgetKey = GlobalKey();
 
+  // New Walkthrough Keys for Trip Modal
+  final GlobalKey _tripModalDestinationKey = GlobalKey();
+  final GlobalKey _tripModalTimerKey = GlobalKey();
+  final GlobalKey _tripModalSaveButtonKey = GlobalKey();
+  final GlobalKey _activeTripStartButtonKey = GlobalKey();
+
   bool showWalkthrough = false;
   int walkthroughStep = 0;
+  int walkthroughEndStep = 18;
+  OverlayEntry? _walkthroughOverlayEntry;
+
+  void _removeWalkthroughOverlay({bool updateState = true}) {
+    _walkthroughOverlayEntry?.remove();
+    _walkthroughOverlayEntry = null;
+    if (updateState && mounted) {
+      setState(() {
+        showWalkthrough = false;
+      });
+    } else {
+      showWalkthrough = false;
+    }
+  }
+
+  void _showWalkthroughOverlay() {
+    _removeWalkthroughOverlay();
+
+    _walkthroughOverlayEntry = OverlayEntry(
+      builder: (context) => WalkthroughOverlay(
+        initialStep: walkthroughStep,
+        endStep: walkthroughEndStep,
+        setUpTripKey: _setUpTripKey,
+        sosKey: _sosKey,
+        tripsTabKey: _tripsTabKey,
+        tripsSummaryKey: _tripsSummaryKey,
+        tripsFilterChipsKey: _tripsFilterChipsKey,
+        tripsCalendarIconKey: _tripsCalendarIconKey,
+        tripsExportKey: _tripsExportKey,
+        contactsTabKey: _contactsTabKey,
+        addContactKey: _addContactKey,
+        importContactsKey: _importContactsKey,
+        settingsTabKey: _settingsTabKey,
+        homeLocationKey: _homeLocationKey,
+        expiryAlertKey: _expiryAlertKey,
+        protectContactsKey: _protectContactsKey,
+        sosWidgetKey: _sosWidgetKey,
+        tripModalDestinationKey: _tripModalDestinationKey,
+        tripModalTimerKey: _tripModalTimerKey,
+        tripModalSaveButtonKey: _tripModalSaveButtonKey,
+        activeTripStartButtonKey: _activeTripStartButtonKey,
+        onModalTriggerRequested: _openTripScheduler,
+        onStepChanged: (step) {
+          walkthroughStep = step;
+          if (step == 5 && !tripStaged) {
+            setState(() {
+              tripStaged = true;
+            });
+          }
+        },
+        onTabChangeRequested: (tabIndex) {
+          if (mounted) {
+            setState(() {
+              selectedTab = tabIndex;
+            });
+          }
+        },
+        onDismiss: _removeWalkthroughOverlay,
+      ),
+    );
+
+    Overlay.of(context, rootOverlay: true).insert(_walkthroughOverlayEntry!);
+    setState(() {
+      showWalkthrough = true;
+    });
+  }
 
   bool get _isTestEnvironment {
     final binding = WidgetsBinding.instance.runtimeType.toString();
@@ -116,11 +187,10 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkWalkthroughStatus() async {
-    final completed = await const LocalStorageService().readWalkthroughCompleted();
+    final completed = await const LocalStorageService()
+        .readWalkthroughCompleted();
     if (!completed && mounted) {
-      setState(() {
-        showWalkthrough = true;
-      });
+      _showWalkthroughOverlay();
     }
   }
 
@@ -134,6 +204,19 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // response router (both foreground and killed-app) can call trip methods
   // directly on the live HomeScreenState without a GlobalKey.
   // -------------------------------------------------------------------------
+  @override
+  void dispose() {
+    _removeWalkthroughOverlay(updateState: false);
+    WidgetsBinding.instance.removeObserver(this);
+    // Unregister so stale callbacks from a destroyed widget are never called.
+    NotificationService.onActionReceived = null;
+    Vibration.cancel();
+    tripTimer?.cancel();
+    _arrivalTimer?.cancel();
+    _geofenceService.stopMonitoring();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -160,7 +243,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       FirebaseService().refreshLocalTrips();
       _checkCompletionFeedback();
-      
+
       if ((isTimeoutWarning || isArrived) && safetyCheckDeadline != null) {
         final now = DateTime.now();
         if (now.isAfter(safetyCheckDeadline!)) {
@@ -180,7 +263,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkCompletionFeedback() async {
-    final showFeedback = await const LocalStorageService().consumeTripCompletedFeedback();
+    final showFeedback = await const LocalStorageService()
+        .consumeTripCompletedFeedback();
     if (showFeedback && mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -207,7 +291,12 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _safetyScreenOpen = false;
 
   void _presentSafetyScreen() {
-    if (!mounted || _safetyScreenOpen || _alertScreenOpen || safetyCheckDeadline == null) return;
+    if (!mounted ||
+        _safetyScreenOpen ||
+        _alertScreenOpen ||
+        safetyCheckDeadline == null) {
+      return;
+    }
     final now = DateTime.now();
     if (now.isAfter(safetyCheckDeadline!)) return;
 
@@ -258,7 +347,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     const storage = LocalStorageService();
     final data = await storage.readActiveTrip();
     if (data == null || !mounted) {
-      debugPrint('[LisKo-BG-Diag] _restoreActiveTrip(): No active trip found in LocalStorageService');
+      debugPrint(
+        '[LisKo-BG-Diag] _restoreActiveTrip(): No active trip found in LocalStorageService',
+      );
       _checkCompletionFeedback();
       return;
     }
@@ -281,14 +372,20 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tripActive = true;
       destination = dest;
       totalDuration = Duration(seconds: totalSecs);
-      expectedArrivalAt = expMs != null ? DateTime.fromMillisecondsSinceEpoch(expMs) : null;
+      expectedArrivalAt = expMs != null
+          ? DateTime.fromMillisecondsSinceEpoch(expMs)
+          : null;
       isArrived = arrived;
       isTimeoutWarning = isTimeout;
-      safetyCheckDeadline = safetyMs != null ? DateTime.fromMillisecondsSinceEpoch(safetyMs) : null;
+      safetyCheckDeadline = safetyMs != null
+          ? DateTime.fromMillisecondsSinceEpoch(safetyMs)
+          : null;
       tripId = tId;
-      tripStartedAt = startedMs != null ? DateTime.fromMillisecondsSinceEpoch(startedMs) : null;
+      tripStartedAt = startedMs != null
+          ? DateTime.fromMillisecondsSinceEpoch(startedMs)
+          : null;
       selectedTab = 0;
-      
+
       if (isTimeout || isArrived) {
         remaining = Duration.zero;
       }
@@ -306,11 +403,15 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     } else if (expectedArrivalAt != null) {
       if (now.isAfter(expectedArrivalAt!)) {
-        debugPrint('[LisKo-BG-Diag] _restoreActiveTrip(): Trip already expired upon restoration');
+        debugPrint(
+          '[LisKo-BG-Diag] _restoreActiveTrip(): Trip already expired upon restoration',
+        );
         _handleArrivalDetected(destination);
       } else {
         remaining = expectedArrivalAt!.difference(now);
-        debugPrint('[LisKo-BG-Diag] _restoreActiveTrip(): Restoring ongoing trip. Invoking startService() and _startTravelTimer()');
+        debugPrint(
+          '[LisKo-BG-Diag] _restoreActiveTrip(): Restoring ongoing trip. Invoking startService() and _startTravelTimer()',
+        );
         if (!_isTestEnvironment) {
           FlutterBackgroundService().startService().then((_) {
             FlutterBackgroundService().invoke('startTripMonitoring');
@@ -319,18 +420,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _startTravelTimer();
       }
     }
-  }
-
-  @override
-  void dispose() {
-    // Unregister so stale callbacks from a destroyed widget are never called.
-    NotificationService.onActionReceived = null;
-    Vibration.cancel();
-    tripTimer?.cancel();
-    _arrivalTimer?.cancel();
-    _geofenceService.stopMonitoring();
-
-    super.dispose();
   }
 
   // -------------------------------------------------------------------------
@@ -354,7 +443,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         handleSosAction();
         break;
       default:
-        debugPrint('[HomeScreenState] Unknown notification actionId: "$actionId"');
+        debugPrint(
+          '[HomeScreenState] Unknown notification actionId: "$actionId"',
+        );
     }
   }
 
@@ -388,9 +479,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         backgroundColor: const Color(0xFF10B981),
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -425,7 +514,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
-    final isForeground = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    final isForeground =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
 
     if (isForeground) {
       _triggerEmergencyFlow(immediate: false);
@@ -466,9 +556,11 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         setState(() => remaining = diff.isNegative ? Duration.zero : diff);
 
         final now = DateTime.now();
-        if (_lastTimerLogTime == null || now.difference(_lastTimerLogTime!) >= const Duration(seconds: 30)) {
+        if (_lastTimerLogTime == null ||
+            now.difference(_lastTimerLogTime!) >= const Duration(seconds: 30)) {
           _lastTimerLogTime = now;
-          final lifecycle = WidgetsBinding.instance.lifecycleState?.name ?? 'unknown';
+          final lifecycle =
+              WidgetsBinding.instance.lifecycleState?.name ?? 'unknown';
           debugPrint(
             '[LisKo-BG-Diag] UI timer heartbeat: time=${now.toIso8601String()}, '
             'remaining=${remaining.inSeconds}s, expectedArrivalAt=${expectedArrivalAt?.toIso8601String()}, '
@@ -502,7 +594,10 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
-  Future<void> _executeStartTrip(String selectedDestination, Duration duration) async {
+  Future<void> _executeStartTrip(
+    String selectedDestination,
+    Duration duration,
+  ) async {
     tripTimer?.cancel();
     _arrivalTimer?.cancel();
     final now = DateTime.now();
@@ -534,7 +629,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tripId: tripId,
       startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
     );
-    debugPrint('[LisKo-BG-Diag] saveActiveTrip() write COMPLETED for tripId: $tripId, destination: $destination, expectedArrivalAtMs: ${expectedArrivalAt?.millisecondsSinceEpoch}');
+    debugPrint(
+      '[LisKo-BG-Diag] saveActiveTrip() write COMPLETED for tripId: $tripId, destination: $destination, expectedArrivalAtMs: ${expectedArrivalAt?.millisecondsSinceEpoch}',
+    );
 
     FirebaseService().refreshLocalTrips();
 
@@ -558,18 +655,21 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!_isTestEnvironment) {
       Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 10),
-      ).then((pos) {
-        if (mounted) {
-          _cachedActiveTripPosition = pos;
-          const LocalStorageService().updateCachedLocation(pos.latitude, pos.longitude);
-        }
-      }).catchError((_) {});
+            desiredAccuracy: LocationAccuracy.best,
+            timeLimit: const Duration(seconds: 10),
+          )
+          .then((pos) {
+            if (mounted) {
+              _cachedActiveTripPosition = pos;
+              const LocalStorageService().updateCachedLocation(
+                pos.latitude,
+                pos.longitude,
+              );
+            }
+          })
+          .catchError((_) {});
     }
-
   }
-
 
   void _startTimeoutCountdownTimer() {
     _arrivalTimer?.cancel();
@@ -598,7 +698,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (isArrived || isTimeoutWarning) return;
     tripTimer?.cancel();
     final now = DateTime.now();
-    
+
     setState(() {
       isTimeoutWarning = true;
       safetyCheckDeadline = now.add(const Duration(seconds: 90));
@@ -632,14 +732,19 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _startTimeoutCountdownTimer();
 
     Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.best,
-      timeLimit: const Duration(seconds: 5),
-    ).then((pos) {
-      if (mounted) {
-        _cachedActiveTripPosition = pos;
-        const LocalStorageService().updateCachedLocation(pos.latitude, pos.longitude);
-      }
-    }).catchError((_) {});
+          desiredAccuracy: LocationAccuracy.best,
+          timeLimit: const Duration(seconds: 5),
+        )
+        .then((pos) {
+          if (mounted) {
+            _cachedActiveTripPosition = pos;
+            const LocalStorageService().updateCachedLocation(
+              pos.latitude,
+              pos.longitude,
+            );
+          }
+        })
+        .catchError((_) {});
 
     NotificationService().cancelPersistentTripNotification();
     NotificationService().showTimeoutAlarm(destination);
@@ -647,14 +752,15 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _presentSafetyScreen();
   }
 
-
   /// Triggers arrival state and begins 90-second escalation countdown.
   void _handleArrivalDetected(String destinationName) async {
     if (isArrived) return;
-    debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: _handleArrivalDetected called for $destinationName');
+    debugPrint(
+      '[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: _handleArrivalDetected called for $destinationName',
+    );
     tripTimer?.cancel();
     final now = DateTime.now();
-    
+
     setState(() {
       isArrived = true;
       isTimeoutWarning = false;
@@ -662,7 +768,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       arrivalCountdown = 90;
       selectedTab = 0;
     });
-    debugPrint('[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: setState(isArrived = true) executed -> ActiveTripScreen.buildArrivalView triggered');
+    debugPrint(
+      '[LisKo-Arrival-Trace] T+${DateTime.now().millisecondsSinceEpoch} ms: setState(isArrived = true) executed -> ActiveTripScreen.buildArrivalView triggered',
+    );
 
     await const LocalStorageService().saveActiveTrip(
       isActive: true,
@@ -706,11 +814,16 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Dispatches offline SMS emergency alerts when 90-second timer expires or manual SOS is triggered.
   Future<void> _escalateEmergencyAlert({bool isManualSos = false}) async {
     if (_isEscalating) return;
-    if (!isManualSos && _isPreparingSos) return; // Prevent timeouts from clashing with the 5-sec SOS countdown
+    if (!isManualSos && _isPreparingSos) {
+      return; // Prevent timeouts from clashing with the 5-sec SOS countdown
+    }
     if (!isManualSos) {
-      final claimed = await const LocalStorageService().claimAutomaticEscalation();
+      final claimed = await const LocalStorageService()
+          .claimAutomaticEscalation();
       if (!claimed) {
-        debugPrint('[LisKo-UI] Escalation already claimed by another handler. Syncing idle state.');
+        debugPrint(
+          '[LisKo-UI] Escalation already claimed by another handler. Syncing idle state.',
+        );
         if (mounted) {
           _resetTripStateToIdle();
         }
@@ -719,7 +832,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     _isEscalating = true;
     Vibration.cancel();
-    
+
     try {
       double? lat;
       double? lng;
@@ -728,21 +841,24 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       // Acquire emergency location using shared LocationService
       if (isManualSos) {
-        final sentList = await EmergencyDispatchService().executeManualSosDispatch(
-          cachedPosition: _cachedActiveTripPosition,
-          tripId: tripId,
-          destination: destination,
-          totalDuration: totalDuration,
-          startedAt: tripStartedAt,
-          expectedArrivalAt: expectedArrivalAt,
-        );
+        final sentList = await EmergencyDispatchService()
+            .executeManualSosDispatch(
+              cachedPosition: _cachedActiveTripPosition,
+              tripId: tripId,
+              destination: destination,
+              totalDuration: totalDuration,
+              startedAt: tripStartedAt,
+              expectedArrivalAt: expectedArrivalAt,
+            );
         if (mounted) {
           final statusMessage = sentList.isEmpty
               ? "Failed to request Manual SOS SMS."
               : "Manual SOS SMS request sent to ${sentList.join(", ")}.";
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: sentList.isEmpty ? AppColors.body : AppColors.primary,
+              backgroundColor: sentList.isEmpty
+                  ? AppColors.body
+                  : AppColors.primary,
               duration: const Duration(seconds: 5),
               content: Text(statusMessage),
             ),
@@ -770,14 +886,25 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             locationError: locError,
             isArrived: isArrived,
           );
-          debugPrint('SMS successfully dispatched to ${sentList.length} contacts.');
-          await NotificationService().showEmergencySentNotification(sentList, permissionDenied: permissionDenied);
+          debugPrint(
+            'SMS successfully dispatched to ${sentList.length} contacts.',
+          );
+          await NotificationService().showEmergencySentNotification(
+            sentList,
+            permissionDenied: permissionDenied,
+          );
         } catch (e) {
           if (e.toString().contains('SMS_PERMISSION_DENIED')) {
             permissionDenied = true;
-            await NotificationService().showEmergencySentNotification([], permissionDenied: true);
+            await NotificationService().showEmergencySentNotification(
+              [],
+              permissionDenied: true,
+            );
           } else {
-            await NotificationService().showEmergencySentNotification([], permissionDenied: false);
+            await NotificationService().showEmergencySentNotification(
+              [],
+              permissionDenied: false,
+            );
           }
         }
 
@@ -790,7 +917,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         String eventType = isArrived ? 'Arrival Unconfirmed' : 'Timer Expired';
         String eventDestination = destination;
 
-        final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
+        final eventId = tripId.isNotEmpty
+            ? tripId
+            : DateTime.now().millisecondsSinceEpoch.toString();
         final newTrip = TripRecord(
           id: eventId,
           destination: eventDestination,
@@ -826,12 +955,14 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final statusMessage = permissionDenied
               ? "Failed to request Timer expiry SMS (Permission Denied)."
               : sentList.isEmpty
-                  ? "Failed to request Timer expiry SMS."
-                  : "Timer expiry SMS request sent to ${sentList.join(", ")}.";
+              ? "Failed to request Timer expiry SMS."
+              : "Timer expiry SMS request sent to ${sentList.join(", ")}.";
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: permissionDenied || sentList.isEmpty ? AppColors.body : AppColors.primary,
+              backgroundColor: permissionDenied || sentList.isEmpty
+                  ? AppColors.body
+                  : AppColors.primary,
               duration: const Duration(seconds: 5),
               content: Text(statusMessage),
             ),
@@ -894,24 +1025,25 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Vibration.cancel();
     NotificationService().cancelArrivalAlarm();
 
-
     // Immediate GPS shutdown preserving Zero-Surveillance privacy
     _geofenceService.stopMonitoring();
-    
+
     const LocalStorageService().saveActiveTrip(isActive: false);
 
-      // Log the trip locally
-      final storage = const LocalStorageService();
-      final history = await storage.readTripHistory();
-      final newTrip = TripRecord(
-        id: tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString(),
-        destination: destination,
-        durationMinutes: totalDuration.inMinutes,
-        status: safe ? 'Arrived Safely' : 'Cancelled',
-        timestamp: DateTime.now(),
-      );
-      await storage.saveTripHistory([...history, newTrip]);
-      FirebaseService().refreshLocalTrips();
+    // Log the trip locally
+    final storage = const LocalStorageService();
+    final history = await storage.readTripHistory();
+    final newTrip = TripRecord(
+      id: tripId.isNotEmpty
+          ? tripId
+          : DateTime.now().millisecondsSinceEpoch.toString(),
+      destination: destination,
+      durationMinutes: totalDuration.inMinutes,
+      status: safe ? 'Arrived Safely' : 'Cancelled',
+      timestamp: DateTime.now(),
+    );
+    await storage.saveTripHistory([...history, newTrip]);
+    FirebaseService().refreshLocalTrips();
 
     if (tripId.isNotEmpty && tripStartedAt != null) {
       FirebaseService().saveOrUpdateTrip(
@@ -921,7 +1053,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         startedAt: tripStartedAt!,
         expectedArrivalAt: expectedArrivalAt,
         completedAt: DateTime.now(),
-        status: safe ? 'arrived' : 'cancelled', // Changed 'arrived' string to represent successfully completed trip in the DB model based on user requirement
+        status: safe
+            ? 'arrived'
+            : 'cancelled', // Changed 'arrived' string to represent successfully completed trip in the DB model based on user requirement
       );
     }
 
@@ -956,7 +1090,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       );
     }
-    
+
     setState(() {
       tripActive = false;
       isArrived = false;
@@ -977,13 +1111,13 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _extendTrip() async {
     _arrivalTimer?.cancel();
     final bool wasArrived = isArrived;
-    
+
     final currentTime = DateTime.now();
     // If we've already passed expectedArrivalAt, or it's null, base it on now
     if (expectedArrivalAt == null || currentTime.isAfter(expectedArrivalAt!)) {
-        expectedArrivalAt = currentTime.add(const Duration(minutes: 15));
+      expectedArrivalAt = currentTime.add(const Duration(minutes: 15));
     } else {
-        expectedArrivalAt = expectedArrivalAt!.add(const Duration(minutes: 15));
+      expectedArrivalAt = expectedArrivalAt!.add(const Duration(minutes: 15));
     }
 
     setState(() {
@@ -1029,9 +1163,6 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
 
     _startTravelTimer();
-
-
-
   }
 
   bool _alertScreenOpen = false;
@@ -1056,7 +1187,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // A small delay ensures the OS has time to transition the app to a paused state
       // before we evaluate the while condition.
       await Future.delayed(const Duration(milliseconds: 500));
-      while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      while (WidgetsBinding.instance.lifecycleState !=
+          AppLifecycleState.resumed) {
         await Future.delayed(const Duration(milliseconds: 500));
       }
 
@@ -1067,7 +1199,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (serviceEnabled) {
         // Small pause check if native location dialog appears
         await Future.delayed(const Duration(milliseconds: 500));
-        while (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        while (WidgetsBinding.instance.lifecycleState !=
+            AppLifecycleState.resumed) {
           await Future.delayed(const Duration(milliseconds: 500));
         }
       }
@@ -1105,7 +1238,10 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _alertScreenOpen = false;
         _isPreparingSos = false;
 
-        if (executed != true && (isArrived || isTimeoutWarning) && safetyCheckDeadline != null && !_isEscalating) {
+        if (executed != true &&
+            (isArrived || isTimeoutWarning) &&
+            safetyCheckDeadline != null &&
+            !_isEscalating) {
           final now = DateTime.now();
           if (now.isBefore(safetyCheckDeadline!) && !_safetyScreenOpen) {
             NotificationService().showArrivalAlarm(destination);
@@ -1127,6 +1263,9 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       builder: (_) => TripSchedulerSheet(
         initialDestination: tripStaged ? stagedDestination : null,
         initialDuration: tripStaged ? stagedDuration : null,
+        destinationRowKey: _tripModalDestinationKey,
+        fineTuneKey: _tripModalTimerKey,
+        saveButtonKey: _tripModalSaveButtonKey,
         onSave: (selectedDestination, duration) async {
           setState(() {
             tripStaged = true;
@@ -1172,8 +1311,10 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         selectedTab: selectedTab,
                         setUpTripKey: _setUpTripKey,
                         sosKey: _sosKey,
+                        activeTripStartButtonKey: _activeTripStartButtonKey,
                         onSetUpTrip: _openTripScheduler,
-                        onStartTrip: () => _startTrip(stagedDestination, stagedDuration),
+                        onStartTrip: () =>
+                            _startTrip(stagedDestination, stagedDuration),
                         onSos: () => _triggerEmergencyFlow(immediate: false),
                         tripStaged: tripStaged,
                         stagedDestination: stagedDestination,
@@ -1181,7 +1322,10 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         onAdjustMinutes: (deltaMins) {
                           setState(() {
                             final currentMins = stagedDuration.inMinutes;
-                            final newMins = (currentMins + deltaMins).clamp(1, 1440);
+                            final newMins = (currentMins + deltaMins).clamp(
+                              1,
+                              1440,
+                            );
                             stagedDuration = Duration(minutes: newMins);
                           });
                         },
@@ -1189,8 +1333,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         onCancelSetup: () {
                           setState(() {
                             tripStaged = false;
-                            stagedDestination = 'Campus';
-                            stagedDuration = const Duration(minutes: 45);
+                            stagedDestination = '';
+                            stagedDuration = Duration.zero;
                           });
                         },
                       ),
@@ -1200,6 +1344,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 summaryKey: _tripsSummaryKey,
                 filterChipsKey: _tripsFilterChipsKey,
                 calendarIconKey: _tripsCalendarIconKey,
+                exportKey: _tripsExportKey,
                 onStartNewTrip: () {
                   setState(() {
                     selectedTab = 0;
@@ -1220,6 +1365,17 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 sosWidgetKey: _sosWidgetKey,
                 isWalkthroughActive: showWalkthrough,
                 walkthroughStep: walkthroughStep,
+                onReplayWalkthrough: (stepIndex, endStepIndex, targetTab) {
+                  setState(() {
+                    selectedTab = targetTab;
+                    walkthroughStep = stepIndex;
+                    walkthroughEndStep = endStepIndex;
+                    tripStaged = false;
+                    stagedDestination = '';
+                    stagedDuration = Duration.zero;
+                  });
+                  _showWalkthroughOverlay();
+                },
               ),
             ],
           ),
@@ -1315,42 +1471,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
         ),
-        if (showWalkthrough)
-          Positioned.fill(
-            child: WalkthroughOverlay(
-              setUpTripKey: _setUpTripKey,
-              sosKey: _sosKey,
-              tripsTabKey: _tripsTabKey,
-              tripsSummaryKey: _tripsSummaryKey,
-              tripsFilterChipsKey: _tripsFilterChipsKey,
-              tripsCalendarIconKey: _tripsCalendarIconKey,
-              contactsTabKey: _contactsTabKey,
-              addContactKey: _addContactKey,
-              importContactsKey: _importContactsKey,
-              settingsTabKey: _settingsTabKey,
-              homeLocationKey: _homeLocationKey,
-              expiryAlertKey: _expiryAlertKey,
-              protectContactsKey: _protectContactsKey,
-              sosWidgetKey: _sosWidgetKey,
-              onStepChanged: (step) {
-                setState(() {
-                  walkthroughStep = step;
-                });
-              },
-              onTabChangeRequested: (tabIndex) {
-                setState(() {
-                  selectedTab = tabIndex;
-                });
-              },
-              onDismiss: () {
-                setState(() {
-                  showWalkthrough = false;
-                });
-              },
-            ),
-          ),
       ],
     );
   }
 }
-

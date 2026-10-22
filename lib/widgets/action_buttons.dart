@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Core Components
 // File: lib/widgets/action_buttons.dart
 //
@@ -73,11 +73,11 @@ class ContactPerson {
 
   /// Serializes the contact person into a JSON map for `SharedPreferences`.
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'phone': phone,
-        'initials': initials,
-        'relationship': relationship,
-      };
+    'name': name,
+    'phone': phone,
+    'initials': initials,
+    'relationship': relationship,
+  };
 
   /// Deserializes a contact person from a stored JSON map with safe defaults.
   factory ContactPerson.fromJson(Map<String, dynamic> json) {
@@ -102,13 +102,53 @@ class ContactPerson {
   /// Automatically computes 1-2 character uppercase initials from a contact's full name.
   /// Handles single names, multi-word names, and empty fallbacks safely.
   static String computeInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty || parts[0].isEmpty) return '??';
     if (parts.length == 1) {
       return parts[0].substring(0, parts[0].length.clamp(1, 2)).toUpperCase();
     }
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
+}
+
+/// Validates that full name contains valid human-name Unicode characters.
+String? validateFullName(String input) {
+  final trimmed = input.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (trimmed.isEmpty) {
+    return 'Contact name is required';
+  }
+  // Must contain at least one letter
+  final hasLetter = RegExp(
+    r'[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]',
+  ).hasMatch(trimmed);
+  if (!hasLetter) {
+    return 'Contact name must contain letters';
+  }
+  // Allowed characters: Unicode letters, spaces, apostrophes, hyphens, periods
+  final validNamePattern = RegExp(
+    r"^[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF\s'\.\-]+$",
+  );
+  if (!validNamePattern.hasMatch(trimmed)) {
+    return 'Name contains invalid characters (numbers/emojis not allowed)';
+  }
+  return null;
+}
+
+/// Validates that custom relationship contains valid Unicode letters and permitted punctuation.
+String? validateCustomRelationship(String input) {
+  final trimmed = input.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (trimmed.isEmpty) {
+    return 'Please enter a relationship (e.g., Cousin)';
+  }
+  final validPattern = RegExp(r"^[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF\s'\-]+$");
+  if (!validPattern.hasMatch(trimmed)) {
+    return 'Relationship must contain letters only (e.g., Sister-in-law)';
+  }
+  return null;
 }
 
 /// Standard full-width Primary CTA button with local debounce protection against double taps.
@@ -172,29 +212,29 @@ class _PrimaryButtonState extends State<PrimaryButton> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.2,
+            textStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.iconifyIcon != null || widget.icon != null) ...[
+                AppIcon.standard(
+                  widget.iconifyIcon ?? _resolveIconify(widget.icon),
+                  size: 20,
+                  color: isEnabled ? Colors.white : AppColors.body,
+                  semanticIcon: widget.icon,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(widget.label),
+            ],
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.iconifyIcon != null || widget.icon != null) ...[
-              AppIcon.standard(
-                widget.iconifyIcon ?? _resolveIconify(widget.icon),
-                size: 20,
-                color: isEnabled ? Colors.white : AppColors.body,
-                semanticIcon: widget.icon,
-              ),
-              const SizedBox(width: 8),
-            ],
-            Text(widget.label),
-          ],
-        ),
-      ),
       ),
     );
   }
@@ -302,10 +342,7 @@ class _SecondaryButtonState extends State<SecondaryButton> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
         child: Text(widget.label),
       ),
@@ -346,9 +383,7 @@ class ChoiceChipWidget extends StatelessWidget {
         ? (softSelected ? AppColors.primary : Colors.white)
         : const Color(0xFF64748B);
 
-    final borderColor = selected
-        ? AppColors.primary
-        : const Color(0xFFE2E8F0);
+    final borderColor = selected ? AppColors.primary : const Color(0xFFE2E8F0);
 
     return Material(
       color: Colors.transparent,
@@ -363,10 +398,7 @@ class ChoiceChipWidget extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: bgColor,
-            border: Border.all(
-              color: borderColor,
-              width: selected ? 1.5 : 1.0,
-            ),
+            border: Border.all(color: borderColor, width: selected ? 1.5 : 1.0),
             borderRadius: BorderRadius.circular(borderRadius),
           ),
           child: Row(
@@ -403,11 +435,17 @@ String _resolveIconify(IconData? icon) {
   if (icon == Icons.navigation_rounded) return AppIcons.navigation;
   if (icon == Icons.contacts_rounded) return AppIcons.contacts;
   if (icon == Icons.location_on_rounded) return AppIcons.location;
-  if (icon == Icons.home_rounded || icon == Icons.home_outlined) return AppIcons.home;
-  if (icon == Icons.school_outlined || icon == Icons.school_rounded) return AppIcons.school;
-  if (icon == Icons.edit_location_alt_outlined || icon == Icons.edit_location_alt_rounded) return AppIcons.editLocation;
+  if (icon == Icons.home_rounded || icon == Icons.home_outlined) {
+    return AppIcons.home;
+  }
+  if (icon == Icons.school_outlined || icon == Icons.school_rounded) {
+    return AppIcons.school;
+  }
+  if (icon == Icons.edit_location_alt_outlined ||
+      icon == Icons.edit_location_alt_rounded) {
+    return AppIcons.editLocation;
+  }
   if (icon == Icons.check_rounded) return AppIcons.check;
   if (icon == Icons.add_rounded) return AppIcons.add;
   return AppIcons.navigation;
 }
-

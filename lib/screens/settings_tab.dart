@@ -40,7 +40,8 @@ class SettingsTab extends StatefulWidget {
     this.sosWidgetKey,
     this.isWalkthroughActive = false,
     this.walkthroughStep = 0,
-});
+    required this.onReplayWalkthrough,
+  });
 
   final GlobalKey? homeLocationKey;
   final GlobalKey? expiryAlertKey;
@@ -48,6 +49,7 @@ class SettingsTab extends StatefulWidget {
   final GlobalKey? sosWidgetKey;
   final bool isWalkthroughActive;
   final int walkthroughStep;
+  final void Function(int startStepIndex, int endStepIndex, int targetTab) onReplayWalkthrough;
 
   @override
   State<SettingsTab> createState() => _SettingsTabState();
@@ -483,6 +485,149 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     );
   }
 
+  void _openReplayWalkthroughModal() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Replay Walkthrough',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.header,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildReplayOption(
+                ctx,
+                title: 'Restart Whole Walkthrough',
+                color: const Color(0xFFF8FAFC),
+                stepIndex: 0,
+                endStepIndex: 19,
+                targetTab: 0,
+              ),
+              const SizedBox(height: 8),
+              _buildReplayOption(
+                ctx,
+                title: 'Learn: Home & Active Trips',
+                color: const Color(0xFFFEF2F2),
+                stepIndex: 0,
+                endStepIndex: 6,
+                targetTab: 0,
+              ),
+              const SizedBox(height: 8),
+              _buildReplayOption(
+                ctx,
+                title: 'Learn: Trip History',
+                color: const Color(0xFFF0F9FF),
+                stepIndex: 7,
+                endStepIndex: 11,
+                targetTab: 1,
+              ),
+              const SizedBox(height: 8),
+              _buildReplayOption(
+                ctx,
+                title: 'Learn: Trusted Contacts',
+                color: const Color(0xFFECFDF5),
+                stepIndex: 12,
+                endStepIndex: 14,
+                targetTab: 2,
+              ),
+              const SizedBox(height: 8),
+              _buildReplayOption(
+                ctx,
+                title: 'Learn: Settings & SOS Widget',
+                color: const Color(0xFFFFFBEB),
+                stepIndex: 15,
+                endStepIndex: 19,
+                targetTab: 3,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReplayOption(
+    BuildContext ctx, {
+    required String title,
+    required Color color,
+    required int stepIndex,
+    required int endStepIndex,
+    required int targetTab,
+  }) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(ctx);
+          _scrollController.jumpTo(0.0);
+          widget.onReplayWalkthrough(stepIndex, endStepIndex, targetTab);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.header,
+                  ),
+                ),
+              ),
+              const Icon(Icons.play_circle_outline_rounded, color: AppColors.primary, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
 
   @override
@@ -669,6 +814,15 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           iconColor: AppColors.body,
                           title: 'User Guide & Safety Protocol',
                           onTap: _openUserGuideModal,
+                        ),
+                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        _buildActionRow(
+                          iconStr: AppIcons.infoOutline,
+                          semanticIcon: Icons.play_circle_outline,
+                          iconBg: AppColors.canvas,
+                          iconColor: AppColors.body,
+                          title: 'Replay App Walkthrough',
+                          onTap: _openReplayWalkthroughModal,
                         ),
                         const Divider(height: 1, thickness: 1, color: AppColors.border),
                         _buildActionRow(

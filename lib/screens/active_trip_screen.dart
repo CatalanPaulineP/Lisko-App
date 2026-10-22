@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Active Trip Tracking View
 // File: lib/screens/active_trip_screen.dart
 //
@@ -169,10 +169,7 @@ class ActiveTripTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                PrimaryButton(
-                  label: 'Need Help / SOS',
-                  onPressed: onSos,
-                ),
+                PrimaryButton(label: 'Need Help / SOS', onPressed: onSos),
               ],
             ),
           ),
@@ -194,15 +191,16 @@ class ActiveBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.successContainer,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.success,
-          width: 1,
-        ),
+        border: Border.all(color: AppColors.success, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: const [
-          Icon(Icons.directions_run_rounded, size: 14, color: AppColors.successText),
+          Icon(
+            Icons.directions_run_rounded,
+            size: 14,
+            color: AppColors.successText,
+          ),
           SizedBox(width: 4),
           Text(
             'Active',
@@ -244,7 +242,9 @@ class CountdownRing extends StatelessWidget {
           SizedBox(
             width: 230,
             height: 230,
-            child: CustomPaint(painter: _TimerGradientPainter(progress: progress)),
+            child: CustomPaint(
+              painter: _TimerGradientPainter(progress: progress),
+            ),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -289,7 +289,9 @@ class _SafeButtonState extends State<SafeButton> {
 
   void _handlePressed() {
     final now = DateTime.now();
-    if (now.difference(_lastPressed) < const Duration(milliseconds: 350)) return;
+    if (now.difference(_lastPressed) < const Duration(milliseconds: 350)) {
+      return;
+    }
     _lastPressed = now;
     widget.onPressed();
   }
@@ -349,7 +351,9 @@ class _OutlineActionState extends State<OutlineAction> {
 
   void _handlePressed() {
     final now = DateTime.now();
-    if (now.difference(_lastPressed) < const Duration(milliseconds: 300)) return;
+    if (now.difference(_lastPressed) < const Duration(milliseconds: 300)) {
+      return;
+    }
     _lastPressed = now;
     widget.onPressed();
   }
@@ -409,7 +413,8 @@ class _TimerGradientPainter extends CustomPainter {
     // Gradient active arc
     final gradientPaint = Paint()
       ..shader = AppColors.timerGradient.createShader(
-          Rect.fromCircle(center: center, radius: radius))
+        Rect.fromCircle(center: center, radius: radius),
+      )
       ..style = PaintingStyle.stroke
       ..strokeWidth = 14
       ..strokeCap = StrokeCap.round;
@@ -425,16 +430,23 @@ class _TimerGradientPainter extends CustomPainter {
     const startAngle = -3.14159 / 2;
     final sweepAngle = 2 * 3.14159 * progress;
 
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
-        startAngle, sweepAngle, false, shadowPaint);
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
-        startAngle, sweepAngle, false, gradientPaint);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      shadowPaint,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      gradientPaint,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _TimerGradientPainter oldDelegate) =>
       oldDelegate.progress != progress;
 }
-
-
-

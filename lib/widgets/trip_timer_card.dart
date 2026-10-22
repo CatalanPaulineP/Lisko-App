@@ -61,6 +61,9 @@ class TripTimerCard extends StatelessWidget {
   /// Callback to cancel/reset staged trip setup.
   final VoidCallback? onCancelSetup;
 
+  bool get _hasValidTime => !timeText.contains('--') && !timeText.contains('__') && timeText != '00:00:00';
+
+
   @override
   Widget build(BuildContext context) {
     const mutedSlate = Color(0xFF64748B);
@@ -99,7 +102,7 @@ class TripTimerCard extends StatelessWidget {
                       border: Border.all(
                         color: isActive
                             ? AppColors.success
-                            : isStaged
+                            : (isStaged && _hasValidTime)
                                 ? AppColors.header
                                 : const Color(0xFFE2E8F0),
                         width: 6,
@@ -118,7 +121,7 @@ class TripTimerCard extends StatelessWidget {
                             fontSize: 21,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
-                            color: (isActive || isStaged)
+                            color: (isActive || (isStaged && _hasValidTime))
                                 ? AppColors.header
                                 : mutedSlate,
                           ),
@@ -132,7 +135,7 @@ class TripTimerCard extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                             color: isActive
                                 ? AppColors.successText
-                                : isStaged
+                                : (isStaged && _hasValidTime)
                                     ? AppColors.header
                                     : mutedSlate,
                           ),
@@ -143,7 +146,7 @@ class TripTimerCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (isStaged) ...[
+            if (isStaged && _hasValidTime) ...[
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -37,6 +37,9 @@ class TripSchedulerSheet extends StatefulWidget {
     this.onSave,
     this.initialDestination,
     this.initialDuration,
+    this.destinationRowKey,
+    this.fineTuneKey,
+    this.saveButtonKey,
   });
 
   /// Callback dispatched when the user confirms and starts/saves the scheduled trip.
@@ -44,6 +47,9 @@ class TripSchedulerSheet extends StatefulWidget {
   final Future<bool> Function(String destination, Duration duration)? onSave;
   final String? initialDestination;
   final Duration? initialDuration;
+  final GlobalKey? destinationRowKey;
+  final GlobalKey? fineTuneKey;
+  final GlobalKey? saveButtonKey;
 
   @override
   State<TripSchedulerSheet> createState() => _TripSchedulerSheetState();
@@ -156,6 +162,7 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
             ),
             const SizedBox(height: 12),
             Row(
+              key: widget.destinationRowKey,
               children: List.generate(3, (index) {
                 final isOtherSelected =
                     selectedDestination != 'Home' &&
@@ -221,6 +228,7 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
             ),
             const SizedBox(height: 6),
             Row(
+              key: widget.fineTuneKey,
               children: List.generate(4, (index) {
                 final value = [15, 30, 45, 60][index];
                 return Expanded(
@@ -304,6 +312,7 @@ class _TripSchedulerSheetState extends State<TripSchedulerSheet> {
               width: double.infinity,
               height: 48,
               child: Container(
+                key: widget.saveButtonKey,
                 decoration: BoxDecoration(
                   gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(12),

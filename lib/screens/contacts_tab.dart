@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Trusted Contacts Directory
 // File: lib/screens/contacts_tab.dart
 //
@@ -92,7 +92,8 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       ContactsTab.isSessionUnlocked = false;
       if (_protectContactsEnabled && mounted) {
         setState(() {
@@ -162,21 +163,24 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
 
   void _setAsPrimaryContact(ContactPerson selectedContact) {
     final List<ContactPerson> updated = List<ContactPerson>.from(_contacts);
-    updated.removeWhere((c) => c.name == selectedContact.name && c.phone == selectedContact.phone);
+    updated.removeWhere(
+      (c) => c.name == selectedContact.name && c.phone == selectedContact.phone,
+    );
     updated.insert(0, selectedContact);
     _updateContacts(updated);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${selectedContact.name} is now your Primary Emergency Contact.'),
+          content: Text(
+            '${selectedContact.name} is now your Primary Emergency Contact.',
+          ),
           backgroundColor: const Color(0xFF4CAF50),
           duration: const Duration(seconds: 2),
         ),
       );
     }
   }
-
 
   bool get _isTestMode {
     final binding = WidgetsBinding.instance.runtimeType.toString();
@@ -210,7 +214,9 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Contacts permission is permanently denied. Please enable it in settings.'),
+              content: const Text(
+                'Contacts permission is permanently denied. Please enable it in settings.',
+              ),
               action: SnackBarAction(
                 label: 'Settings',
                 onPressed: () => openAppSettings(),
@@ -240,12 +246,13 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
 
     if (selected != null && mounted) {
       // Step 2: Select Relationship
-      final ContactPerson? confirmed = await showModalBottomSheet<ContactPerson>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => SelectRelationshipBottomSheet(contact: selected),
-      );
+      final ContactPerson? confirmed =
+          await showModalBottomSheet<ContactPerson>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (ctx) => SelectRelationshipBottomSheet(contact: selected),
+          );
 
       if (confirmed != null && mounted) {
         if (_contacts.length >= 5) {
@@ -260,16 +267,20 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
         if (!updated.any((c) => c.phone == confirmed.phone)) {
           updated.add(confirmed);
           _updateContacts(updated);
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Imported ${confirmed.name} successfully')),
+              SnackBar(
+                content: Text('Imported ${confirmed.name} successfully'),
+              ),
             );
           }
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Contact already exists in your trusted list')),
+              const SnackBar(
+                content: Text('Contact already exists in your trusted list'),
+              ),
             );
           }
         }
@@ -310,13 +321,15 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
 
   Future<void> _removeContact(int index) async {
     if (index <= 0 || index >= _contacts.length) return;
-    
+
     final contact = _contacts[index];
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           contentPadding: const EdgeInsets.all(24),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -507,8 +520,9 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
             relationship: 'Mother',
           );
 
-    final secondaryContacts =
-        _contacts.length > 1 ? _contacts.sublist(1) : <ContactPerson>[];
+    final secondaryContacts = _contacts.length > 1
+        ? _contacts.sublist(1)
+        : <ContactPerson>[];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,7 +570,10 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
                       ),
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+                        side: const BorderSide(
+                          color: Color(0xFFCBD5E1),
+                          width: 1.2,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -590,12 +607,20 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
                       ),
                       child: Column(
                         children: [
-                          for (int i = 0; i < secondaryContacts.length; i++) ...[
+                          for (
+                            int i = 0;
+                            i < secondaryContacts.length;
+                            i++
+                          ) ...[
                             SecondaryContactListItem(
                               contact: secondaryContacts[i],
-                              onEdit: () => _openEditContactModal(secondaryContacts[i], i + 1),
+                              onEdit: () => _openEditContactModal(
+                                secondaryContacts[i],
+                                i + 1,
+                              ),
                               onRemove: () => _removeContact(i + 1),
-                              onSetPrimary: () => _setAsPrimaryContact(secondaryContacts[i]),
+                              onSetPrimary: () =>
+                                  _setAsPrimaryContact(secondaryContacts[i]),
                             ),
                             if (i < secondaryContacts.length - 1)
                               const Divider(
@@ -704,7 +729,11 @@ class ContactsHeader extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                          const Icon(
+                            Icons.add_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             'Add',
@@ -764,7 +793,10 @@ class PrimaryEmergencyContactCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFDAD8),
                   borderRadius: BorderRadius.circular(20),
@@ -956,7 +988,9 @@ class SecondaryContactListItem extends StatelessWidget {
               if (value == 'edit') onEdit();
               if (value == 'remove') onRemove();
             },
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: 'setPrimary',
@@ -996,7 +1030,11 @@ class SecondaryContactListItem extends StatelessWidget {
                 value: 'remove',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.primary),
+                    Icon(
+                      Icons.delete_outline_rounded,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
                     SizedBox(width: 12),
                     Text(
                       'Remove',
@@ -1077,11 +1115,12 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
   }
 
   void _handleSave() {
-    final name = _nameController.text.trim();
+    final rawName = _nameController.text;
+    final name = rawName.trim().replaceAll(RegExp(r'\s+'), ' ');
     final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
 
     setState(() {
-      _nameError = name.isEmpty ? 'Contact name is required' : null;
+      _nameError = validateFullName(rawName);
       if (digits.isEmpty) {
         _phoneError = 'Phone number is required';
       } else if (digits.length != 10 || !digits.startsWith('9')) {
@@ -1093,11 +1132,24 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
 
     if (_nameError != null || _phoneError != null) return;
 
-    final finalRel = (_relationship == 'Others' || _relationship == 'Other')
-        ? (_otherRelController.text.trim().isEmpty
-            ? 'Others'
-            : _otherRelController.text.trim())
-        : _relationship;
+    String finalRel = _relationship;
+    if (_relationship == 'Others' || _relationship == 'Other') {
+      final customText = _otherRelController.text.trim().replaceAll(
+        RegExp(r'\s+'),
+        ' ',
+      );
+      final customError = validateCustomRelationship(customText);
+      if (customError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(customError),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        return;
+      }
+      finalRel = customText;
+    }
 
     final formattedPhone = '+63 $digits';
     final initials = ContactPerson.computeInitials(name);
@@ -1174,8 +1226,10 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
                     onPressed: () => Navigator.pop(context),
                     tooltip: 'Close',
                     padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 32, height: 32),
+                    constraints: const BoxConstraints.tightFor(
+                      width: 32,
+                      height: 32,
+                    ),
                     icon: const Icon(
                       Icons.close_rounded,
                       color: AppColors.body,
@@ -1206,8 +1260,10 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
                   errorText: _nameError,
                   filled: true,
                   fillColor: AppColors.canvas,
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 14,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -1289,10 +1345,7 @@ class _EditContactBottomSheetState extends State<EditContactBottomSheet> {
               ],
               const SizedBox(height: 22),
               // Save Changes Action Button
-              GradientButton(
-                label: 'Save Changes',
-                onPressed: _handleSave,
-              ),
+              GradientButton(label: 'Save Changes', onPressed: _handleSave),
             ],
           ),
         ),
@@ -1335,9 +1388,10 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
   }
 
   void _validateInputs() {
-    final name = _nameController.text.trim();
+    final rawName = _nameController.text;
     final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
-    final valid = name.isNotEmpty && digits.length == 10 && digits.startsWith('9');
+    final nameValid = validateFullName(rawName) == null;
+    final valid = nameValid && digits.length == 10 && digits.startsWith('9');
     if (valid != _isValid) {
       setState(() => _isValid = valid);
     }
@@ -1346,13 +1400,36 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
   void _handleAdd() {
     if (!_isValid) return;
 
-    final name = _nameController.text.trim();
+    final rawName = _nameController.text;
+    final name = rawName.trim().replaceAll(RegExp(r'\s+'), ' ');
     final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
-    final finalRel = (_relationship == 'Others' || _relationship == 'Other')
-        ? (_otherRelController.text.trim().isEmpty
-            ? 'Others'
-            : _otherRelController.text.trim())
-        : _relationship;
+
+    final nameErr = validateFullName(rawName);
+    if (nameErr != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(nameErr), backgroundColor: AppColors.primary),
+      );
+      return;
+    }
+
+    String finalRel = _relationship;
+    if (_relationship == 'Others' || _relationship == 'Other') {
+      final customText = _otherRelController.text.trim().replaceAll(
+        RegExp(r'\s+'),
+        ' ',
+      );
+      final customError = validateCustomRelationship(customText);
+      if (customError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(customError),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        return;
+      }
+      finalRel = customText;
+    }
 
     final formattedPhone = '+63 $digits';
     final initials = ContactPerson.computeInitials(name);
@@ -1429,8 +1506,10 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
                     onPressed: () => Navigator.pop(context),
                     tooltip: 'Close',
                     padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 32, height: 32),
+                    constraints: const BoxConstraints.tightFor(
+                      width: 32,
+                      height: 32,
+                    ),
                     icon: const Icon(
                       Icons.close_rounded,
                       color: AppColors.body,
@@ -1465,8 +1544,10 @@ class _AddNewContactBottomSheetState extends State<AddNewContactBottomSheet> {
                   ),
                   filled: true,
                   fillColor: AppColors.canvas,
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 14,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -1591,11 +1672,7 @@ class PhilippinePhoneInputField extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            width: 1,
-            height: 26,
-            color: const Color(0xFFE2E8F0),
-          ),
+          Container(width: 1, height: 26, color: const Color(0xFFE2E8F0)),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
@@ -1635,6 +1712,3 @@ class PhilippinePhoneInputField extends StatelessWidget {
     );
   }
 }
-
-
-

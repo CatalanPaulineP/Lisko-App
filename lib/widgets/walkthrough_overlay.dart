@@ -25,6 +25,8 @@
 // Final: All Done! (Center completion modal, FINISH button)
 // ==============================================================================
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -69,6 +71,11 @@ enum TargetPosition {
   settingsTimerExpiry,
   settingsProtectContacts,
   settingsSosWidget,
+  tripModalDestination,
+  tripModalTimer,
+  tripModalSaveButton,
+  activeTripStartButton,
+  tripsExportButton,
 }
 
 enum ArrowDirection { down, up, right }
@@ -79,6 +86,7 @@ class WalkthroughOverlay extends StatefulWidget {
     required this.onTabChangeRequested,
     required this.onDismiss,
     this.onStepChanged,
+    this.onModalTriggerRequested,
     this.setUpTripKey,
     this.sosKey,
     this.tripsTabKey,
@@ -93,11 +101,21 @@ class WalkthroughOverlay extends StatefulWidget {
     this.expiryAlertKey,
     this.protectContactsKey,
     this.sosWidgetKey,
+    this.tripModalDestinationKey,
+    this.tripModalTimerKey,
+    this.tripModalSaveButtonKey,
+    this.activeTripStartButtonKey,
+    this.tripsExportKey,
+    this.initialStep = 0,
+    this.endStep = 18,
   });
 
   final ValueChanged<int> onTabChangeRequested;
   final VoidCallback onDismiss;
   final ValueChanged<int>? onStepChanged;
+  final VoidCallback? onModalTriggerRequested;
+  final int initialStep;
+  final int endStep;
   final GlobalKey? setUpTripKey;
   final GlobalKey? sosKey;
   final GlobalKey? tripsTabKey;
@@ -112,6 +130,11 @@ class WalkthroughOverlay extends StatefulWidget {
   final GlobalKey? expiryAlertKey;
   final GlobalKey? protectContactsKey;
   final GlobalKey? sosWidgetKey;
+  final GlobalKey? tripModalDestinationKey;
+  final GlobalKey? tripModalTimerKey;
+  final GlobalKey? tripModalSaveButtonKey;
+  final GlobalKey? activeTripStartButtonKey;
+  final GlobalKey? tripsExportKey;
 
   @override
   State<WalkthroughOverlay> createState() => _WalkthroughOverlayState();
@@ -121,25 +144,36 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
     with TickerProviderStateMixin {
   int _currentStep = 0;
   bool _isReady = false;
+  bool _showSectionComplete = false;
 
   late final AnimationController _completionController;
   late final Animation<double> _badgeScaleAnimation;
   late final Animation<double> _badgeFadeAnimation;
 
-  static const List<ConfettiParticle> _particles = [
-    ConfettiParticle(xRatio: 0.20, yStart: 180, speedY: 0.9, speedX: -25, color: AppColors.primary, size: 8, rotationSpeed: 1.2),
-    ConfettiParticle(xRatio: 0.35, yStart: 140, speedY: 1.1, speedX: -10, color: AppColors.success, size: 7, rotationSpeed: -1.5),
-    ConfettiParticle(xRatio: 0.50, yStart: 120, speedY: 1.0, speedX: 5, color: Color(0xFFD97706), size: 9, rotationSpeed: 2.0),
-    ConfettiParticle(xRatio: 0.65, yStart: 150, speedY: 1.2, speedX: 18, color: AppColors.primary, size: 8, rotationSpeed: -1.1),
-    ConfettiParticle(xRatio: 0.80, yStart: 170, speedY: 0.95, speedX: 30, color: AppColors.success, size: 7, rotationSpeed: 1.8),
-    ConfettiParticle(xRatio: 0.28, yStart: 210, speedY: 1.05, speedX: -15, color: Color(0xFFD97706), size: 6, rotationSpeed: -2.2),
-    ConfettiParticle(xRatio: 0.42, yStart: 190, speedY: 1.15, speedX: 8, color: AppColors.header, size: 8, rotationSpeed: 1.4),
-    ConfettiParticle(xRatio: 0.58, yStart: 200, speedY: 0.85, speedX: -8, color: AppColors.success, size: 9, rotationSpeed: -1.0),
-    ConfettiParticle(xRatio: 0.72, yStart: 220, speedY: 1.1, speedX: 20, color: AppColors.primary, size: 7, rotationSpeed: 1.7),
-    ConfettiParticle(xRatio: 0.15, yStart: 230, speedY: 0.8, speedX: -30, color: AppColors.header, size: 8, rotationSpeed: -1.3),
-    ConfettiParticle(xRatio: 0.85, yStart: 210, speedY: 1.25, speedX: 25, color: Color(0xFFD97706), size: 6, rotationSpeed: 2.5),
-    ConfettiParticle(xRatio: 0.48, yStart: 160, speedY: 0.95, speedX: -4, color: AppColors.primary, size: 8, rotationSpeed: -1.6),
-  ];
+  static List<ConfettiParticle> _generateParticles() {
+    final List<ConfettiParticle> list = [];
+    final colors = [
+      AppColors.success,
+      AppColors.primary,
+      const Color(0xFFD97706),
+      const Color(0xFF10B981),
+      AppColors.header,
+      const Color(0xFF38BDF8),
+    ];
+    const count = 20;
+    for (int i = 0; i < count; i++) {
+      final angle = (i * (2 * math.pi) / count) + (i % 2 == 0 ? 0.1 : -0.1);
+      final speed = 75.0 + (i % 5) * 22.0;
+      final size = 5.5 + (i % 3) * 2.5;
+      final color = colors[i % colors.length];
+      list.add(
+        ConfettiParticle(angle: angle, speed: speed, color: color, size: size),
+      );
+    }
+    return list;
+  }
+
+  static final List<ConfettiParticle> _particles = _generateParticles();
 
   static const List<WalkthroughStep> _steps = [
     // Step 1 of 15: Home Tab Overview
@@ -158,6 +192,46 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       description:
           'Tap Set Up Trip to set your destination and estimated travel duration before heading out.',
       targetPosition: TargetPosition.setUpTripButton,
+      targetTab: 0,
+      arrowDirection: ArrowDirection.down,
+    ),
+    // Index 2: Step 2.1
+    WalkthroughStep(
+      title: 'Destination',
+      stepNumberText: '2.1 of 15',
+      description:
+          'Where are you heading? Choose Home, Campus, or tap Custom to select terminals, loading stops, and drop-off points.',
+      targetPosition: TargetPosition.tripModalDestination,
+      targetTab: 0,
+      arrowDirection: ArrowDirection.up,
+    ),
+    // Index 3: Step 2.2
+    WalkthroughStep(
+      title: 'Travel Timer',
+      stepNumberText: '2.2 of 15',
+      description:
+          'Pick a quick time preset or fine-tune the hours and minutes for your trip.',
+      targetPosition: TargetPosition.tripModalTimer,
+      targetTab: 0,
+      arrowDirection: ArrowDirection.down,
+    ),
+    // Index 4: Step 2.3
+    WalkthroughStep(
+      title: 'Save your Trip',
+      stepNumberText: '2.3 of 15',
+      description:
+          'Tap here to save your destination and timer settings to begin monitoring your travel.',
+      targetPosition: TargetPosition.tripModalSaveButton,
+      targetTab: 0,
+      arrowDirection: ArrowDirection.down,
+    ),
+    // Index 5: Step 2.4
+    WalkthroughStep(
+      title: 'Start your Trip',
+      stepNumberText: '2.4 of 15',
+      description:
+          'Tap Start Trip to begin tracking. You can still adjust your timer or change your destination before you head out.',
+      targetPosition: TargetPosition.activeTripStartButton,
       targetTab: 0,
       arrowDirection: ArrowDirection.down,
     ),
@@ -189,6 +263,16 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       description:
           'View a quick breakdown of your recorded trips by Total, Arrived, Extended, or Alerts. Tap any segment to filter your list.',
       targetPosition: TargetPosition.tripsSummaryCard,
+      targetTab: 1,
+      arrowDirection: ArrowDirection.up,
+    ),
+    // Index 9: Step 5.1
+    WalkthroughStep(
+      title: 'Export Trip History',
+      stepNumberText: '5.1 of 15',
+      description:
+          'Tap Export to generate a PDF report of your trip history. You can save this file to your device or share it directly through your preferred messaging apps.',
+      targetPosition: TargetPosition.tripsExportButton,
       targetTab: 1,
       arrowDirection: ArrowDirection.up,
     ),
@@ -299,7 +383,7 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       title: 'All Done!',
       stepNumberText: '',
       description:
-          "You're all set to use Lisko. Stay safe on your journeys!",
+          "You're all set to use Lisko. Stay safe on your journeys, Iskolar!",
       targetPosition: TargetPosition.center,
       targetTab: 3,
       isLast: true,
@@ -309,6 +393,13 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
   @override
   void initState() {
     super.initState();
+    _currentStep = widget.initialStep;
+
+    // Trigger modal if starting at steps 2.1-2.3 (indices 2, 3, 4)
+    if (_currentStep >= 2 && _currentStep <= 4) {
+      widget.onModalTriggerRequested?.call();
+    }
+
     _completionController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -328,9 +419,7 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       ),
     );
 
-    GoogleFonts.pendingFonts([
-      GoogleFonts.plusJakartaSans(),
-    ]);
+    GoogleFonts.pendingFonts([GoogleFonts.plusJakartaSans()]);
 
     if (_steps[_currentStep].isLast) {
       _completionController.forward(from: 0.0);
@@ -352,8 +441,40 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
   }
 
   void _nextStep() {
-    if (_currentStep < _steps.length - 1) {
+    if (_currentStep < widget.endStep && _currentStep < _steps.length - 1) {
       final next = _currentStep + 1;
+
+      // Trigger modal if moving to step 2.1 (index 2)
+      if (next == 2) {
+        widget.onModalTriggerRequested?.call();
+      }
+
+      // Close modal if moving from step 2.3 (index 4) to 2.4 (index 5)
+      if (_currentStep == 4) {
+        Navigator.of(context).pop();
+        Future.delayed(const Duration(milliseconds: 350), () {
+          if (mounted) {
+            setState(() {
+              _currentStep = next;
+              _isReady = false;
+            });
+            if (_steps[next].isLast) {
+              _completionController.forward(from: 0.0);
+            }
+            widget.onTabChangeRequested(_steps[next].targetTab);
+            widget.onStepChanged?.call(next);
+            Future.delayed(const Duration(milliseconds: 250), () {
+              if (mounted) {
+                setState(() {
+                  _isReady = true;
+                });
+              }
+            });
+          }
+        });
+        return;
+      }
+
       setState(() {
         _currentStep = next;
         _isReady = false;
@@ -363,14 +484,34 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       }
       widget.onTabChangeRequested(_steps[next].targetTab);
       widget.onStepChanged?.call(next);
-      Future.delayed(const Duration(milliseconds: 150), () {
+
+      // Dynamic delay based on transition type (modal/tab/complex layout)
+      int delayMs = 150;
+      if (next == 2) {
+        delayMs = 500; // Wait for bottom sheet slide-in
+      }
+      if (next == 6) {
+        delayMs = 350; // Ensure Home Tab is fully settled after modal closure
+      }
+
+      Future.delayed(Duration(milliseconds: delayMs), () {
         if (mounted) {
           setState(() {
             _isReady = true;
           });
+          if (_steps[_currentStep].isLast) {
+            _completionController.forward(from: 0.0);
+          }
         }
       });
     } else {
+      if (_currentStep == widget.endStep && !_steps[_currentStep].isLast) {
+        setState(() {
+          _showSectionComplete = true;
+        });
+        _completionController.forward(from: 0.0);
+        return;
+      }
       _finishWalkthrough();
     }
   }
@@ -381,122 +522,219 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
     widget.onDismiss();
   }
 
-  Rect? _getRectFromKey(GlobalKey? key) {
-    if (key == null) return null;
+  Rect _getRectFromKey(GlobalKey? key, Size screenSize) {
+    if (key == null) {
+      return Rect.fromCenter(
+        center: Offset(screenSize.width / 2, screenSize.height / 2),
+        width: 2,
+        height: 2,
+      );
+    }
     final context = key.currentContext;
-    if (context == null) return null;
+    if (context == null) {
+      return Rect.fromCenter(
+        center: Offset(screenSize.width / 2, screenSize.height / 2),
+        width: 2,
+        height: 2,
+      );
+    }
     final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize || !renderBox.attached) return null;
+    if (renderBox == null || !renderBox.hasSize || !renderBox.attached) {
+      return Rect.fromCenter(
+        center: Offset(screenSize.width / 2, screenSize.height / 2),
+        width: 2,
+        height: 2,
+      );
+    }
     final offset = renderBox.localToGlobal(Offset.zero);
     return offset & renderBox.size;
   }
 
-  Rect? _calculateTargetRect(TargetPosition pos, Size size) {
+  Rect _calculateTargetRect(TargetPosition pos, Size size) {
+    Rect rect = Rect.zero;
     switch (pos) {
       case TargetPosition.setUpTripButton:
-        final rect = _getRectFromKey(widget.setUpTripKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.setUpTripKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.sosButton:
-        final rect = _getRectFromKey(widget.sosKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.sosKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.tripsTabIcon:
       case TargetPosition.contactsTabIcon:
-        final GlobalKey? key = pos == TargetPosition.tripsTabIcon ? widget.tripsTabKey : widget.contactsTabKey;
-        final rect = _getRectFromKey(key);
-        if (rect != null) {
-          return Rect.fromCenter(
-            center: Offset(rect.center.dx, rect.center.dy + 5.0),
-            width: 74.0,
-            height: 48.0,
-          );
-        }
-        return null;
+        final GlobalKey? key = pos == TargetPosition.tripsTabIcon
+            ? widget.tripsTabKey
+            : widget.contactsTabKey;
+        rect = _getRectFromKey(key, size);
+        rect = Rect.fromCenter(
+          center: Offset(rect.center.dx, rect.center.dy + 5.0),
+          width: 74.0,
+          height: 48.0,
+        );
+        break;
       case TargetPosition.settingsTabIcon:
-        final rect = _getRectFromKey(widget.settingsTabKey);
-        if (rect != null) {
-          return Rect.fromCenter(
-            center: Offset(rect.center.dx, rect.center.dy + 4.0),
-            width: 64.0,
-            height: 44.0,
-          );
-        }
-        return null;
+        rect = _getRectFromKey(widget.settingsTabKey, size);
+        rect = Rect.fromCenter(
+          center: Offset(rect.center.dx, rect.center.dy + 4.0),
+          width: 64.0,
+          height: 44.0,
+        );
+        break;
       case TargetPosition.tripsSummaryCard:
-        final rect = _getRectFromKey(widget.tripsSummaryKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.tripsSummaryKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.tripsFilterChips:
-        final rect = _getRectFromKey(widget.tripsFilterChipsKey);
-        if (rect != null) {
-          final tightWidth = 270.0.clamp(180.0, size.width - 40.0);
-          return Rect.fromLTWH(20.0, rect.top - 2, tightWidth, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.tripsFilterChipsKey, size);
+        final tightWidth = 270.0.clamp(180.0, size.width - 40.0);
+        rect = Rect.fromLTWH(20.0, rect.top - 2, tightWidth, rect.height + 4);
+        break;
       case TargetPosition.tripsFilterIcon:
-        final rect = _getRectFromKey(widget.tripsCalendarIconKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 6, rect.top - 6, rect.width + 12, rect.height + 12);
-        }
-        return null;
+        rect = _getRectFromKey(widget.tripsCalendarIconKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 6,
+          rect.top - 6,
+          rect.width + 12,
+          rect.height + 12,
+        );
+        break;
       case TargetPosition.addContactButton:
-        final rect = _getRectFromKey(widget.addContactKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.addContactKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.importContactsButton:
-        final rect = _getRectFromKey(widget.importContactsKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.importContactsKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.settingsHomePin:
-        final rect = _getRectFromKey(widget.homeLocationKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.homeLocationKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.settingsTimerExpiry:
-        final rect = _getRectFromKey(widget.expiryAlertKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.expiryAlertKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.settingsProtectContacts:
-        final rect = _getRectFromKey(widget.protectContactsKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.protectContactsKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.settingsSosWidget:
-        final rect = _getRectFromKey(widget.sosWidgetKey);
-        if (rect != null) {
-          return Rect.fromLTWH(rect.left - 4, rect.top - 2, rect.width + 8, rect.height + 4);
-        }
-        return null;
+        rect = _getRectFromKey(widget.sosWidgetKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
+      case TargetPosition.tripModalDestination:
+        rect = _getRectFromKey(widget.tripModalDestinationKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 4,
+          rect.width + 8,
+          rect.height + 8,
+        );
+        break;
+      case TargetPosition.tripModalTimer:
+        rect = _getRectFromKey(widget.tripModalTimerKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 4,
+          rect.width + 8,
+          rect.height + 8,
+        );
+        break;
+      case TargetPosition.tripModalSaveButton:
+        rect = _getRectFromKey(widget.tripModalSaveButtonKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 2,
+          rect.top - 2,
+          rect.width + 4,
+          rect.height + 4,
+        );
+        break;
+      case TargetPosition.activeTripStartButton:
+        rect = _getRectFromKey(widget.activeTripStartButtonKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 4,
+          rect.width + 8,
+          rect.height + 8,
+        );
+        break;
+      case TargetPosition.tripsExportButton:
+        rect = _getRectFromKey(widget.tripsExportKey, size);
+        rect = Rect.fromLTWH(
+          rect.left - 4,
+          rect.top - 2,
+          rect.width + 8,
+          rect.height + 4,
+        );
+        break;
       case TargetPosition.center:
-        return null;
+        return Rect.zero;
     }
+
+    return rect;
   }
 
   @override
   Widget build(BuildContext context) {
     final step = _steps[_currentStep];
     final size = MediaQuery.sizeOf(context);
-    final targetRect = _calculateTargetRect(step.targetPosition, size);
-    final bool hasValidRect = step.targetPosition == TargetPosition.center || (targetRect != null && targetRect != Rect.zero);
-    final bool showCard = _isReady && hasValidRect;
-    final bool isBottomTab = step.targetPosition == TargetPosition.tripsTabIcon ||
-        step.targetPosition == TargetPosition.contactsTabIcon ||
-        step.targetPosition == TargetPosition.settingsTabIcon;
+
+    final targetRect = _showSectionComplete
+        ? Rect.zero
+        : _calculateTargetRect(step.targetPosition, size);
+
+    final bool showCard = _isReady;
+    final bool isBottomTab =
+        !_showSectionComplete &&
+        (step.targetPosition == TargetPosition.tripsTabIcon ||
+            step.targetPosition == TargetPosition.contactsTabIcon ||
+            step.targetPosition == TargetPosition.settingsTabIcon);
 
     return Material(
       color: Colors.transparent,
@@ -508,7 +746,7 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
               onTap: () {}, // Prevent taps passing through during tutorial
               child: CustomPaint(
                 painter: SpotlightOverlayPainter(
-                  targetRect: targetRect,
+                  targetRect: targetRect == Rect.zero ? null : targetRect,
                   borderRadius: isBottomTab ? 12.0 : 16.0,
                 ),
               ),
@@ -516,7 +754,7 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
           ),
 
           // Tappable cutout region for highlighted targets
-          if (targetRect != null)
+          if (targetRect != Rect.zero)
             Positioned.fromRect(
               rect: targetRect,
               child: GestureDetector(
@@ -524,9 +762,11 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
                 onTap: () {
                   if (step.targetPosition == TargetPosition.tripsTabIcon) {
                     widget.onTabChangeRequested(1);
-                  } else if (step.targetPosition == TargetPosition.contactsTabIcon) {
+                  } else if (step.targetPosition ==
+                      TargetPosition.contactsTabIcon) {
                     widget.onTabChangeRequested(2);
-                  } else if (step.targetPosition == TargetPosition.settingsTabIcon) {
+                  } else if (step.targetPosition ==
+                      TargetPosition.settingsTabIcon) {
                     widget.onTabChangeRequested(3);
                   }
                   _nextStep();
@@ -538,24 +778,6 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
           if (isBottomTab)
             _buildAnimatedPointer(step, size, targetRect, showCard),
 
-          // Particle effect on final completion step
-          if (step.isLast && !MediaQuery.of(context).disableAnimations)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _completionController,
-                  builder: (context, _) {
-                    return CustomPaint(
-                      painter: ConfettiParticlePainter(
-                        progress: _completionController.value,
-                        particles: _particles,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-
           // Floating Speech Bubble Tutorial Card Box
           _buildTooltipCard(step, size, targetRect, showCard),
         ],
@@ -563,10 +785,15 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
     );
   }
 
-  Widget _buildAnimatedPointer(WalkthroughStep step, Size size, Rect? targetRect, bool showCard) {
+  Widget _buildAnimatedPointer(
+    WalkthroughStep step,
+    Size size,
+    Rect targetRect,
+    bool showCard,
+  ) {
     if (!showCard) return const SizedBox.shrink();
 
-    if (targetRect != null) {
+    if (targetRect != Rect.zero) {
       final pointerLeft = targetRect.center.dx - 25;
       final pointerBottom = (size.height - targetRect.top) + 8.0;
 
@@ -599,15 +826,26 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
     return const SizedBox.shrink();
   }
 
-  Widget _buildTooltipCard(WalkthroughStep step, Size size, Rect? targetRect, bool showCard) {
+  Widget _buildTooltipCard(
+    WalkthroughStep step,
+    Size size,
+    Rect targetRect,
+    bool showCard,
+  ) {
     if (!showCard) return const SizedBox.shrink();
 
-    final bool showArrow = targetRect != null && step.targetPosition != TargetPosition.center;
+    final bool showArrow =
+        !_showSectionComplete &&
+        targetRect != Rect.zero &&
+        step.targetPosition != TargetPosition.center;
 
     if (showArrow) {
       if (step.arrowDirection == ArrowDirection.up) {
         // Speech bubble sitting BELOW targetRect with arrow pointing UP
-        final double arrowLeft = (targetRect.center.dx - 10).clamp(36.0, size.width - 56.0);
+        final double arrowLeft = (targetRect.center.dx - 10).clamp(
+          36.0,
+          size.width - 56.0,
+        );
         final double topDist = targetRect.bottom + 12.0;
 
         return Positioned(
@@ -653,8 +891,14 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
         );
       } else if (step.arrowDirection == ArrowDirection.right) {
         // Speech bubble sitting to the LEFT of targetRect with arrow pointing RIGHT
-        final double topDist = (targetRect.top - 20).clamp(40.0, size.height - 230);
-        final double arrowTop = (targetRect.center.dy - topDist - 10).clamp(12.0, 120.0);
+        final double topDist = (targetRect.top - 20).clamp(
+          40.0,
+          size.height - 230,
+        );
+        final double arrowTop = (targetRect.center.dy - topDist - 10).clamp(
+          12.0,
+          120.0,
+        );
 
         return Positioned(
           left: 16,
@@ -701,7 +945,10 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
         );
       } else {
         // Speech bubble sitting ABOVE targetRect with arrow pointing DOWN
-        final double arrowLeft = (targetRect.center.dx - 10).clamp(36.0, size.width - 56.0);
+        final double arrowLeft = (targetRect.center.dx - 10).clamp(
+          36.0,
+          size.width - 56.0,
+        );
         double bottomDist = (size.height - targetRect.top) + 12.0;
 
         // On tab transition steps (Trips Tab, Contacts Tab or Settings Tab), leave room for bouncing hand
@@ -755,6 +1002,86 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
       }
     }
 
+    // Final Step: Center completion modal with radial particle burst and card scale/fade entry
+    if (step.isLast) {
+      final isReducedMotion = MediaQuery.of(context).disableAnimations;
+
+      final cardScaleAnimation = Tween<double>(begin: 0.88, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _completionController,
+          curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack),
+        ),
+      );
+
+      final cardFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _completionController,
+          curve: const Interval(0.0, 0.3, curve: Curves.easeIn),
+        ),
+      );
+
+      return Positioned.fill(
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          opacity: showCard ? 1.0 : 0.0,
+          child: Stack(
+            children: [
+              // Radial celebratory particle burst framing the completion card
+              if (!isReducedMotion)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: _completionController,
+                      builder: (context, _) {
+                        return CustomPaint(
+                          painter: ConfettiParticlePainter(
+                            progress: _completionController.value,
+                            particles: _particles,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
+              // Centered completion card with smooth scale & fade entry
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Center(
+                  child: ScaleTransition(
+                    scale: isReducedMotion
+                        ? const AlwaysStoppedAnimation(1.0)
+                        : cardScaleAnimation,
+                    child: FadeTransition(
+                      opacity: isReducedMotion
+                          ? const AlwaysStoppedAnimation(1.0)
+                          : cardFadeAnimation,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x33000000),
+                              blurRadius: 20,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: _buildCardContent(step),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     // Step 1 & Step 5: Center intro cards (no arrow) - Centered in viewport
     return Positioned.fill(
       child: AnimatedOpacity(
@@ -786,20 +1113,35 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
   }
 
   Widget _buildCardContent(WalkthroughStep step) {
-    final bool isLast = step.isLast;
-    final bool showNext = step.showNextButton && !isLast;
+    final bool isWholeLast = step.isLast;
+    final bool isDoneStep = isWholeLast || _showSectionComplete;
+
+    final bool showNext = step.showNextButton && !isDoneStep;
     final bool isReducedMotion = MediaQuery.of(context).disableAnimations;
+
+    final String title = _showSectionComplete
+        ? 'Section Complete!'
+        : step.title;
+    final String description = _showSectionComplete
+        ? "You've finished this section of the walkthrough."
+        : step.description;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: isLast ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      crossAxisAlignment: isDoneStep
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
-        if (isLast) ...[
+        if (isDoneStep) ...[
           Center(
             child: ScaleTransition(
-              scale: isReducedMotion ? const AlwaysStoppedAnimation(1.0) : _badgeScaleAnimation,
+              scale: isReducedMotion
+                  ? const AlwaysStoppedAnimation(1.0)
+                  : _badgeScaleAnimation,
               child: FadeTransition(
-                opacity: isReducedMotion ? const AlwaysStoppedAnimation(1.0) : _badgeFadeAnimation,
+                opacity: isReducedMotion
+                    ? const AlwaysStoppedAnimation(1.0)
+                    : _badgeFadeAnimation,
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(12),
@@ -818,14 +1160,16 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
           ),
         ],
         Row(
-          mainAxisAlignment: isLast ? MainAxisAlignment.center : MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: isDoneStep
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Text(
-                step.title,
+                title,
                 textScaler: TextScaler.noScaling,
-                textAlign: isLast ? TextAlign.center : TextAlign.start,
+                textAlign: isDoneStep ? TextAlign.center : TextAlign.start,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 18,
                   height: 1.2,
@@ -834,7 +1178,9 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
                 ),
               ),
             ),
-            if (step.stepNumberText.isNotEmpty)
+            if (step.stepNumberText.isNotEmpty &&
+                !isDoneStep &&
+                !_showSectionComplete)
               Text(
                 step.stepNumberText,
                 textScaler: TextScaler.noScaling,
@@ -848,9 +1194,9 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
         ),
         const SizedBox(height: 10),
         Text(
-          step.description,
+          description,
           textScaler: TextScaler.noScaling,
-          textAlign: isLast ? TextAlign.center : TextAlign.justify,
+          textAlign: isDoneStep ? TextAlign.center : TextAlign.justify,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13.5,
             height: 1.4,
@@ -860,12 +1206,14 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
         ),
         const SizedBox(height: 14),
         Row(
-          mainAxisAlignment: isLast
+          mainAxisAlignment: isDoneStep
               ? MainAxisAlignment.center
-              : (showNext ? MainAxisAlignment.spaceBetween : MainAxisAlignment.end),
+              : (showNext
+                    ? MainAxisAlignment.spaceBetween
+                    : MainAxisAlignment.end),
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (!isLast)
+            if (!isDoneStep)
               TextButton(
                 onPressed: _finishWalkthrough,
                 style: TextButton.styleFrom(
@@ -912,9 +1260,9 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
                   ),
                 ),
               ),
-            if (isLast)
+            if (isDoneStep)
               ElevatedButton(
-                onPressed: _finishWalkthrough,
+                onPressed: isWholeLast ? _finishWalkthrough : widget.onDismiss,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -928,7 +1276,7 @@ class _WalkthroughOverlayState extends State<WalkthroughOverlay>
                   elevation: 2,
                 ),
                 child: Text(
-                  'FINISH',
+                  'DONE',
                   textScaler: TextScaler.noScaling,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
@@ -1010,9 +1358,10 @@ class _BouncingPointerHandState extends State<BouncingPointerHand>
       duration: const Duration(milliseconds: 600),
     )..repeat(reverse: true);
 
-    _animation = Tween<double>(begin: 0.0, end: 10.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.0,
+      end: 10.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -1078,10 +1427,7 @@ class SpotlightOverlayPainter extends CustomPainter {
     final screenPath = Path()..addRect(Offset.zero & size);
     final cutoutPath = Path()
       ..addRRect(
-        RRect.fromRectAndRadius(
-          targetRect!,
-          Radius.circular(borderRadius),
-        ),
+        RRect.fromRectAndRadius(targetRect!, Radius.circular(borderRadius)),
       );
 
     final overlayPath = Path.combine(
@@ -1099,10 +1445,7 @@ class SpotlightOverlayPainter extends CustomPainter {
       ..strokeWidth = 2.5;
 
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        targetRect!,
-        Radius.circular(borderRadius),
-      ),
+      RRect.fromRectAndRadius(targetRect!, Radius.circular(borderRadius)),
       borderPaint,
     );
   }
@@ -1117,30 +1460,21 @@ class SpotlightOverlayPainter extends CustomPainter {
 /// Data model for a single decorative particle shape.
 class ConfettiParticle {
   const ConfettiParticle({
-    required this.xRatio,
-    required this.yStart,
-    required this.speedY,
-    required this.speedX,
+    required this.angle,
+    required this.speed,
     required this.color,
     required this.size,
-    required this.rotationSpeed,
   });
 
-  final double xRatio;
-  final double yStart;
-  final double speedY;
-  final double speedX;
+  final double angle;
+  final double speed;
   final Color color;
   final double size;
-  final double rotationSpeed;
 }
 
 /// CustomPainter drawing a subtle zero-dependency particle animation on final walkthrough completion.
 class ConfettiParticlePainter extends CustomPainter {
-  ConfettiParticlePainter({
-    required this.progress,
-    required this.particles,
-  });
+  ConfettiParticlePainter({required this.progress, required this.particles});
 
   final double progress;
   final List<ConfettiParticle> particles;
@@ -1149,22 +1483,31 @@ class ConfettiParticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (progress <= 0.0 || progress >= 1.0) return;
 
+    final center = Offset(size.width / 2, size.height / 2);
+    final curvedProgress = Curves.easeOutCubic.transform(progress);
     final fadeOut = (1.0 - progress).clamp(0.0, 1.0);
 
     for (final p in particles) {
-      final x = size.width * p.xRatio + (p.speedX * progress * 50);
-      final y = p.yStart + (p.speedY * progress * size.height * 0.35);
-      final opacity = fadeOut.clamp(0.0, 1.0);
+      final distance = p.speed * curvedProgress;
+      final dyGravity = curvedProgress * curvedProgress * 30.0;
+      final x = center.dx + distance * math.cos(p.angle);
+      final y = center.dy + distance * math.sin(p.angle) + dyGravity;
+      final opacity = (fadeOut * 1.2).clamp(0.0, 1.0);
+
       final paint = Paint()
         ..color = p.color.withValues(alpha: opacity)
         ..style = PaintingStyle.fill;
 
       canvas.save();
       canvas.translate(x, y);
-      canvas.rotate(p.rotationSpeed * progress * 6.28);
+      canvas.rotate(p.angle + curvedProgress * math.pi);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.65),
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: p.size,
+            height: p.size * 0.65,
+          ),
           const Radius.circular(2),
         ),
         paint,

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 // ignore: depend_on_referenced_packages
 import 'package:firebase_core_platform_interface/test.dart';
@@ -18,27 +18,37 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     setupFirebaseCoreMocks();
 
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('dexterous.com/flutter/plugins/notification_channel'),
-      (MethodCall methodCall) async {
-        return true;
-      },
-    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel(
+            'dexterous.com/flutter/plugins/notification_channel',
+          ),
+          (MethodCall methodCall) async {
+            return true;
+          },
+        );
 
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('id.flutter/background_service'),
-      (MethodCall methodCall) async {
-        return true;
-      },
-    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('id.flutter/background_service'),
+          (MethodCall methodCall) async {
+            return true;
+          },
+        );
   });
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+    SharedPreferences.setMockInitialValues({
+      'walkthrough_completed_v2': true,
+      'setup_completed': true,
+    });
   });
 
   testWidgets('setup flow shows the requested three screens', (tester) async {
-    SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': false});
+    SharedPreferences.setMockInitialValues({
+      'walkthrough_completed_v2': true,
+      'setup_completed': false,
+    });
     final preferences = await SharedPreferences.getInstance();
     await preferences.clear();
     await tester.pumpWidget(const LiskoApp());
@@ -99,7 +109,10 @@ void main() {
   testWidgets('fresh startup stays on splash before opening Welcome', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+    SharedPreferences.setMockInitialValues({
+      'walkthrough_completed_v2': true,
+      'setup_completed': true,
+    });
     final preferences = await SharedPreferences.getInstance();
     await preferences.setBool('setup_completed', true);
     await tester.pumpWidget(const LiskoApp());
@@ -120,7 +133,10 @@ void main() {
   testWidgets('contact overlays expose manual and import states', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': false});
+    SharedPreferences.setMockInitialValues({
+      'walkthrough_completed_v2': true,
+      'setup_completed': false,
+    });
     final preferences = await SharedPreferences.getInstance();
     await preferences.clear();
     await tester.pumpWidget(const LiskoApp());
@@ -162,13 +178,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('SAVED CONTACTS'), findsOneWidget);
     expect(find.text('Maria Santos'), findsOneWidget);
-    expect(find.text('+63 9171234567'), findsOneWidget);
+    expect(find.textContaining('+63 9171234567'), findsOneWidget);
   });
 
   testWidgets('home tabs switch instantly without route navigation', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+    SharedPreferences.setMockInitialValues({
+      'walkthrough_completed_v2': true,
+      'setup_completed': true,
+    });
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
     expect(find.text('Iskolar'), findsOneWidget);
@@ -185,7 +204,10 @@ void main() {
   testWidgets('trip scheduler starts and controls an active trip', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+    SharedPreferences.setMockInitialValues({
+      'walkthrough_completed_v2': true,
+      'setup_completed': true,
+    });
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
     // 1. Open Set Trip Timer sheet from Home
@@ -232,119 +254,126 @@ void main() {
     expect(find.text('TRIP IN PROGRESS'), findsOneWidget);
   });
 
-  testWidgets('stepper touch targets comply with ISO/IEC 25010 usability guidelines', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: TripSchedulerSheet(onStart: (_, __) async => true),
+  testWidgets(
+    'stepper touch targets comply with ISO/IEC 25010 usability guidelines',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TripSchedulerSheet(onStart: (_, __) async => true),
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    final upStepper = find.byIcon(Icons.keyboard_arrow_up_rounded).first;
-    final downStepper = find.byIcon(Icons.keyboard_arrow_down_rounded).first;
+      final upStepper = find.byIcon(Icons.keyboard_arrow_up_rounded).first;
+      final downStepper = find.byIcon(Icons.keyboard_arrow_down_rounded).first;
 
-    final upSize = tester.getSize(upStepper);
-    final downSize = tester.getSize(downStepper);
+      final upSize = tester.getSize(upStepper);
+      final downSize = tester.getSize(downStepper);
 
-    // Verify touch targets satisfy accessibility minimums
-    expect(upSize.width, greaterThanOrEqualTo(20.0));
-    expect(downSize.width, greaterThanOrEqualTo(20.0));
-  });
+      // Verify touch targets satisfy accessibility minimums
+      expect(upSize.width, greaterThanOrEqualTo(20.0));
+      expect(downSize.width, greaterThanOrEqualTo(20.0));
+    },
+  );
 
-  testWidgets('rapid double tap on Start Trip does not open stacked bottom sheets', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
-    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+  testWidgets(
+    'rapid double tap on Start Trip does not open stacked bottom sheets',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'walkthrough_completed_v2': true,
+        'setup_completed': true,
+      });
+      await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
-    // Rapid double tap on SET UP TRIP
-    await tester.tap(find.text('SET UP TRIP').last);
-    await tester.tap(find.text('SET UP TRIP').last, warnIfMissed: false);
-    await tester.pumpAndSettle();
+      // Rapid double tap on SET UP TRIP
+      await tester.tap(find.text('SET UP TRIP').last);
+      await tester.tap(find.text('SET UP TRIP').last, warnIfMissed: false);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Set Trip Timer'), findsOneWidget);
+      expect(find.text('Set Trip Timer'), findsOneWidget);
 
-    // Dismiss sheet
-    await tester.tap(find.byTooltip('Close'));
-    await tester.pumpAndSettle();
+      // Dismiss sheet
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
 
-    // Verify sheet is dismissed completely without a stacked second sheet
-    expect(find.text('Set Trip Timer'), findsNothing);
-  });
+      // Verify sheet is dismissed completely without a stacked second sheet
+      expect(find.text('Set Trip Timer'), findsNothing);
+    },
+  );
 
-  testWidgets('splash screen executes entrance animation and staggered typography reveal', (
-    tester,
-  ) async {
-    await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
+  testWidgets(
+    'splash screen executes entrance animation and staggered typography reveal',
+    (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
 
-    // Frame 0: Widgets are inflated
-    expect(find.text('LISKO'), findsOneWidget);
-    expect(find.text('Your Student Safety Companion'), findsOneWidget);
-    expect(find.text('Preparing LisKo...'), findsOneWidget);
+      // Frame 0: Widgets are inflated
+      expect(find.text('LISKO'), findsOneWidget);
+      expect(find.text('Your Student Safety Companion'), findsOneWidget);
+      expect(find.text('Preparing LisKo...'), findsOneWidget);
 
-    // Advance 400ms to complete shield scale-up & glow
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('LISKO'), findsOneWidget);
+      // Advance 400ms to complete shield scale-up & glow
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('LISKO'), findsOneWidget);
 
-    // Advance 550ms to complete staggered typography reveal
-    await tester.pump(const Duration(milliseconds: 550));
-    expect(find.text('Your Student Safety Companion'), findsOneWidget);
-    expect(find.text('Preparing LisKo...'), findsOneWidget);
+      // Advance 550ms to complete staggered typography reveal
+      await tester.pump(const Duration(milliseconds: 550));
+      expect(find.text('Your Student Safety Companion'), findsOneWidget);
+      expect(find.text('Preparing LisKo...'), findsOneWidget);
 
-    // Advance to verify smooth runner animation loop
-    await tester.pump(const Duration(milliseconds: 700));
-    expect(find.text('Preparing LisKo...'), findsOneWidget);
-  });
+      // Advance to verify smooth runner animation loop
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.text('Preparing LisKo...'), findsOneWidget);
+    },
+  );
 
-  testWidgets('onboarding screens execute smooth 60fps animations and layout cleanup', (
-    tester,
-  ) async {
-    // Step 2: NotificationBell pulse animation
-    await tester.pumpWidget(const MaterialApp(home: NotificationPermissionScreen()));
-    expect(find.byType(NotificationBell), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 900));
-    expect(find.text('Enable Notifications'), findsOneWidget);
+  testWidgets(
+    'onboarding screens execute smooth 60fps animations and layout cleanup',
+    (tester) async {
+      // Step 2: NotificationBell pulse animation
+      await tester.pumpWidget(
+        const MaterialApp(home: NotificationPermissionScreen()),
+      );
+      expect(find.byType(NotificationBell), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 900));
+      expect(find.text('Enable Notifications'), findsOneWidget);
 
-    // Step 4: SmsIllustration anchored floating speech bubbles
-    await tester.pumpWidget(const MaterialApp(home: SmsPermissionScreen()));
-    expect(find.byType(SmsIllustration), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 700));
-    expect(find.text('Are you home?'), findsOneWidget);
-    expect(find.text('SMS sent ✓'), findsOneWidget);
+      // Step 4: SmsIllustration anchored floating speech bubbles
+      await tester.pumpWidget(const MaterialApp(home: SmsPermissionScreen()));
+      expect(find.byType(SmsIllustration), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.text('Are you home?'), findsOneWidget);
+      expect(find.text('SMS sent ✓'), findsOneWidget);
 
-    // Step 5: LocationIllustration floating pin and compliance banner
-    await tester.pumpWidget(const MaterialApp(home: LocationAccessScreen()));
-    expect(find.byType(LocationIllustration), findsOneWidget);
-    expect(find.byType(LocationInfoBox), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 900));
-    expect(
-      find.text('Location is never tracked when no trip is active.'),
-      findsOneWidget,
-    );
+      // Step 5: LocationIllustration floating pin and compliance banner
+      await tester.pumpWidget(const MaterialApp(home: LocationAccessScreen()));
+      expect(find.byType(LocationIllustration), findsOneWidget);
+      expect(find.byType(LocationInfoBox), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 900));
+      expect(
+        find.text('Location is never tracked when no trip is active.'),
+        findsOneWidget,
+      );
 
-    // Completion Screen: Success checkmark bounce and sequential checklist
-    await tester.pumpWidget(const MaterialApp(home: SetupCompleteScreen()));
-    expect(find.byType(SuccessIllustration), findsOneWidget);
-    expect(find.byType(SetupChecklist), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 900));
-    expect(find.text("You're Ready!"), findsOneWidget);
-    expect(find.text('Notifications Enabled'), findsOneWidget);
-    expect(find.text('Trusted Contacts Added'), findsOneWidget);
-    expect(find.text('SMS Enabled'), findsOneWidget);
-    expect(find.text('Location Enabled'), findsOneWidget);
-  });
+      // Completion Screen: Success checkmark bounce and sequential checklist
+      await tester.pumpWidget(const MaterialApp(home: SetupCompleteScreen()));
+      expect(find.byType(SuccessIllustration), findsOneWidget);
+      expect(find.byType(SetupChecklist), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 900));
+      expect(find.text("You're Ready!"), findsOneWidget);
+      expect(find.text('Notifications Enabled'), findsOneWidget);
+      expect(find.text('Trusted Contacts Added'), findsOneWidget);
+      expect(find.text('SMS Enabled'), findsOneWidget);
+      expect(find.text('Location Enabled'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'trusted contacts manual form validates PH mobile and confirms deletion',
     (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: TrustedContactsScreen()),
-        ),
+        const MaterialApp(home: Scaffold(body: TrustedContactsScreen())),
       );
 
       // Open manual form
@@ -391,13 +420,15 @@ void main() {
       // Verify contact saved and manual form closed
       expect(find.text('SAVED CONTACTS'), findsOneWidget);
       expect(find.text('Pauline Santos'), findsOneWidget);
-      expect(find.text('Parent'), findsOneWidget);
-      expect(find.text('+63 9123456789'), findsOneWidget);
+      expect(find.textContaining('Parent'), findsOneWidget);
+      expect(find.textContaining('+63 9123456789'), findsOneWidget);
       expect(find.text('PS'), findsOneWidget);
       expect(find.byType(ManualContactExpandedForm), findsNothing);
 
-      // Trigger deletion modal
-      await tester.tap(find.byTooltip('Remove contact'));
+      // Trigger deletion modal via three-dot menu
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       expect(find.text('Remove Contact'), findsOneWidget);
       expect(
@@ -413,7 +444,9 @@ void main() {
       expect(find.text('Pauline Santos'), findsOneWidget);
 
       // Trigger deletion modal again and confirm Remove
-      await tester.tap(find.byTooltip('Remove contact'));
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Remove').last);
       await tester.pumpAndSettle();
@@ -428,11 +461,7 @@ void main() {
     'dashboard inactive timer shows --:--:-- in slate grey and bottom sheet chips are consistent',
     (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: TripTimerCard(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: TripTimerCard())),
       );
 
       // Verify neutral placeholder countdown and muted slate color
@@ -478,19 +507,38 @@ void main() {
     (tester) async {
       final now = DateTime.now();
       final mockTrips = [
-        TripRecord(id: '1', destination: 'Campus - Home', durationMinutes: 50, status: 'Completed', timestamp: now.subtract(const Duration(days: 1))),
-        TripRecord(id: '2', destination: 'Campus - Home', durationMinutes: 45, status: 'Extended', timestamp: now.subtract(const Duration(days: 3)), wasExtended: true),
-        TripRecord(id: '3', destination: 'Home - Campus', durationMinutes: 30, status: 'Alert', timestamp: now.subtract(const Duration(days: 5))),
+        TripRecord(
+          id: '1',
+          destination: 'Campus - Home',
+          durationMinutes: 50,
+          status: 'Completed',
+          timestamp: now.subtract(const Duration(days: 1)),
+        ),
+        TripRecord(
+          id: '2',
+          destination: 'Campus - Home',
+          durationMinutes: 45,
+          status: 'Extended',
+          timestamp: now.subtract(const Duration(days: 3)),
+          wasExtended: true,
+        ),
+        TripRecord(
+          id: '3',
+          destination: 'Home - Campus',
+          durationMinutes: 30,
+          status: 'Alert',
+          timestamp: now.subtract(const Duration(days: 5)),
+        ),
       ];
       final encoded = jsonEncode(mockTrips.map((t) => t.toJson()).toList());
-      SharedPreferences.setMockInitialValues({'trip_history_json': encoded, 'walkthrough_completed_v2': true, 'setup_completed': true});
+      SharedPreferences.setMockInitialValues({
+        'trip_history_json': encoded,
+        'walkthrough_completed_v2': true,
+        'setup_completed': true,
+      });
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: TripsTab(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: TripsTab())),
       );
       await tester.pumpAndSettle();
 
@@ -520,12 +568,11 @@ void main() {
       expect(find.byTooltip('Select date from calendar'), findsOneWidget);
 
       // Verify Bottom Navigation switches to TripsTab in HomeScreen
-      SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: HomeScreen(),
-        ),
-      );
+      SharedPreferences.setMockInitialValues({
+        'walkthrough_completed_v2': true,
+        'setup_completed': true,
+      });
+      await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
       expect(find.text('Iskolar'), findsOneWidget);
       await tester.tap(find.text('Trips'));
@@ -536,28 +583,34 @@ void main() {
     },
   );
 
-  test('geofence service resolves PUP Santa Maria and Home coordinates correctly', () async {
-    final service = GeofenceService();
+  test(
+    'geofence service resolves PUP Santa Maria and Home coordinates correctly',
+    () async {
+      final service = GeofenceService();
 
-    // Verify PUP Santa Maria Campus target
-    final campusTarget = await service.resolveTarget('Campus');
-    expect(campusTarget!.name, 'Campus');
-    expect(campusTarget.latitude, 14.869725503304737);
-    expect(campusTarget.longitude, 120.9990821362761);
-    expect(campusTarget.radiusMeters, 150.0);
+      // Verify PUP Santa Maria Campus target
+      final campusTarget = await service.resolveTarget('Campus');
+      expect(campusTarget!.name, 'Campus');
+      expect(campusTarget.latitude, 14.869725503304737);
+      expect(campusTarget.longitude, 120.9990821362761);
+      expect(campusTarget.radiusMeters, 150.0);
 
-    // Verify Home target
-    final homeTarget = await service.resolveTarget('Home');
-    expect(homeTarget!.name, 'Home');
-    expect(homeTarget.latitude, 14.8192);
-    expect(homeTarget.longitude, 120.9610);
-    expect(homeTarget.radiusMeters, 150.0);
-  });
+      // Verify Home target
+      final homeTarget = await service.resolveTarget('Home');
+      expect(homeTarget!.name, 'Home');
+      expect(homeTarget.latitude, 14.8192);
+      expect(homeTarget.longitude, 120.9610);
+      expect(homeTarget.radiusMeters, 150.0);
+    },
+  );
 
   testWidgets(
     'active trip geofence arrival triggers safety prompt with 90s countdown and handles safe confirmation',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+      SharedPreferences.setMockInitialValues({
+        'walkthrough_completed_v2': true,
+        'setup_completed': true,
+      });
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
       // 1. Stage and Start a trip to Campus
@@ -589,7 +642,10 @@ void main() {
 
       // 3. Verify Destination Reached state and safety confirmation prompt
       expect(find.text('Destination Reached'), findsOneWidget);
-      expect(find.textContaining("You've reached your destination"), findsOneWidget);
+      expect(
+        find.textContaining("You've reached your destination"),
+        findsOneWidget,
+      );
       expect(find.text("I'm Safe"), findsOneWidget);
       expect(find.text('NEED HELP'), findsOneWidget);
 
@@ -606,7 +662,10 @@ void main() {
   testWidgets(
     'geofence arrival handles + 15 min extension and resumes active commute countdown',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+      SharedPreferences.setMockInitialValues({
+        'walkthrough_completed_v2': true,
+        'setup_completed': true,
+      });
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
       // 1. Stage and Start a trip
@@ -645,89 +704,96 @@ void main() {
     },
   );
 
-  testWidgets(
-    'SettingsTab renders correctly and handles modal interactions',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: SettingsTab(),
+  testWidgets('SettingsTab renders correctly and handles modal interactions', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'walkthrough_completed_v2': true,
+      'setup_completed': true,
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsTab(
+            onReplayWalkthrough: (int start, int end, int tab) {},
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      // Verify Header
-      expect(find.text('Settings'), findsWidgets);
-      expect(find.text('Lisko Preferences & Diagnostics'), findsOneWidget);
+    // Verify Header
+    expect(find.text('Settings'), findsWidgets);
+    expect(find.text('Lisko Preferences & Diagnostics'), findsOneWidget);
 
-      // Verify Sections
-      expect(find.text('COMMUTE PRESETS & GEOFENCING'), findsOneWidget);
-      expect(find.text('ALARM & SAFETY PROTOCOL'), findsOneWidget);
-      expect(find.text('INFORMATION & SUPPORT'), findsOneWidget);
+    // Verify Sections
+    expect(find.text('COMMUTE PRESETS & GEOFENCING'), findsOneWidget);
+    expect(find.text('ALARM & SAFETY PROTOCOL'), findsOneWidget);
+    expect(find.text('INFORMATION & SUPPORT'), findsOneWidget);
 
-      // Verify Section 1 Items
-      expect(find.text('Home Location Pin'), findsOneWidget);
-      expect(find.text('Tap to set home coordinates'), findsOneWidget);
-      expect(find.text('PUP Santa Maria Campus'), findsOneWidget);
-      expect(find.text('Campus Destination Geofence (150m)'), findsOneWidget);
-      expect(find.text('Default Travel Duration'), findsOneWidget);
+    // Verify Section 1 Items
+    expect(find.text('Home Location Pin'), findsOneWidget);
+    expect(find.text('Tap to set home coordinates'), findsOneWidget);
+    expect(find.text('PUP Santa Maria Campus'), findsOneWidget);
+    expect(find.text('Campus Destination Geofence (150m)'), findsOneWidget);
+    expect(find.text('Default Travel Duration'), findsOneWidget);
 
-      // Verify Section 2 Items
-      expect(find.text('Expiry Alert Mode'), findsOneWidget);
-      expect(find.text('Covert SMS Emergency Dispatch'), findsOneWidget);
+    // Verify Section 2 Items
+    expect(find.text('Expiry Alert Mode'), findsOneWidget);
+    expect(find.text('Covert SMS Emergency Dispatch'), findsOneWidget);
 
-      // Verify Section 3 Items
-      expect(find.text('User Guide & Safety Protocol'), findsOneWidget);
-      expect(find.text('Frequently Asked Questions'), findsOneWidget);
-      expect(find.text('Privacy Policy & GPS Usage Rules'), findsOneWidget);
+    // Verify Section 3 Items
+    expect(find.text('User Guide & Safety Protocol'), findsOneWidget);
+    expect(find.text('Frequently Asked Questions'), findsOneWidget);
+    expect(find.text('Privacy Policy & GPS Usage Rules'), findsOneWidget);
 
-      // Verify Footer
-      expect(find.text('Lisko v1.0.0 • PUP Santa Maria Campus'), findsOneWidget);
-      expect(find.text('Privacy-Conscious Architecture • Offline-First'), findsOneWidget);
+    // Verify Footer
+    expect(find.text('Lisko v1.0.0 • PUP Santa Maria Campus'), findsOneWidget);
+    expect(
+      find.text('Privacy-Conscious Architecture • Offline-First'),
+      findsOneWidget,
+    );
 
-      // Open Home Geofence Modal
-      await tester.tap(find.text('Home Location Pin'));
-      await tester.pumpAndSettle();
-      expect(find.text('Set Home Geofence'), findsOneWidget);
-      expect(find.text('Use Current GPS Location'), findsOneWidget);
+    // Open Home Geofence Modal
+    await tester.tap(find.text('Home Location Pin'));
+    await tester.pumpAndSettle();
+    expect(find.text('Set Home Geofence'), findsOneWidget);
+    expect(find.text('Use Current GPS Location'), findsOneWidget);
 
-      // Tap Use Current GPS
-      await tester.tap(find.text('Use Current GPS Location'));
-      await tester.pumpAndSettle();
+    // Tap Use Current GPS
+    await tester.tap(find.text('Use Current GPS Location'));
+    await tester.pumpAndSettle();
 
-      // Verify Save
-      await tester.tap(find.text('Save Coordinates'));
-      await tester.pumpAndSettle();
+    // Verify Save
+    await tester.tap(find.text('Save Coordinates'));
+    await tester.pumpAndSettle();
 
-      // Modal should be closed
-      expect(find.text('Set Home Geofence'), findsNothing);
+    // Modal should be closed
+    expect(find.text('Set Home Geofence'), findsNothing);
 
-      // Open Campus Geofence Modal
-      await tester.tap(find.text('PUP Santa Maria Campus'));
-      await tester.pumpAndSettle();
-      expect(find.text('Campus Geofence'), findsOneWidget);
-      await tester.tap(find.text('Understood'));
-      await tester.pumpAndSettle();
+    // Open Campus Geofence Modal
+    await tester.tap(find.text('PUP Santa Maria Campus'));
+    await tester.pumpAndSettle();
+    expect(find.text('Campus Geofence'), findsOneWidget);
+    await tester.tap(find.text('Understood'));
+    await tester.pumpAndSettle();
 
-      // Open User Guide Modal
-      await tester.ensureVisible(find.text('User Guide & Safety Protocol'));
-      await tester.tap(find.text('User Guide & Safety Protocol'));
-      await tester.pumpAndSettle();
-      expect(find.text('User Guide & Safety Protocol'), findsWidgets);
-      await tester.tap(find.text('Got It, I Understand'));
-      await tester.pumpAndSettle();
+    // Open User Guide Modal
+    await tester.ensureVisible(find.text('User Guide & Safety Protocol'));
+    await tester.tap(find.text('User Guide & Safety Protocol'));
+    await tester.pumpAndSettle();
+    expect(find.text('User Guide & Safety Protocol'), findsWidgets);
+    await tester.tap(find.text('Got It, I Understand'));
+    await tester.pumpAndSettle();
 
-      // Open Privacy Modal
-      await tester.ensureVisible(find.text('Privacy Policy & GPS Usage Rules'));
-      await tester.tap(find.text('Privacy Policy & GPS Usage Rules'));
-      await tester.pumpAndSettle();
-      expect(find.text('Privacy Policy & GPS Usage Rules'), findsWidgets);
-      await tester.tap(find.byIcon(Icons.close_rounded).last);
-      await tester.pumpAndSettle();
-    },
-  );
+    // Open Privacy Modal
+    await tester.ensureVisible(find.text('Privacy Policy & GPS Usage Rules'));
+    await tester.tap(find.text('Privacy Policy & GPS Usage Rules'));
+    await tester.pumpAndSettle();
+    expect(find.text('Privacy Policy & GPS Usage Rules'), findsWidgets);
+    await tester.tap(find.byIcon(Icons.close_rounded).last);
+    await tester.pumpAndSettle();
+  });
 
   testWidgets(
     'TransitNodeSelectionSheet enforces priority order, single expansion accordion, and collapse lifecycle',
@@ -746,7 +812,10 @@ void main() {
 
       // 1. Verify header text and priority display order (1. Santa Maria, 2. Norzagaray, 3. Angat)
       expect(find.text('Select Transit Drop-off'), findsOneWidget);
-      expect(find.text('Choose a frequent commuter node in your area'), findsOneWidget);
+      expect(
+        find.text('Choose a frequent commuter node in your area'),
+        findsOneWidget,
+      );
 
       final santaMariaFinder = find.text('Santa Maria');
       final norzagarayFinder = find.text('Norzagaray');
@@ -767,7 +836,12 @@ void main() {
       // 2. All groups start collapsed initially
       expect(find.text('Caypombo Jeep/Bus Stop'), findsNothing);
       expect(find.text('Norzagaray Crossing'), findsNothing);
-      expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsNothing);
+      expect(
+        find.text(
+          'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)',
+        ),
+        findsNothing,
+      );
 
       // 3. Expand Santa Maria via header text tap
       await tester.tap(santaMariaFinder);
@@ -786,19 +860,33 @@ void main() {
       // 6. Expand Angat via header text tap -> Norzagaray automatically collapses
       await tester.tap(angatFinder);
       await tester.pumpAndSettle();
-      expect(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'), findsOneWidget);
+      expect(
+        find.text(
+          'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Norzagaray Crossing'), findsNothing);
 
       // 7. Select Angat terminal -> callback fires
-      await tester.tap(find.text('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)'));
+      await tester.tap(
+        find.text(
+          'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)',
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(selected, 'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)');
+      expect(
+        selected,
+        'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)',
+      );
 
       // 9. Verify exact resolveTarget() matching
       final service = GeofenceService();
       final resolvedNorz = await service.resolveTarget('Norzagaray Crossing');
-      final resolvedDivisoria = await service.resolveTarget('Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)');
+      final resolvedDivisoria = await service.resolveTarget(
+        'Angat-Divisoria Bus Terminal (Sta. Monica Transport / Racal / Agila Line)',
+      );
 
       expect(resolvedNorz!.id, 'norz_terminal');
       expect(resolvedDivisoria!.id, 'angat_divisoria');
@@ -807,38 +895,192 @@ void main() {
       expect(GeofenceService.commuterNodes.length, 14);
 
       // Verify original nodes with updated verified coordinates
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'caypombo' && n.name == 'Caypombo Jeep/Bus Stop' && n.latitude == 14.847154 && n.longitude == 120.980688), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'waltermart' && n.latitude == 14.824197 && n.longitude == 120.954508), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'bayan' && n.latitude == 14.821742177842623 && n.longitude == 120.96163959792787), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'norz_terminal' && n.name == 'Norzagaray Crossing' && n.latitude == 14.905759 && n.longitude == 121.038575), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_divisoria' && n.latitude == 14.922119 && n.longitude == 121.031189), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_monumento' && n.latitude == 14.916910 && n.longitude == 121.028850), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'angat_precious' && n.latitude == 14.917082 && n.longitude == 121.028816), true);
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'caypombo' &&
+              n.name == 'Caypombo Jeep/Bus Stop' &&
+              n.latitude == 14.847154 &&
+              n.longitude == 120.980688,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'waltermart' &&
+              n.latitude == 14.824197 &&
+              n.longitude == 120.954508,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'bayan' &&
+              n.latitude == 14.821742177842623 &&
+              n.longitude == 120.96163959792787,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'norz_terminal' &&
+              n.name == 'Norzagaray Crossing' &&
+              n.latitude == 14.905759 &&
+              n.longitude == 121.038575,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'angat_divisoria' &&
+              n.latitude == 14.922119 &&
+              n.longitude == 121.031189,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'angat_monumento' &&
+              n.latitude == 14.916910 &&
+              n.longitude == 121.028850,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'angat_precious' &&
+              n.latitude == 14.917082 &&
+              n.longitude == 121.028816,
+        ),
+        true,
+      );
 
       // Verify new approved terminals with exact October 03 field-verified coordinates
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_jeep_terminal' && n.latitude == 14.81761144692498 && n.longitude == 120.95939230431375), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_sti_station' && n.latitude == 14.8211107 && n.longitude == 120.959243), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_caypombo_p2p' && n.latitude == 14.848596041960562 && n.longitude == 120.98127901552402), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'sm_tierra_subd' && n.latitude == 14.873438 && n.longitude == 121.006779), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'pandi_p2p' && n.latitude == 14.885914 && n.longitude == 120.967473), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'bocaue_loading_station' && n.latitude == 14.807693 && n.longitude == 120.941586), true);
-      expect(GeofenceService.commuterNodes.any((n) => n.id == 'marilao_fortune' && n.latitude == 14.762252 && n.longitude == 120.948450), true);
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'sm_jeep_terminal' &&
+              n.latitude == 14.81761144692498 &&
+              n.longitude == 120.95939230431375,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'sm_sti_station' &&
+              n.latitude == 14.8211107 &&
+              n.longitude == 120.959243,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'sm_caypombo_p2p' &&
+              n.latitude == 14.848596041960562 &&
+              n.longitude == 120.98127901552402,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'sm_tierra_subd' &&
+              n.latitude == 14.873438 &&
+              n.longitude == 121.006779,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'pandi_p2p' &&
+              n.latitude == 14.885914 &&
+              n.longitude == 120.967473,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'bocaue_loading_station' &&
+              n.latitude == 14.807693 &&
+              n.longitude == 120.941586,
+        ),
+        true,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) =>
+              n.id == 'marilao_fortune' &&
+              n.latitude == 14.762252 &&
+              n.longitude == 120.948450,
+        ),
+        true,
+      );
 
       // Verify Rain's old coordinates and excluded terminals are NOT present
-      expect(GeofenceService.commuterNodes.any((n) => n.latitude == 14.864920 && n.longitude == 120.965000), false); // Rain old Tierra
-      expect(GeofenceService.commuterNodes.any((n) => n.latitude == 14.793000 && n.longitude == 120.925000), false); // Rain old Bocaue
-      expect(GeofenceService.commuterNodes.any((n) => n.latitude == 14.773121 && n.longitude == 120.949743), false); // Rain old Fortune
-      expect(GeofenceService.commuterNodes.any((n) => n.name.contains('Pandi Town Center')), false);
-      expect(GeofenceService.commuterNodes.any((n) => n.name.contains('Bocaue P2P')), false);
-      expect(GeofenceService.commuterNodes.any((n) => n.municipality == 'BALAGTAS'), false);
-      expect(GeofenceService.commuterNodes.any((n) => n.name.contains('SM City Marilao')), false);
-      expect(GeofenceService.commuterNodes.any((n) => n.municipality == 'SJDM'), false);
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) => n.latitude == 14.864920 && n.longitude == 120.965000,
+        ),
+        false,
+      ); // Rain old Tierra
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) => n.latitude == 14.793000 && n.longitude == 120.925000,
+        ),
+        false,
+      ); // Rain old Bocaue
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) => n.latitude == 14.773121 && n.longitude == 120.949743,
+        ),
+        false,
+      ); // Rain old Fortune
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) => n.name.contains('Pandi Town Center'),
+        ),
+        false,
+      );
+      expect(
+        GeofenceService.commuterNodes.any((n) => n.name.contains('Bocaue P2P')),
+        false,
+      );
+      expect(
+        GeofenceService.commuterNodes.any((n) => n.municipality == 'BALAGTAS'),
+        false,
+      );
+      expect(
+        GeofenceService.commuterNodes.any(
+          (n) => n.name.contains('SM City Marilao'),
+        ),
+        false,
+      );
+      expect(
+        GeofenceService.commuterNodes.any((n) => n.municipality == 'SJDM'),
+        false,
+      );
 
       // Verify target resolution works deterministically for updated/new terminals
-      final resolvedTierra = await service.resolveTarget('Tierra de Santa Maria Subdivision Jeep/Bus Stop');
+      final resolvedTierra = await service.resolveTarget(
+        'Tierra de Santa Maria Subdivision Jeep/Bus Stop',
+      );
       final resolvedPandi = await service.resolveTarget('P2P Pandi Terminal');
-      final resolvedBocaue = await service.resolveTarget('Bocaue Loading/Unloading Station');
-      final resolvedFortune = await service.resolveTarget('Fortune Market & Transport Terminal');
+      final resolvedBocaue = await service.resolveTarget(
+        'Bocaue Loading/Unloading Station',
+      );
+      final resolvedFortune = await service.resolveTarget(
+        'Fortune Market & Transport Terminal',
+      );
 
       expect(resolvedTierra!.id, 'sm_tierra_subd');
       expect(resolvedPandi!.id, 'pandi_p2p');
@@ -855,7 +1097,10 @@ void main() {
   testWidgets(
     'notification bell opens popover displaying max 5 recent items without auto-marking read',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'walkthrough_completed_v2': true, 'setup_completed': true});
+      SharedPreferences.setMockInitialValues({
+        'walkthrough_completed_v2': true,
+        'setup_completed': true,
+      });
 
       final todayList = List.generate(
         4,
@@ -933,7 +1178,8 @@ void main() {
         const AppNotificationItem(
           id: '3',
           title: 'Emergency Alert Sent',
-          message: 'Safety check timed out for Campus. Alert SMS sent to trusted contacts.',
+          message:
+              'Safety check timed out for Campus. Alert SMS sent to trusted contacts.',
           timeAgo: 'Yesterday',
           category: 'emergency',
           isRead: true,
@@ -1041,163 +1287,310 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final readIds = prefs.getStringList('read_notification_ids_set') ?? [];
       expect(readIds.length, 5);
-      expect(readIds, containsAll(['trip_0', 'trip_1', 'trip_2', 'trip_3', 'trip_4']));
+      expect(
+        readIds,
+        containsAll(['trip_0', 'trip_1', 'trip_2', 'trip_3', 'trip_4']),
+      );
       expect(readIds.contains('trip_5'), false);
       expect(readIds.contains('trip_6'), false);
       expect(readIds.contains('trip_7'), false);
     },
   );
 
-  test('claimAutomaticEscalation is idempotent across multiple callers', () async {
-    const storage = LocalStorageService();
-    await storage.saveActiveTrip(
-      isActive: true,
-      destination: 'Campus',
-      safetyCheckDeadlineMs: DateTime.now().millisecondsSinceEpoch - 1000,
-    );
+  test(
+    'claimAutomaticEscalation is idempotent across multiple callers',
+    () async {
+      const storage = LocalStorageService();
+      await storage.saveActiveTrip(
+        isActive: true,
+        destination: 'Campus',
+        safetyCheckDeadlineMs: DateTime.now().millisecondsSinceEpoch - 1000,
+      );
 
-    final firstClaim = await storage.claimAutomaticEscalation();
-    final secondClaim = await storage.claimAutomaticEscalation();
+      final firstClaim = await storage.claimAutomaticEscalation();
+      final secondClaim = await storage.claimAutomaticEscalation();
 
-    expect(firstClaim, true);
-    expect(secondClaim, false);
-  });
+      expect(firstClaim, true);
+      expect(secondClaim, false);
+    },
+  );
 
-  test('dispatchEmergencyAlert formats Timer Expired vs Destination Reached headers correctly', () async {
-    final smsService = SmsAlertService();
+  test(
+    'dispatchEmergencyAlert formats Timer Expired vs Destination Reached headers correctly',
+    () async {
+      final smsService = SmsAlertService();
 
-    final arrivedAlerts = await smsService.dispatchEmergencyAlert(
-      destination: 'Campus',
-      latitude: 14.869725,
-      longitude: 120.999082,
-      isArrived: true,
-    );
+      final arrivedAlerts = await smsService.dispatchEmergencyAlert(
+        destination: 'Campus',
+        latitude: 14.869725,
+        longitude: 120.999082,
+        isArrived: true,
+      );
 
-    final expiredAlerts = await smsService.dispatchEmergencyAlert(
-      destination: 'Campus',
-      latitude: 14.869725,
-      longitude: 120.999082,
-      isArrived: false,
-    );
+      final expiredAlerts = await smsService.dispatchEmergencyAlert(
+        destination: 'Campus',
+        latitude: 14.869725,
+        longitude: 120.999082,
+        isArrived: false,
+      );
 
-    expect(arrivedAlerts, isA<List<String>>());
-    expect(expiredAlerts, isA<List<String>>());
-  });
+      expect(arrivedAlerts, isA<List<String>>());
+      expect(expiredAlerts, isA<List<String>>());
+    },
+  );
 
-  test('Emergency SMS location format replaces map URL with raw coordinates and Google Maps search instruction', () async {
-    final smsService = SmsAlertService();
+  test(
+    'Emergency SMS location format replaces map URL with raw coordinates and Google Maps search instruction',
+    () async {
+      final smsService = SmsAlertService();
 
-    final sosSent = await smsService.sendManualSos(
-      latitude: 14.869725,
-      longitude: 120.999082,
-    );
-    expect(sosSent, isA<List<String>>());
+      final sosSent = await smsService.sendManualSos(
+        latitude: 14.869725,
+        longitude: 120.999082,
+      );
+      expect(sosSent, isA<List<String>>());
 
-    final fallbackSent = await smsService.sendManualSos(
-      locationError: 'GPS Disabled',
-    );
-    expect(fallbackSent, isA<List<String>>());
-  });
+      final fallbackSent = await smsService.sendManualSos(
+        locationError: 'GPS Disabled',
+      );
+      expect(fallbackSent, isA<List<String>>());
+    },
+  );
 
-  test('TripHistoryExportService generates valid non-empty PDF bytes excluding private fields', () async {
-    final service = TripHistoryExportService();
-    final trips = [
-      TripRecord(
-        id: 'internal_secret_doc_123',
-        destination: 'PUP Santa Maria Campus',
+  test(
+    'TripHistoryExportService generates valid non-empty PDF bytes excluding private fields',
+    () async {
+      final service = TripHistoryExportService();
+      final trips = [
+        TripRecord(
+          id: 'internal_secret_doc_123',
+          destination: 'PUP Santa Maria Campus',
+          durationMinutes: 45,
+          status: 'arrived',
+          timestamp: DateTime(2026, 10, 11, 16, 30),
+        ),
+        TripRecord(
+          id: 'internal_secret_doc_456',
+          destination: 'Home',
+          durationMinutes: 30,
+          status: 'expired',
+          timestamp: DateTime(2026, 10, 10, 8, 15),
+          wasExtended: true,
+        ),
+      ];
+
+      final pdfBytes = await service.generatePdfBytes(trips);
+
+      expect(pdfBytes, isNotEmpty);
+      expect(pdfBytes.length, greaterThan(100));
+
+      // Verify PDF header magic bytes (%PDF-1.)
+      final pdfHeader = String.fromCharCodes(pdfBytes.take(5));
+      expect(pdfHeader, '%PDF-');
+
+      // Verify display status mappings
+      expect(TripHistoryExportService.getDisplayStatus(trips[0]), 'ARRIVED');
+      expect(TripHistoryExportService.getDisplayStatus(trips[1]), 'EXPIRED');
+      expect(TripHistoryExportService.formatDuration(45), '45 mins');
+    },
+  );
+
+  test(
+    'EmergencyDispatchService executes manual SOS dispatch without throwing',
+    () async {
+      final dispatcher = EmergencyDispatchService();
+      final sentList = await dispatcher.executeManualSosDispatch(
+        destination: 'Campus',
+        totalDuration: const Duration(minutes: 45),
+      );
+
+      expect(sentList, isA<List<String>>());
+    },
+  );
+
+  test(
+    'protect_contacts_enabled setting persists and defaults to false',
+    () async {
+      const storage = LocalStorageService();
+      expect(await storage.readProtectContactsEnabled(), false);
+
+      await storage.saveProtectContactsEnabled(true);
+      expect(await storage.readProtectContactsEnabled(), true);
+
+      await storage.saveProtectContactsEnabled(false);
+      expect(await storage.readProtectContactsEnabled(), false);
+    },
+  );
+
+  test(
+    '30-day trip history retention prunes old trips and retains recent trips',
+    () async {
+      const storage = LocalStorageService();
+      final now = DateTime.now();
+
+      final recentTrip = TripRecord(
+        id: 'trip_recent_1d',
+        destination: 'Campus',
+        durationMinutes: 30,
+        status: 'arrived',
+        timestamp: now.subtract(const Duration(days: 1)),
+      );
+
+      final boundaryTrip = TripRecord(
+        id: 'trip_boundary_29d',
+        destination: 'Home',
         durationMinutes: 45,
         status: 'arrived',
-        timestamp: DateTime(2026, 10, 11, 16, 30),
-      ),
-      TripRecord(
-        id: 'internal_secret_doc_456',
-        destination: 'Home',
-        durationMinutes: 30,
-        status: 'expired',
-        timestamp: DateTime(2026, 10, 10, 8, 15),
-        wasExtended: true,
-      ),
-    ];
+        timestamp: now.subtract(const Duration(days: 29)),
+      );
 
-    final pdfBytes = await service.generatePdfBytes(trips);
+      final oldTrip = TripRecord(
+        id: 'trip_old_35d',
+        destination: 'Mall',
+        durationMinutes: 60,
+        status: 'arrived',
+        timestamp: now.subtract(const Duration(days: 35)),
+      );
 
-    expect(pdfBytes, isNotEmpty);
-    expect(pdfBytes.length, greaterThan(100));
+      await storage.saveTripHistory([recentTrip, boundaryTrip, oldTrip]);
 
-    // Verify PDF header magic bytes (%PDF-1.)
-    final pdfHeader = String.fromCharCodes(pdfBytes.take(5));
-    expect(pdfHeader, '%PDF-');
+      final retained = await storage.readTripHistory();
 
-    // Verify display status mappings
-    expect(TripHistoryExportService.getDisplayStatus(trips[0]), 'ARRIVED');
-    expect(TripHistoryExportService.getDisplayStatus(trips[1]), 'EXPIRED');
-    expect(TripHistoryExportService.formatDuration(45), '45 mins');
-  });
+      // Verify 1-day old and 29-day old trips are retained
+      expect(retained.any((t) => t.id == 'trip_recent_1d'), true);
+      expect(retained.any((t) => t.id == 'trip_boundary_29d'), true);
 
-  test('EmergencyDispatchService executes manual SOS dispatch without throwing', () async {
-    final dispatcher = EmergencyDispatchService();
-    final sentList = await dispatcher.executeManualSosDispatch(
-      destination: 'Campus',
-      totalDuration: const Duration(minutes: 45),
-    );
+      // Verify 35-day old trip is pruned
+      expect(retained.any((t) => t.id == 'trip_old_35d'), false);
+      expect(retained.length, 2);
 
-    expect(sentList, isA<List<String>>());
-  });
+      // Verify pruned state persists in SharedPreferences on re-read
+      final reRead = await storage.readTripHistory();
+      expect(reRead.length, 2);
+      expect(reRead.any((t) => t.id == 'trip_old_35d'), false);
+    },
+  );
 
-  test('protect_contacts_enabled setting persists and defaults to false', () async {
-    const storage = LocalStorageService();
-    expect(await storage.readProtectContactsEnabled(), false);
+  test(
+    'validateFullName accepts valid human names and rejects numbers/emojis/empty',
+    () {
+      expect(validateFullName('Maria Santos'), null);
+      expect(validateFullName('Ma. Cristina Reyes'), null);
+      expect(validateFullName('Anne-Marie Cruz'), null);
+      expect(validateFullName("D'Angelo Reyes"), null);
+      expect(validateFullName('José dela Cruz'), null);
+      expect(validateFullName('Peña'), null);
 
-    await storage.saveProtectContactsEnabled(true);
-    expect(await storage.readProtectContactsEnabled(), true);
+      expect(validateFullName(''), 'Contact name is required');
+      expect(validateFullName('   '), 'Contact name is required');
+      expect(validateFullName('12345'), 'Contact name must contain letters');
+      expect(
+        validateFullName('Maria Santos 123'),
+        'Name contains invalid characters (numbers/emojis not allowed)',
+      );
+      expect(
+        validateFullName('Maria Santos 😊'),
+        'Name contains invalid characters (numbers/emojis not allowed)',
+      );
+    },
+  );
 
-    await storage.saveProtectContactsEnabled(false);
-    expect(await storage.readProtectContactsEnabled(), false);
-  });
+  test(
+    'validateCustomRelationship accepts valid custom relationships and rejects digits/emojis/empty',
+    () {
+      expect(validateCustomRelationship('Cousin'), null);
+      expect(validateCustomRelationship('Older Sister'), null);
+      expect(validateCustomRelationship('Sister-in-law'), null);
+      expect(validateCustomRelationship('Step Mother'), null);
 
-  test('30-day trip history retention prunes old trips and retains recent trips', () async {
-    const storage = LocalStorageService();
-    final now = DateTime.now();
+      expect(
+        validateCustomRelationship(''),
+        'Please enter a relationship (e.g., Cousin)',
+      );
+      expect(
+        validateCustomRelationship('   '),
+        'Please enter a relationship (e.g., Cousin)',
+      );
+      expect(
+        validateCustomRelationship('Cousin123'),
+        'Relationship must contain letters only (e.g., Sister-in-law)',
+      );
+      expect(
+        validateCustomRelationship('Cousin😊'),
+        'Relationship must contain letters only (e.g., Sister-in-law)',
+      );
+    },
+  );
 
-    final recentTrip = TripRecord(
-      id: 'trip_recent_1d',
-      destination: 'Campus',
-      durationMinutes: 30,
-      status: 'arrived',
-      timestamp: now.subtract(const Duration(days: 1)),
-    );
+  testWidgets(
+    'Onboarding Trusted Contacts saves Cousin for Others selection and exposes Edit/Delete via three-dot menu',
+    (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: TrustedContactsScreen()));
+      await tester.pumpAndSettle();
 
-    final boundaryTrip = TripRecord(
-      id: 'trip_boundary_29d',
-      destination: 'Home',
-      durationMinutes: 45,
-      status: 'arrived',
-      timestamp: now.subtract(const Duration(days: 29)),
-    );
+      // 1. Open manual contact form
+      await tester.tap(find.text('Add Manual Contact'));
+      await tester.pumpAndSettle();
 
-    final oldTrip = TripRecord(
-      id: 'trip_old_35d',
-      destination: 'Mall',
-      durationMinutes: 60,
-      status: 'arrived',
-      timestamp: now.subtract(const Duration(days: 35)),
-    );
+      // 2. Fill Full Name and Phone Number
+      await tester.enterText(
+        find.widgetWithText(TextField, 'e.g., Mom'),
+        'Maria Santos',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, '9XX XXX XXXX'),
+        '9171234567',
+      );
 
-    await storage.saveTripHistory([recentTrip, boundaryTrip, oldTrip]);
+      // 3. Scroll to and tap 'Others' relationship chip
+      final othersChip = find.text('Others');
+      await tester.ensureVisible(othersChip);
+      await tester.pumpAndSettle();
+      await tester.tap(othersChip);
+      await tester.pumpAndSettle();
 
-    final retained = await storage.readTripHistory();
+      // 4. Enter custom relationship 'Cousin' into the newly rendered custom field
+      final customRelField = find.widgetWithText(TextField, 'e.g., Friend');
+      expect(customRelField, findsOneWidget);
+      await tester.enterText(customRelField, 'Cousin');
+      await tester.pumpAndSettle();
 
-    // Verify 1-day old and 29-day old trips are retained
-    expect(retained.any((t) => t.id == 'trip_recent_1d'), true);
-    expect(retained.any((t) => t.id == 'trip_boundary_29d'), true);
+      // 5. Scroll to and tap Save Contact
+      final saveBtn = find.text('Save Contact');
+      await tester.ensureVisible(saveBtn);
+      await tester.pumpAndSettle();
+      await tester.tap(saveBtn);
+      await tester.pumpAndSettle();
 
-    // Verify 35-day old trip is pruned
-    expect(retained.any((t) => t.id == 'trip_old_35d'), false);
-    expect(retained.length, 2);
+      // 6. Verify saved contact displays 'Cousin', NOT 'Others'
+      expect(find.text('Maria Santos'), findsOneWidget);
+      expect(find.textContaining('Cousin'), findsOneWidget);
+      expect(find.textContaining('Others'), findsNothing);
 
-    // Verify pruned state persists in SharedPreferences on re-read
-    final reRead = await storage.readTripHistory();
-    expect(reRead.length, 2);
-    expect(reRead.any((t) => t.id == 'trip_old_35d'), false);
-  });
+      // 7. Verify three-dot menu button is present and tap it
+      expect(find.byIcon(Icons.more_vert_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+
+      // 8. Verify Edit and Delete options are exposed in PopupMenu
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+
+      // 9. Tap Edit
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+
+      // Verify Edit bottom sheet opened with prefilled custom relationship 'Cousin'
+      expect(find.text('Edit Contact'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Cousin'), findsOneWidget);
+
+      // Change custom relationship to 'Aunt'
+      await tester.enterText(find.widgetWithText(TextField, 'Cousin'), 'Aunt');
+      await tester.tap(find.text('Save Changes'));
+      await tester.pumpAndSettle();
+
+      // Verify updated contact displays 'Aunt'
+      expect(find.textContaining('Aunt'), findsOneWidget);
+    },
+  );
 }
