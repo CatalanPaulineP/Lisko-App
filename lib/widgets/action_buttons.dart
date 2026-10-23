@@ -113,6 +113,28 @@ class ContactPerson {
     }
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
+
+  /// Extracts digits and normalizes Philippine mobile prefixes for phone comparison.
+  static String extractPhoneDigits(String phone) {
+    String digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('63') && digits.length > 10) {
+      digits = digits.substring(2);
+    }
+    while (digits.startsWith('0')) {
+      digits = digits.substring(1);
+    }
+    return digits;
+  }
+
+  /// Compares two phone numbers by normalized digits (ignoring spaces, dashes, and prefix differences like +63 vs 09).
+  static bool isSamePhoneNumber(String phone1, String phone2) {
+    final d1 = extractPhoneDigits(phone1);
+    final d2 = extractPhoneDigits(phone2);
+    if (d1.isNotEmpty && d2.isNotEmpty) {
+      return d1 == d2;
+    }
+    return phone1.trim() == phone2.trim();
+  }
 }
 
 /// Validates that full name contains valid human-name Unicode characters.
