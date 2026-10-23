@@ -245,12 +245,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
             ? result
             : selected.copyWith(relationship: 'Parent');
 
-        if (!savedContacts.any((c) => c.phone == finalContact.phone)) {
+        if (!savedContacts.any((c) => ContactPerson.isSamePhoneNumber(c.phone, finalContact.phone))) {
           setState(() => savedContacts.add(finalContact));
 
           final storage = const LocalStorageService();
           final currentSaved = await storage.readContacts();
-          if (!currentSaved.any((c) => c.phone == finalContact.phone)) {
+          if (!currentSaved.any((c) => ContactPerson.isSamePhoneNumber(c.phone, finalContact.phone))) {
             currentSaved.add(finalContact);
             await storage.saveContacts(currentSaved);
           }
@@ -439,14 +439,14 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                   );
                   return;
                 }
-                if (!savedContacts.any((c) => c.phone == contact.phone)) {
+                if (!savedContacts.any((c) => ContactPerson.isSamePhoneNumber(c.phone, contact.phone))) {
                   setState(() {
                     savedContacts.add(contact);
                     manualFormExpanded = false;
                   });
                   final storage = const LocalStorageService();
                   final currentSaved = await storage.readContacts();
-                  if (!currentSaved.any((c) => c.phone == contact.phone)) {
+                  if (!currentSaved.any((c) => ContactPerson.isSamePhoneNumber(c.phone, contact.phone))) {
                     currentSaved.add(contact);
                     await storage.saveContacts(currentSaved);
                   }

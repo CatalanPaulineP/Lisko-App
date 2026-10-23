@@ -172,7 +172,7 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
 
   void _setAsPrimaryContact(ContactPerson selectedContact) {
     final List<ContactPerson> updated = List<ContactPerson>.from(_contacts);
-    updated.removeWhere((c) => c.name == selectedContact.name && c.phone == selectedContact.phone);
+    updated.removeWhere((c) => c.name == selectedContact.name && ContactPerson.isSamePhoneNumber(c.phone, selectedContact.phone));
     updated.insert(0, selectedContact);
     _updateContacts(updated);
 
@@ -266,7 +266,7 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
           return;
         }
         final updated = List<ContactPerson>.from(_contacts);
-        if (!updated.any((c) => c.phone == confirmed.phone)) {
+        if (!updated.any((c) => ContactPerson.isSamePhoneNumber(c.phone, confirmed.phone))) {
           updated.add(confirmed);
           _updateContacts(updated);
           
@@ -310,8 +310,16 @@ class _ContactsTabState extends State<ContactsTab> with WidgetsBindingObserver {
             );
             return;
           }
-          final updated = List<ContactPerson>.from(_contacts)..add(newContact);
-          _updateContacts(updated);
+          if (!_contacts.any((c) => ContactPerson.isSamePhoneNumber(c.phone, newContact.phone))) {
+            final updated = List<ContactPerson>.from(_contacts)..add(newContact);
+            _updateContacts(updated);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Contact already exists in your trusted list'),
+              ),
+            );
+          }
         },
       ),
     );
