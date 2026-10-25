@@ -116,7 +116,7 @@ class GeofenceService {
       longitude: 120.980688,
       municipality: 'SANTA MARIA',
       transitType: 'jeep',
-      radiusMeters: 150.0,
+      address: 'Norzagaray-Santa Maria Road, Brgy. Caypombo, Santa Maria, 3022 Bulacan',
     ),
     GeofenceTarget(
       id: 'waltermart',
@@ -125,7 +125,7 @@ class GeofenceService {
       longitude: 120.954508,
       municipality: 'SANTA MARIA',
       transitType: 'jeep',
-      radiusMeters: 150.0,
+      address: 'J.P. Rizal Street corner By-Pass Road, Brgy. Santa Clara, Santa Maria, 3022 Bulacan',
     ),
     GeofenceTarget(
       id: 'bayan',
@@ -134,7 +134,7 @@ class GeofenceService {
       longitude: 120.96163959792787,
       municipality: 'SANTA MARIA',
       transitType: 'jeep',
-      radiusMeters: 150.0,
+      address: 'J.P. Rizal Street, Brgy. Poblacion, Santa Maria, 3022 Bulacan',
     ),
     GeofenceTarget(
       id: 'sm_jeep_terminal',
@@ -147,7 +147,7 @@ class GeofenceService {
     ),
     GeofenceTarget(
       id: 'sm_sti_station',
-      name: 'STI College - Sta. Maria Loading/Unloading Station',
+      name: 'STI College - Sta. Maria Terminal',
       latitude: 14.8211107,
       longitude: 120.959243,
       municipality: 'SANTA MARIA',
@@ -192,7 +192,7 @@ class GeofenceService {
       longitude: 121.031189,
       municipality: 'ANGAT',
       transitType: 'bus',
-      address: 'Matías A. Fernando Ave, Brgy. Poblacion, Angat, Bulacan',
+      address: 'Matías A. Fernando Ave, Brgy. Santa Cruz, Angat, Bulacan',
     ),
     GeofenceTarget(
       id: 'angat_monumento',
@@ -210,7 +210,7 @@ class GeofenceService {
       longitude: 121.028816,
       municipality: 'ANGAT',
       transitType: 'bus',
-      address: 'General Alejo Santos Highway, Brgy. Poblacion, Angat, Bulacan',
+      address: 'General Alejo Santos Highway, Brgy. Santa Cruz, Angat, Bulacan',
     ),
 
     // --- PANDI ---
@@ -232,7 +232,7 @@ class GeofenceService {
       longitude: 120.941586,
       municipality: 'BOCAUE',
       transitType: 'jeep',
-      address: '',
+      address: 'RW5R+3JG, Brgy. Poblacion, Bocaue, Bulacan',
     ),
 
     // --- MARILAO ---
