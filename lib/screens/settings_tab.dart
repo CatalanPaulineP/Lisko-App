@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Settings & Preferences Tab
 // File: lib/screens/settings_tab.dart
 //
@@ -14,12 +14,15 @@
 // ==============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import '../constants/app_colors.dart';
 import '../constants/app_icons.dart';
 import '../services/auth_service.dart';
+import '../services/firebase_service.dart';
 import '../services/local_storage_service.dart';
 import '../services/permission_service.dart';
 import 'faq_screen.dart';
@@ -49,7 +52,8 @@ class SettingsTab extends StatefulWidget {
   final GlobalKey? sosWidgetKey;
   final bool isWalkthroughActive;
   final int walkthroughStep;
-  final void Function(int startStepIndex, int endStepIndex, int targetTab) onReplayWalkthrough;
+  final void Function(int startStepIndex, int endStepIndex, int targetTab)
+  onReplayWalkthrough;
 
   @override
   State<SettingsTab> createState() => _SettingsTabState();
@@ -179,7 +183,9 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Authentication required to enable contacts protection.'),
+              content: Text(
+                'Authentication required to enable contacts protection.',
+              ),
               backgroundColor: AppColors.body,
               duration: Duration(seconds: 3),
             ),
@@ -288,7 +294,10 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.body,
+                    ),
                   ),
                 ],
               ),
@@ -307,13 +316,21 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                       label: 'Location',
                       value: 'PUP Santa Maria, Bulacan',
                     ),
-                    const Divider(height: 16, thickness: 1, color: AppColors.border),
+                    const Divider(
+                      height: 16,
+                      thickness: 1,
+                      color: AppColors.border,
+                    ),
                     _buildModalInfoRow(
                       icon: Icons.my_location_rounded,
                       label: 'Coordinates',
                       value: 'Latitude: 14.869726° N\nLongitude: 120.999082° E',
                     ),
-                    const Divider(height: 16, thickness: 1, color: AppColors.border),
+                    const Divider(
+                      height: 16,
+                      thickness: 1,
+                      color: AppColors.border,
+                    ),
                     _buildModalInfoRow(
                       icon: Icons.radar_rounded,
                       label: 'Geofence Radius',
@@ -423,18 +440,14 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
   void _openUserGuideModal() {
     Navigator.push(
       context,
-      MaterialPageRoute<void>(
-        builder: (context) => const UserGuideScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (context) => const UserGuideScreen()),
     );
   }
 
   void _openFaqScreen() {
     Navigator.push(
       context,
-      MaterialPageRoute<void>(
-        builder: (context) => const FaqScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (context) => const FaqScreen()),
     );
   }
 
@@ -473,6 +486,15 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const PrivacyPolicyModalBottomSheet(),
+    );
+  }
+
+  void _openDataDeletionModal() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const DataDeletionModalBottomSheet(),
     );
   }
 
@@ -527,7 +549,10 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.body,
+                    ),
                   ),
                 ],
               ),
@@ -620,15 +645,17 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-              const Icon(Icons.play_circle_outline_rounded, color: AppColors.primary, size: 20),
+              const Icon(
+                Icons.play_circle_outline_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
             ],
           ),
         ),
       ),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -664,7 +691,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                               : 'Tap to set home coordinates',
                           onTap: _openHomeGeofenceModal,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildActionRow(
                           iconStr: AppIcons.building,
                           semanticIcon: Icons.apartment_rounded,
@@ -674,7 +705,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           subtitle: 'Campus Destination Geofence (150m)',
                           onTap: _openCampusGeofenceModal,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildDropdownRow(
                           iconStr: AppIcons.schedule,
                           semanticIcon: Icons.timer_rounded,
@@ -682,10 +717,17 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           iconColor: AppColors.body,
                           title: 'Default Travel Duration',
                           value: _defaultDuration,
-                          items: const ['15 mins', '30 mins', '45 mins', '60 mins'],
+                          items: const [
+                            '15 mins',
+                            '30 mins',
+                            '45 mins',
+                            '60 mins',
+                          ],
                           onChanged: (val) {
                             setState(() => _defaultDuration = val!);
-                            final mins = int.tryParse(val!.replaceAll(' mins', '')) ?? 45;
+                            final mins =
+                                int.tryParse(val!.replaceAll(' mins', '')) ??
+                                45;
                             _storage.saveDefaultTravelDuration(mins);
                           },
                         ),
@@ -708,11 +750,16 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           iconBg: const Color(0xFFFFDAD8),
                           iconColor: AppColors.primary,
                           title: 'Protect Trusted Contacts',
-                          subtitle: 'Require device authentication to view and manage trusted contacts.',
+                          subtitle:
+                              'Require device authentication to view and manage trusted contacts.',
                           value: _protectContactsEnabled,
                           onChanged: _toggleProtectContacts,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildActionRow(
                           rowKey: widget.sosWidgetKey,
                           iconStr: AppIcons.shield,
@@ -723,7 +770,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           subtitle: 'Add an SOS shortcut to your Home Screen.',
                           onTap: _openSosWidgetModal,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildActionRow(
                           rowKey: widget.expiryAlertKey,
                           iconStr: AppIcons.vibration,
@@ -734,14 +785,19 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           subtitle: _alertMode,
                           onTap: _openExpiryAlertModeModal,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildInfoRow(
                           iconStr: AppIcons.warning,
                           semanticIcon: Icons.warning_rounded,
                           iconBg: const Color(0xFFFFDAD8),
                           iconColor: AppColors.primary,
                           title: 'Covert SMS Emergency Dispatch',
-                          subtitle: '3-cycle haptic escalation before offline SMS trigger',
+                          subtitle:
+                              '3-cycle haptic escalation before offline SMS trigger',
                         ),
                       ],
                     ),
@@ -771,15 +827,24 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           isAllowed: _hasContacts,
                           onTap: openAppSettings,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildPermissionRow(
                           semanticIcon: Icons.notifications_active_rounded,
                           title: 'Notifications',
-                          subtitle: 'Used for travel reminders and safety alerts.',
+                          subtitle:
+                              'Used for travel reminders and safety alerts.',
                           isAllowed: _hasNotifications,
                           onTap: openAppSettings,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildPermissionRow(
                           semanticIcon: Icons.sms_rounded,
                           title: 'SMS',
@@ -787,11 +852,16 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           isAllowed: _hasSms,
                           onTap: openAppSettings,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildPermissionRow(
                           semanticIcon: Icons.location_on_rounded,
                           title: 'Location',
-                          subtitle: 'Used for arrival detection and emergency location.',
+                          subtitle:
+                              'Used for arrival detection and emergency location.',
                           isAllowed: _hasLocation,
                           onTap: openAppSettings,
                         ),
@@ -815,7 +885,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           title: 'User Guide & Safety Protocol',
                           onTap: _openUserGuideModal,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildActionRow(
                           iconStr: AppIcons.infoOutline,
                           semanticIcon: Icons.play_circle_outline,
@@ -824,7 +898,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           title: 'Replay App Walkthrough',
                           onTap: _openReplayWalkthroughModal,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildActionRow(
                           iconStr: AppIcons.infoOutline,
                           semanticIcon: Icons.quiz_rounded,
@@ -833,7 +911,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           title: 'Frequently Asked Questions',
                           onTap: _openFaqScreen,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildActionRow(
                           iconStr: AppIcons.shield,
                           semanticIcon: Icons.privacy_tip_rounded,
@@ -842,7 +924,26 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                           title: 'Privacy Policy & GPS Usage Rules',
                           onTap: _openPrivacyModal,
                         ),
-                        const Divider(height: 1, thickness: 1, color: AppColors.border),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
+                        _buildActionRow(
+                          iconStr: AppIcons.shield,
+                          semanticIcon: Icons.delete_outline_rounded,
+                          iconBg: const Color(0xFFFFDAD8),
+                          iconColor: AppColors.primary,
+                          title: 'Request Data Deletion',
+                          subtitle:
+                              'Inquire about or request cloud data deletion',
+                          onTap: _openDataDeletionModal,
+                        ),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.border,
+                        ),
                         _buildActionRow(
                           iconStr: AppIcons.warning,
                           semanticIcon: Icons.description_rounded,
@@ -965,7 +1066,9 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                 color: statusBg,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isAllowed ? AppColors.success.withValues(alpha: 0.3) : AppColors.border,
+                  color: isAllowed
+                      ? AppColors.success.withValues(alpha: 0.3)
+                      : AppColors.border,
                 ),
               ),
               child: Text(
@@ -978,7 +1081,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 18),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF94A3B8),
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -1021,7 +1128,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
             height: 36,
             decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
             child: Center(
-              child: AppIcon.badge(iconStr, color: iconColor, semanticIcon: semanticIcon),
+              child: AppIcon.badge(
+                iconStr,
+                color: iconColor,
+                semanticIcon: semanticIcon,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -1079,7 +1190,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
             height: 36,
             decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
             child: Center(
-              child: AppIcon.badge(iconStr, color: iconColor, semanticIcon: semanticIcon),
+              child: AppIcon.badge(
+                iconStr,
+                color: iconColor,
+                semanticIcon: semanticIcon,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -1096,17 +1211,17 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.body),
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: AppColors.body,
+              ),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: AppColors.header,
               ),
               items: items.map((String val) {
-                return DropdownMenuItem<String>(
-                  value: val,
-                  child: Text(val),
-                );
+                return DropdownMenuItem<String>(value: val, child: Text(val));
               }).toList(),
               onChanged: onChanged,
             ),
@@ -1138,7 +1253,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
               height: 36,
               decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
               child: Center(
-                child: AppIcon.badge(iconStr, color: iconColor, semanticIcon: semanticIcon),
+                child: AppIcon.badge(
+                  iconStr,
+                  color: iconColor,
+                  semanticIcon: semanticIcon,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -1164,7 +1283,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                         color: AppColors.body,
                       ),
                     ),
-                  ]
+                  ],
                 ],
               ),
             ),
@@ -1183,7 +1302,8 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
     required String title,
     String? subtitle,
   }) {
-    return Padding(      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Container(
@@ -1191,7 +1311,11 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
             height: 36,
             decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
             child: Center(
-              child: AppIcon.badge(iconStr, color: iconColor, semanticIcon: semanticIcon),
+              child: AppIcon.badge(
+                iconStr,
+                color: iconColor,
+                semanticIcon: semanticIcon,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -1217,7 +1341,7 @@ class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
                       color: AppColors.body,
                     ),
                   ),
-                ]
+                ],
               ],
             ),
           ),
@@ -1489,8 +1613,12 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
   @override
   void initState() {
     super.initState();
-    _latController = TextEditingController(text: widget.currentLat?.toString() ?? '');
-    _lngController = TextEditingController(text: widget.currentLng?.toString() ?? '');
+    _latController = TextEditingController(
+      text: widget.currentLat?.toString() ?? '',
+    );
+    _lngController = TextEditingController(
+      text: widget.currentLng?.toString() ?? '',
+    );
   }
 
   @override
@@ -1539,7 +1667,11 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
       if (!granted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location permission is required to fetch current GPS.')),
+            const SnackBar(
+              content: Text(
+                'Location permission is required to fetch current GPS.',
+              ),
+            ),
           );
         }
         return;
@@ -1550,7 +1682,11 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
     if (!serviceEnabled) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location Service is OFF. Please turn on GPS in phone settings.')),
+          const SnackBar(
+            content: Text(
+              'Location Service is OFF. Please turn on GPS in phone settings.',
+            ),
+          ),
         );
       }
       return;
@@ -1572,7 +1708,9 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
           _isFetchingGps = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Current GPS location captured successfully.')),
+          const SnackBar(
+            content: Text('Current GPS location captured successfully.'),
+          ),
         );
       } else if (mounted) {
         setState(() {
@@ -1658,7 +1796,10 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.body,
+                    ),
                   ),
                 ],
               ),
@@ -1674,7 +1815,11 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.my_location_rounded, size: 20),
-                  label: Text(_isFetchingGps ? 'Acquiring GPS...' : 'Use Current GPS Location'),
+                  label: Text(
+                    _isFetchingGps
+                        ? 'Acquiring GPS...'
+                        : 'Use Current GPS Location',
+                  ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -1689,7 +1834,9 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
                   Expanded(
                     child: TextField(
                       controller: _latController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Latitude',
                         hintText: 'e.g. 14.8512',
@@ -1703,7 +1850,9 @@ class _SetHomeGeofenceModalState extends State<SetHomeGeofenceModal> {
                   Expanded(
                     child: TextField(
                       controller: _lngController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Longitude',
                         hintText: 'e.g. 120.9856',
@@ -1812,6 +1961,402 @@ class InfoModalBottomSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class DataDeletionModalBottomSheet extends StatefulWidget {
+  const DataDeletionModalBottomSheet({super.key});
+
+  @override
+  State<DataDeletionModalBottomSheet> createState() =>
+      _DataDeletionModalBottomSheetState();
+}
+
+class _DataDeletionModalBottomSheetState
+    extends State<DataDeletionModalBottomSheet> {
+  static const String _supportEmail = 'liskoapp.team@gmail.com';
+  String? _generatedReferenceId;
+  bool _isGeneratingRef = false;
+
+  Future<void> _handleGenerateVerificationRef() async {
+    if (_isGeneratingRef) return;
+    setState(() {
+      _isGeneratingRef = true;
+    });
+
+    final refId = await FirebaseService().createDeletionVerificationReference();
+
+    if (mounted) {
+      setState(() {
+        _isGeneratingRef = false;
+        _generatedReferenceId = refId;
+      });
+
+      if (refId != null) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Verification Reference created successfully! Copy and include it in your email.',
+            ),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to generate verification reference. Please check internet connection.',
+            ),
+            backgroundColor: AppColors.primary,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  void _copyReferenceToClipboard() {
+    if (_generatedReferenceId == null) return;
+    Clipboard.setData(ClipboardData(text: _generatedReferenceId!));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Verification Reference copied to clipboard ($_generatedReferenceId).',
+        ),
+        backgroundColor: AppColors.header,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  Future<void> _sendEmailRequest() async {
+    final Uri emailUri = Uri.parse(
+      'mailto:$_supportEmail?subject=LisKo%20-%20Data%20Deletion%20Request',
+    );
+
+    try {
+      final bool launched = await url_launcher.launchUrl(
+        emailUri,
+        mode: url_launcher.LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        _copyEmailToClipboard();
+      }
+    } catch (_) {
+      if (mounted) {
+        _copyEmailToClipboard();
+      }
+    }
+  }
+
+  void _copyEmailToClipboard() {
+    Clipboard.setData(const ClipboardData(text: _supportEmail));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Support email address copied to clipboard (liskoapp.team@gmail.com).',
+        ),
+        backgroundColor: AppColors.header,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Request Data Deletion',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.header,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Inquire about or request cloud data deletion',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.body,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.body,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoBullet(
+                      icon: Icons.cloud_outlined,
+                      title: 'Cloud Record Notice',
+                      description:
+                          'LisKo stores certain trip and emergency records in Cloud Firestore to support travel monitoring and safety verification.',
+                    ),
+                    const Divider(
+                      height: 20,
+                      thickness: 1,
+                      color: AppColors.border,
+                    ),
+                    _buildInfoBullet(
+                      icon: Icons.phonelink_erase_rounded,
+                      title: 'Local vs. Cloud Storage',
+                      description:
+                          'Clearing local trip history in the app removes records from your device, but does not automatically delete cloud records stored in Cloud Firestore.',
+                    ),
+                    const Divider(
+                      height: 20,
+                      thickness: 1,
+                      color: AppColors.border,
+                    ),
+                    _buildInfoBullet(
+                      icon: Icons.mark_email_read_outlined,
+                      title: 'Contacting the Team',
+                      description:
+                          'Students can contact the LisKo project team at liskoapp.team@gmail.com to inquire about or request deletion of their stored cloud records.',
+                    ),
+                    const Divider(
+                      height: 20,
+                      thickness: 1,
+                      color: AppColors.border,
+                    ),
+                    _buildInfoBullet(
+                      icon: Icons.verified_user_outlined,
+                      title: 'Verification & Processing',
+                      description:
+                          'Tapping "Verify My Deletion Request" generates a single-use Reference ID linked to your active LisKo session. Include it in your email to prove ownership.',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              if (_generatedReferenceId != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.successContainer,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.success.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Verification Reference Generated:',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.successText,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      SelectableText(
+                        _generatedReferenceId!,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.header,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _copyReferenceToClipboard,
+                          icon: const Icon(Icons.copy_rounded, size: 16),
+                          label: const Text('Copy Reference ID'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.successText,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isGeneratingRef
+                      ? null
+                      : _handleGenerateVerificationRef,
+                  icon: _isGeneratingRef
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.shield_outlined, size: 20),
+                  label: Text(
+                    _generatedReferenceId == null
+                        ? 'Verify My Deletion Request'
+                        : 'Regenerate Verification Reference',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _sendEmailRequest,
+                  icon: const Icon(Icons.email_rounded, size: 20),
+                  label: Text(
+                    'Send Email Request',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _copyEmailToClipboard,
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  label: Text(
+                    'Copy Support Email Address',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.header,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoBullet({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.primary, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.header,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                description,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.body,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

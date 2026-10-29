@@ -57,7 +57,8 @@ class TripsTab extends StatefulWidget {
   State<TripsTab> createState() => _TripsTabState();
 }
 
-class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin {
+class _TripsTabState extends State<TripsTab>
+    with AutomaticKeepAliveClientMixin {
   String _selectedFilter = 'All';
   String _selectedTimeFilter = 'All';
   DateTime? _selectedCustomDate;
@@ -109,8 +110,11 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
     return StreamBuilder<List<TripRecord>>(
       stream: _tripsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
         }
 
         final trips = snapshot.data ?? [];
@@ -124,20 +128,74 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
           }
           if (_selectedTimeFilter == 'This Week') {
             final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-            final startOfWeekMidnight = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
-            return t.timestamp.isAfter(startOfWeekMidnight.subtract(const Duration(milliseconds: 1)));
+            final startOfWeekMidnight = DateTime(
+              startOfWeek.year,
+              startOfWeek.month,
+              startOfWeek.day,
+            );
+            return t.timestamp.isAfter(
+              startOfWeekMidnight.subtract(const Duration(milliseconds: 1)),
+            );
           }
           return true;
         }).toList();
 
-        final safeCount = timeFilteredTrips.where((t) => ['completed', 'arrived', 'arrived safely'].contains(t.status.toLowerCase())).length;
-        final extendedCount = timeFilteredTrips.where((t) => t.wasExtended || ['extended', 'trip extended'].contains(t.status.toLowerCase())).length;
-        final alertsCount = timeFilteredTrips.where((t) => ['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired', 'arrival unconfirmed'].contains(t.status.toLowerCase())).length;
+        final safeCount = timeFilteredTrips
+            .where(
+              (t) => [
+                'completed',
+                'arrived',
+                'arrived safely',
+              ].contains(t.status.toLowerCase()),
+            )
+            .length;
+        final extendedCount = timeFilteredTrips
+            .where(
+              (t) =>
+                  t.wasExtended ||
+                  [
+                    'extended',
+                    'trip extended',
+                  ].contains(t.status.toLowerCase()),
+            )
+            .length;
+        final alertsCount = timeFilteredTrips
+            .where(
+              (t) => [
+                'alert',
+                'expired',
+                'help_requested',
+                'manual sos',
+                'need help',
+                'timer expired',
+                'arrival unconfirmed',
+              ].contains(t.status.toLowerCase()),
+            )
+            .length;
 
         final filteredTrips = timeFilteredTrips.where((t) {
-          if (_selectedFilter == 'Completed') return ['completed', 'arrived', 'arrived safely'].contains(t.status.toLowerCase());
-          if (_selectedFilter == 'Extended') return t.wasExtended || ['extended', 'trip extended'].contains(t.status.toLowerCase());
-          if (_selectedFilter == 'Alert') return ['alert', 'expired', 'help_requested', 'manual sos', 'need help', 'timer expired', 'arrival unconfirmed'].contains(t.status.toLowerCase());
+          if (_selectedFilter == 'Completed') {
+            return [
+              'completed',
+              'arrived',
+              'arrived safely',
+            ].contains(t.status.toLowerCase());
+          }
+          if (_selectedFilter == 'Extended') {
+            return t.wasExtended ||
+                ['extended', 'trip extended'].contains(t.status.toLowerCase());
+          }
+          if (_selectedFilter == 'Alert') {
+            return [
+              'alert',
+              'expired',
+              'help_requested',
+              'manual sos',
+              'need help',
+              'timer expired',
+              'arrival unconfirmed',
+            ].contains(t.status.toLowerCase());
+          }
           return true;
         }).toList();
 
@@ -151,7 +209,8 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
               extendedCount: extendedCount,
               alertsCount: alertsCount,
               selectedFilter: _selectedFilter,
-              onFilterChanged: (filter) => setState(() => _selectedFilter = filter),
+              onFilterChanged: (filter) =>
+                  setState(() => _selectedFilter = filter),
               onExportTap: () {
                 TripHistoryExportService().exportAndShareTripHistory(
                   trips: filteredTrips,
@@ -169,42 +228,47 @@ class _TripsTabState extends State<TripsTab> with AutomaticKeepAliveClientMixin 
                     const SizedBox(height: 14),
                     TripFilterChips(
                       key: widget.filterChipsKey,
-                      selectedFilter: _selectedCustomDate != null ? '' : _selectedTimeFilter,
-                      onFilterSelected: (filter) =>
-                          setState(() {
-                            _selectedTimeFilter = filter;
-                            _selectedCustomDate = null;
-                          }),
+                      selectedFilter: _selectedCustomDate != null
+                          ? ''
+                          : _selectedTimeFilter,
+                      onFilterSelected: (filter) => setState(() {
+                        _selectedTimeFilter = filter;
+                        _selectedCustomDate = null;
+                      }),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      RecentTripsSectionHeader(
-                        filterIconKey: widget.calendarIconKey,
-                        selectedFilter: _selectedFilter,
-                        selectedCustomDate: _selectedCustomDate,
-                        onFilterTap: _openCalendarDatePicker,
-                        onClearCustomDate: () => setState(() => _selectedCustomDate = null),
+                          RecentTripsSectionHeader(
+                            filterIconKey: widget.calendarIconKey,
+                            selectedFilter: _selectedFilter,
+                            selectedCustomDate: _selectedCustomDate,
+                            onFilterTap: _openCalendarDatePicker,
+                            onClearCustomDate: () =>
+                                setState(() => _selectedCustomDate = null),
+                          ),
+                          const SizedBox(height: 12),
+                          RecentTripsList(
+                            filter: _selectedFilter,
+                            trips: filteredTrips,
+                            isLoading:
+                                snapshot.connectionState ==
+                                    ConnectionState.waiting &&
+                                !snapshot.hasData,
+                            onStartNewTrip: widget.onStartNewTrip,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      RecentTripsList(
-                        filter: _selectedFilter,
-                        trips: filteredTrips,
-                        isLoading: snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData,
-                        onStartNewTrip: widget.onStartNewTrip,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ],
-    );
-      }
+          ],
+        );
+      },
     );
   }
 }
@@ -291,7 +355,20 @@ class RecentTripsSectionHeader extends StatelessWidget {
 
   String get _titleText {
     if (selectedCustomDate != null) {
-      final months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      final months = [
+        'JAN',
+        'FEB',
+        'MAR',
+        'APR',
+        'MAY',
+        'JUN',
+        'JUL',
+        'AUG',
+        'SEP',
+        'OCT',
+        'NOV',
+        'DEC',
+      ];
       final m = months[selectedCustomDate!.month - 1];
       return 'TRIPS ON $m ${selectedCustomDate!.day}, ${selectedCustomDate!.year}';
     }
@@ -323,7 +400,10 @@ class RecentTripsSectionHeader extends StatelessWidget {
               GestureDetector(
                 onTap: onClearCustomDate,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
@@ -340,7 +420,11 @@ class RecentTripsSectionHeader extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(Icons.close_rounded, size: 12, color: AppColors.primary),
+                      const Icon(
+                        Icons.close_rounded,
+                        size: 12,
+                        color: AppColors.primary,
+                      ),
                     ],
                   ),
                 ),
@@ -357,7 +441,9 @@ class RecentTripsSectionHeader extends StatelessWidget {
           icon: Icon(
             Icons.filter_alt_rounded,
             size: 20,
-            color: selectedCustomDate != null ? AppColors.primary : AppColors.header,
+            color: selectedCustomDate != null
+                ? AppColors.primary
+                : AppColors.header,
           ),
         ),
       ],
@@ -464,7 +550,10 @@ class TripsHeader extends StatelessWidget {
                           onTap: onExportTap,
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -577,7 +666,8 @@ class SummaryMetricsCard extends StatelessWidget {
               valueColor: const Color(0xFF10B981),
               labelColor: AppColors.body,
               isSelected: isSafeSelected,
-              onTap: () => onFilterChanged(isSafeSelected ? 'All' : 'Completed'),
+              onTap: () =>
+                  onFilterChanged(isSafeSelected ? 'All' : 'Completed'),
             ),
           ),
           Expanded(
@@ -588,7 +678,8 @@ class SummaryMetricsCard extends StatelessWidget {
               valueColor: const Color(0xFFD97706),
               labelColor: AppColors.body,
               isSelected: isExtendedSelected,
-              onTap: () => onFilterChanged(isExtendedSelected ? 'All' : 'Extended'),
+              onTap: () =>
+                  onFilterChanged(isExtendedSelected ? 'All' : 'Extended'),
             ),
           ),
           Expanded(
@@ -664,7 +755,10 @@ class MetricSegment extends StatelessWidget {
                   ]
                 : null,
             border: isSelected
-                ? Border.all(color: valueColor.withValues(alpha: 0.5), width: 1.5)
+                ? Border.all(
+                    color: valueColor.withValues(alpha: 0.5),
+                    width: 1.5,
+                  )
                 : null,
           ),
           child: Column(
@@ -773,17 +867,32 @@ class RecentTripsList extends StatelessWidget {
                     builder: (context) {
                       final trip = trips[i];
                       final statusLower = trip.status.toLowerCase();
-                      
+
                       String displayStatus;
                       String displayTitle;
                       String? displayDuration;
 
-                      bool isStandaloneSos = (statusLower == 'alert' && trip.destination == 'Manual SOS') || statusLower == 'manual sos';
-                      bool isExpired = statusLower == 'expired' || statusLower == 'timer expired';
+                      bool isStandaloneSos =
+                          (statusLower == 'alert' &&
+                              trip.destination == 'Manual SOS') ||
+                          statusLower == 'manual sos';
+                      bool isExpired =
+                          statusLower == 'expired' ||
+                          statusLower == 'timer expired';
                       bool isUnconfirmed = statusLower == 'arrival unconfirmed';
-                      bool isArrived = ['completed', 'arrived', 'arrived safely'].contains(statusLower);
-                      bool isAlert = ['alert', 'help_requested', 'need help'].contains(statusLower);
-                      bool isExtended = trip.wasExtended || ['extended', 'trip extended'].contains(statusLower);
+                      bool isArrived = [
+                        'completed',
+                        'arrived',
+                        'arrived safely',
+                      ].contains(statusLower);
+                      bool isAlert = [
+                        'alert',
+                        'help_requested',
+                        'need help',
+                      ].contains(statusLower);
+                      bool isExtended =
+                          trip.wasExtended ||
+                          ['extended', 'trip extended'].contains(statusLower);
                       bool isCancelled = statusLower == 'cancelled';
 
                       if (isArrived) {
@@ -809,29 +918,49 @@ class RecentTripsList extends StatelessWidget {
                         displayTitle = trip.destination;
                         final mins = trip.durationMinutes;
                         if (mins == 0) {
-                           displayDuration = 'Duration: <1 min';
+                          displayDuration = 'Duration: <1 min';
                         } else if (mins < 60) {
-                           displayDuration = 'Duration: $mins min${mins > 1 ? 's' : ''}';
+                          displayDuration =
+                              'Duration: $mins min${mins > 1 ? 's' : ''}';
                         } else {
-                           final hr = mins ~/ 60;
-                           final m = mins % 60;
-                           displayDuration = 'Duration: $hr hr${hr > 1 ? 's' : ''}${m > 0 ? ' $m min${m > 1 ? 's' : ''}' : ''}';
+                          final hr = mins ~/ 60;
+                          final m = mins % 60;
+                          displayDuration =
+                              'Duration: $hr hr${hr > 1 ? 's' : ''}${m > 0 ? ' $m min${m > 1 ? 's' : ''}' : ''}';
                         }
                       }
 
-                      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                      final months = [
+                        'Jan',
+                        'Feb',
+                        'Mar',
+                        'Apr',
+                        'May',
+                        'Jun',
+                        'Jul',
+                        'Aug',
+                        'Sep',
+                        'Oct',
+                        'Nov',
+                        'Dec',
+                      ];
                       final h = trip.timestamp.hour;
-                      final min = trip.timestamp.minute.toString().padLeft(2, '0');
+                      final min = trip.timestamp.minute.toString().padLeft(
+                        2,
+                        '0',
+                      );
                       final amPm = h >= 12 ? 'PM' : 'AM';
                       final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-                      final displayDate = '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year} • $hour12:$min $amPm';
+                      final displayDate =
+                          '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year} • $hour12:$min $amPm';
 
                       Color bBgColor;
                       Color bTextColor;
                       if (displayStatus == 'ARRIVED') {
                         bBgColor = const Color(0xFFD1FAE5);
                         bTextColor = const Color(0xFF10B981);
-                      } else if (displayStatus == 'EXPIRED' || displayStatus == 'ALERT') {
+                      } else if (displayStatus == 'EXPIRED' ||
+                          displayStatus == 'ALERT') {
                         bBgColor = const Color(0xFFFFDAD8);
                         bTextColor = const Color(0xFFDB2B38);
                       } else {
@@ -846,6 +975,7 @@ class RecentTripsList extends StatelessWidget {
                         status: displayStatus,
                         badgeBgColor: bBgColor,
                         badgeTextColor: bTextColor,
+                        wasExtended: isExtended,
                       );
                     },
                   ),
@@ -872,6 +1002,7 @@ class TripListItem extends StatelessWidget {
     required this.badgeBgColor,
     required this.badgeTextColor,
     this.durationOrSos,
+    this.wasExtended = false,
   });
 
   final String title;
@@ -880,6 +1011,7 @@ class TripListItem extends StatelessWidget {
   final Color badgeBgColor;
   final Color badgeTextColor;
   final String? durationOrSos;
+  final bool wasExtended;
 
   @override
   Widget build(BuildContext context) {
@@ -924,29 +1056,58 @@ class TripListItem extends StatelessWidget {
                       color: AppColors.body,
                     ),
                   ),
-                ]
+                ],
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: badgeBgColor,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              status,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-                color: badgeTextColor,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (wasExtended && status != 'EXTENDED') ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3.5,
+                  ),
+                  margin: const EdgeInsets.only(right: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    '+15 MIN',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFD97706),
+                    ),
+                  ),
+                ),
+              ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeBgColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  status,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: badgeTextColor,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
     );
   }
 }
-

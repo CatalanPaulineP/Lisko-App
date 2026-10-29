@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart' show Firebase;
 import 'package:flutter/widgets.dart';
@@ -15,7 +15,9 @@ import 'notification_service.dart';
 import 'sms_alert_service.dart';
 
 Future<void> initializeBackgroundService() async {
-  debugPrint('[LisKo-BG-Diag] initializeBackgroundService() configuring FlutterBackgroundService');
+  debugPrint(
+    '[LisKo-BG-Diag] initializeBackgroundService() configuring FlutterBackgroundService',
+  );
   final service = FlutterBackgroundService();
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -25,10 +27,13 @@ Future<void> initializeBackgroundService() async {
     importance: Importance.low,
   );
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
   await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
       ?.createNotificationChannel(channel);
 
   await service.configure(
@@ -137,14 +142,20 @@ void _scheduleNextVibrationPhase(int safetyDeadlineMs) {
     phaseName = 'Phase 3 Silent (80-90s)';
   }
 
-  debugPrint('[LisKo-BG-Diag] Safety vibration restore elapsed=${currentElapsed}ms phase=$phaseName remainingMs=$phaseRemainingMs');
+  debugPrint(
+    '[LisKo-BG-Diag] Safety vibration restore elapsed=${currentElapsed}ms phase=$phaseName remainingMs=$phaseRemainingMs',
+  );
 
   if (isVibratingPhase && phaseRemainingMs > 0) {
-    debugPrint('[LisKo-BG-Diag] Safety vibration ACTIVE remainingMs=$phaseRemainingMs');
+    debugPrint(
+      '[LisKo-BG-Diag] Safety vibration ACTIVE remainingMs=$phaseRemainingMs',
+    );
     final pattern = _buildPulsePattern(phaseRemainingMs);
     Vibration.vibrate(pattern: pattern);
   } else {
-    debugPrint('[LisKo-BG-Diag] Safety vibration SILENT remainingMs=$phaseRemainingMs');
+    debugPrint(
+      '[LisKo-BG-Diag] Safety vibration SILENT remainingMs=$phaseRemainingMs',
+    );
     Vibration.cancel();
   }
 
@@ -161,21 +172,32 @@ void onStart(ServiceInstance service) async {
 
   try {
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-      debugPrint('[LisKo-BG-Diag] Firebase initialized in BackgroundService isolate');
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      debugPrint(
+        '[LisKo-BG-Diag] Firebase initialized in BackgroundService isolate',
+      );
     }
+    await FirebaseService().ensureAnonymousAuth();
   } catch (e) {
-    debugPrint('[LisKo-BG-Diag] Firebase initialization notice in BackgroundService isolate: $e');
+    debugPrint(
+      '[LisKo-BG-Diag] Firebase initialization notice in BackgroundService isolate: $e',
+    );
   }
 
   try {
     await NotificationService().initializeForBackgroundService();
   } catch (e) {
-    debugPrint('[LisKo-BG-Diag] NotificationService background init notice: $e');
+    debugPrint(
+      '[LisKo-BG-Diag] NotificationService background init notice: $e',
+    );
   }
 
   service.on('stopService').listen((event) async {
-    debugPrint('[LisKo-BG-Diag] BackgroundService received stopService event, stopping monitoring and calling stopSelf()');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService received stopService event, stopping monitoring and calling stopSelf()',
+    );
     _bgPeriodicTimer?.cancel();
     _bgSafetyCheckTimer?.cancel();
     _bgDeadlineTimer?.cancel();
@@ -187,12 +209,16 @@ void onStart(ServiceInstance service) async {
   });
 
   service.on('startTripMonitoring').listen((event) async {
-    debugPrint('[LisKo-BG-Diag] BackgroundService received startTripMonitoring event: $event');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService received startTripMonitoring event: $event',
+    );
     await _checkAndResumeActiveTripInBackground(service);
   });
 
   service.on('notificationAction').listen((event) async {
-    debugPrint('[LisKo-BG-Diag] BackgroundService received notificationAction event: $event');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService received notificationAction event: $event',
+    );
     final actionId = event?['actionId'] as String? ?? '';
     await _handleBackgroundNotificationAction(service, actionId);
   });
@@ -203,7 +229,11 @@ void onStart(ServiceInstance service) async {
     final content = event['content'] as String?;
     final expMs = event['expectedArrivalAtMs'] as int?;
     if (title != null && content != null) {
-      _showNotification888(title: title, content: content, expectedArrivalAtMs: expMs);
+      _showNotification888(
+        title: title,
+        content: content,
+        expectedArrivalAtMs: expMs,
+      );
     }
   });
 
@@ -216,7 +246,9 @@ void _showNotification888({
   required String content,
   int? expectedArrivalAtMs,
 }) {
-  debugPrint('[LisKo-BG-Diag] Notification 888 native countdown target=$expectedArrivalAtMs');
+  debugPrint(
+    '[LisKo-BG-Diag] Notification 888 native countdown target=$expectedArrivalAtMs',
+  );
   final plugin = FlutterLocalNotificationsPlugin();
   plugin.show(
     id: 888,
@@ -242,9 +274,14 @@ void _showNotification888({
   );
 }
 
-Future<void> _handleBackgroundNotificationAction(ServiceInstance service, String actionId) async {
+Future<void> _handleBackgroundNotificationAction(
+  ServiceInstance service,
+  String actionId,
+) async {
   if (actionId == kNotifActionSafe) {
-    debugPrint('[LisKo-BG-Diag] BackgroundService handling kNotifActionSafe ("I\'m Safe")');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService handling kNotifActionSafe ("I\'m Safe")',
+    );
     _bgPeriodicTimer?.cancel();
     _bgSafetyCheckTimer?.cancel();
     _bgDeadlineTimer?.cancel();
@@ -260,7 +297,9 @@ Future<void> _handleBackgroundNotificationAction(ServiceInstance service, String
     final int? startedMs = activeTrip?['startedAtMs'] as int?;
     final int? expectedMs = activeTrip?['expectedArrivalAtMs'] as int?;
     final bool isArrived = activeTrip?['isArrived'] as bool? ?? false;
-    final bool isTimeoutWarning = activeTrip?['isTimeoutWarning'] as bool? ?? false;
+    final bool isTimeoutWarning =
+        activeTrip?['isTimeoutWarning'] as bool? ?? false;
+    final bool wasExt = activeTrip?['wasExtended'] as bool? ?? false;
 
     // Immediate local safety shutdown
     await const LocalStorageService().saveActiveTrip(isActive: false);
@@ -272,13 +311,20 @@ Future<void> _handleBackgroundNotificationAction(ServiceInstance service, String
       try {
         final storage = const LocalStorageService();
         final history = await storage.readTripHistory();
-        history.add(TripRecord(
-          id: tId.isNotEmpty ? tId : DateTime.now().millisecondsSinceEpoch.toString(),
-          destination: dest,
-          durationMinutes: totalSecs ~/ 60,
-          status: 'Arrived Safely',
-          timestamp: startedMs != null ? DateTime.fromMillisecondsSinceEpoch(startedMs) : DateTime.now(),
-        ));
+        history.add(
+          TripRecord(
+            id: tId.isNotEmpty
+                ? tId
+                : DateTime.now().millisecondsSinceEpoch.toString(),
+            destination: dest,
+            durationMinutes: totalSecs ~/ 60,
+            status: 'Arrived Safely',
+            timestamp: startedMs != null
+                ? DateTime.fromMillisecondsSinceEpoch(startedMs)
+                : DateTime.now(),
+            wasExtended: wasExt,
+          ),
+        );
         await storage.saveTripHistory(history);
 
         if (tId.isNotEmpty && startedMs != null) {
@@ -287,15 +333,20 @@ Future<void> _handleBackgroundNotificationAction(ServiceInstance service, String
             destination: dest,
             estimatedTravelMinutes: totalSecs ~/ 60,
             startedAt: DateTime.fromMillisecondsSinceEpoch(startedMs),
-            expectedArrivalAt: expectedMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedMs) : null,
+            expectedArrivalAt: expectedMs != null
+                ? DateTime.fromMillisecondsSinceEpoch(expectedMs)
+                : null,
             completedAt: DateTime.now(),
             status: 'arrived',
+            wasExtended: wasExt,
           );
         }
 
         if (dest.isNotEmpty) {
           try {
-            await SmsAlertService().dispatchPrimaryArrivalSms(destination: dest);
+            await SmsAlertService().dispatchPrimaryArrivalSms(
+              destination: dest,
+            );
           } catch (e) {
             debugPrint('[LisKo-BG-Diag] Primary safe arrival SMS notice: $e');
           }
@@ -303,20 +354,26 @@ Future<void> _handleBackgroundNotificationAction(ServiceInstance service, String
 
         await const LocalStorageService().saveTripCompletedFeedback(true);
       } catch (e) {
-        debugPrint('[LisKo-BG-Diag] Error completing safe arrival in background: $e');
+        debugPrint(
+          '[LisKo-BG-Diag] Error completing safe arrival in background: $e',
+        );
       }
     }
 
     await const LocalStorageService().consumePendingActionIfMatches(actionId);
     service.stopSelf();
   } else if (actionId == kNotifActionExtend) {
-    debugPrint('[LisKo-BG-Diag] BackgroundService handling kNotifActionExtend ("+15 min")');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService handling kNotifActionExtend ("+15 min")',
+    );
     _bgSafetyCheckTimer?.cancel();
     _cancelBackgroundSafetyVibration('kNotifActionExtend');
     await NotificationService().cancelArrivalAlarm();
     await _checkAndResumeActiveTripInBackground(service);
   } else if (actionId == kNotifActionSos) {
-    debugPrint('[LisKo-BG-Diag] BackgroundService handling kNotifActionSos ("Need Help")');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService handling kNotifActionSos ("Need Help")',
+    );
     _bgSafetyCheckTimer?.cancel();
     _cancelBackgroundSafetyVibration('kNotifActionSos');
     final activeTrip = await const LocalStorageService().readActiveTrip();
@@ -338,13 +395,20 @@ Future<void> _handleBackgroundNotificationAction(ServiceInstance service, String
   }
 }
 
-Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) async {
-  debugPrint('[LisKo-BG-Diag] BackgroundService _checkAndResumeActiveTripInBackground() executing');
+Future<void> _checkAndResumeActiveTripInBackground(
+  ServiceInstance service,
+) async {
+  debugPrint(
+    '[LisKo-BG-Diag] BackgroundService _checkAndResumeActiveTripInBackground() executing',
+  );
 
   // Process any pending persisted action first
-  final pendingAction = await const LocalStorageService().readAndClearPendingAction();
+  final pendingAction = await const LocalStorageService()
+      .readAndClearPendingAction();
   if (pendingAction != null && pendingAction.isNotEmpty) {
-    debugPrint('[LisKo-BG-Diag] BackgroundService: Found pending notification action "$pendingAction"');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService: Found pending notification action "$pendingAction"',
+    );
     await _handleBackgroundNotificationAction(service, pendingAction);
     if (pendingAction == kNotifActionSafe || pendingAction == kNotifActionSos) {
       return;
@@ -354,7 +418,9 @@ Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) asyn
   final activeTrip = await const LocalStorageService().readActiveTrip();
 
   if (activeTrip == null) {
-    debugPrint('[LisKo-BG-Diag] BackgroundService: No active trip record found in LocalStorageService (null). Stopping monitoring.');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService: No active trip record found in LocalStorageService (null). Stopping monitoring.',
+    );
     _bgPeriodicTimer?.cancel();
     _bgSafetyCheckTimer?.cancel();
     GeofenceService().stopMonitoring();
@@ -364,7 +430,9 @@ Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) asyn
   }
 
   if (activeTrip['isActive'] != true) {
-    debugPrint('[LisKo-BG-Diag] BackgroundService: Active trip record marked inactive in LocalStorageService. Stopping monitoring.');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService: Active trip record marked inactive in LocalStorageService. Stopping monitoring.',
+    );
     _bgPeriodicTimer?.cancel();
     _bgSafetyCheckTimer?.cancel();
     GeofenceService().stopMonitoring();
@@ -378,7 +446,8 @@ Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) asyn
   final int? safetyMs = activeTrip['safetyCheckDeadlineMs'] as int?;
   final bool isArrived = activeTrip['isArrived'] as bool? ?? false;
   final bool isTimeout = activeTrip['isTimeoutWarning'] as bool? ?? false;
-  final bool suppressArrivalUntilExit = activeTrip['suppressArrivalUntilExit'] as bool? ?? false;
+  final bool suppressArrivalUntilExit =
+      activeTrip['suppressArrivalUntilExit'] as bool? ?? false;
   final String tripId = activeTrip['tripId'] as String? ?? '';
   final int totalSecs = activeTrip['totalDurationSeconds'] as int? ?? 45 * 60;
   final int? startedMs = activeTrip['startedAtMs'] as int?;
@@ -394,7 +463,9 @@ Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) asyn
 
   // CASE 4: Safety check active and expired (now >= safetyCheckDeadlineMs) -> Catch-up Emergency Escalation
   if (safetyMs != null && nowMs >= safetyMs && !_isBgEscalating) {
-    debugPrint('[LisKo-BG-Diag] BackgroundService: Catch-up 90s safety check expired while closed. Escalating emergency alert.');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService: Catch-up 90s safety check expired while closed. Escalating emergency alert.',
+    );
     await _executeBackgroundEmergencyEscalation(
       service: service,
       destination: destination,
@@ -410,29 +481,36 @@ Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) asyn
   // CASE 3: Safety check active and window still open (now < safetyCheckDeadlineMs) -> Restore 90s response window
   if (safetyMs != null && nowMs < safetyMs) {
     final remainingWindowSecs = ((safetyMs - nowMs) / 1000).ceil();
-    debugPrint('[LisKo-BG-Diag] BackgroundService: Catch-up 90s safety check active with $remainingWindowSecs s remaining.');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService: Catch-up 90s safety check active with $remainingWindowSecs s remaining.',
+    );
     await NotificationService().showTimeoutAlarm(destination);
 
     _scheduleNextVibrationPhase(safetyMs);
 
     _bgSafetyCheckTimer?.cancel();
-    _bgSafetyCheckTimer = Timer(Duration(seconds: remainingWindowSecs), () async {
-      await _executeBackgroundEmergencyEscalation(
-        service: service,
-        destination: destination,
-        tripId: tripId,
-        totalDurationSeconds: totalSecs,
-        startedAtMs: startedMs,
-        expectedArrivalAtMs: expMs,
-        isManualSos: false,
-      );
-    });
+    _bgSafetyCheckTimer = Timer(
+      Duration(seconds: remainingWindowSecs),
+      () async {
+        await _executeBackgroundEmergencyEscalation(
+          service: service,
+          destination: destination,
+          tripId: tripId,
+          totalDurationSeconds: totalSecs,
+          startedAtMs: startedMs,
+          expectedArrivalAtMs: expMs,
+          isManualSos: false,
+        );
+      },
+    );
     return;
   }
 
   // CASE 2: Trip active and now >= expectedArrivalAtMs without safety check -> Catch-up Timeout
   if (expMs != null && nowMs >= expMs && !isArrived && !isTimeout) {
-    debugPrint('[LisKo-BG-Diag] BackgroundService: Catch-up Trip deadline expired while closed. Entering 90s timeout safety check.');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService: Catch-up Trip deadline expired while closed. Entering 90s timeout safety check.',
+    );
     await _handleBackgroundTimeoutDetected(
       service: service,
       destination: destination,
@@ -457,7 +535,9 @@ Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) asyn
       destination: destination,
       suppressArrivalUntilExit: suppressArrivalUntilExit,
       onArrival: (target, distance) async {
-        debugPrint('[LisKo-BG-Diag] BackgroundService: Geofence arrival detected at ${distance.toStringAsFixed(1)}m from ${target.name}');
+        debugPrint(
+          '[LisKo-BG-Diag] BackgroundService: Geofence arrival detected at ${distance.toStringAsFixed(1)}m from ${target.name}',
+        );
         await _handleBackgroundArrivalDetected(
           service: service,
           destination: target.name,
@@ -473,7 +553,9 @@ Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) asyn
     final remainingMs = expMs - nowMs;
     if (remainingMs > 0) {
       _bgDeadlineTimer?.cancel();
-      debugPrint('[LisKo-BG-Diag] Deadline timer scheduled expMs=$expMs remainingMs=$remainingMs');
+      debugPrint(
+        '[LisKo-BG-Diag] Deadline timer scheduled expMs=$expMs remainingMs=$remainingMs',
+      );
       _bgDeadlineTimer = Timer(Duration(milliseconds: remainingMs), () async {
         debugPrint('[LisKo-BG-Diag] Deadline timer fired');
         await _handleBackgroundTimeoutDetected(
@@ -495,7 +577,9 @@ Future<void> _checkAndResumeActiveTripInBackground(ServiceInstance service) asyn
 
       if (currentMs >= expMs) {
         _bgPeriodicTimer?.cancel();
-        debugPrint('[LisKo-BG-Diag] BackgroundService: Periodic deadline check expired. Entering timeout.');
+        debugPrint(
+          '[LisKo-BG-Diag] BackgroundService: Periodic deadline check expired. Entering timeout.',
+        );
         await _handleBackgroundTimeoutDetected(
           service: service,
           destination: destination,
@@ -540,9 +624,12 @@ Future<void> _handleBackgroundArrivalDetected({
 
   service.invoke('arrivalDetected', {'destination': destination});
 
-  final bool isUserEmergency = await const LocalStorageService().readEmergencyActive();
+  final bool isUserEmergency = await const LocalStorageService()
+      .readEmergencyActive();
   if (isUserEmergency) {
-    debugPrint('[LisKo-BG-Diag] Arrival detected while user-initiated emergency is active. Suppressing arrival alarm vibration.');
+    debugPrint(
+      '[LisKo-BG-Diag] Arrival detected while user-initiated emergency is active. Suppressing arrival alarm vibration.',
+    );
     return;
   }
 
@@ -573,21 +660,29 @@ Future<void> _handleBackgroundTimeoutDetected({
 }) async {
   final current = await const LocalStorageService().readActiveTrip();
   if (current == null || current['isActive'] != true) {
-    debugPrint('[LisKo-BG-Diag] Timeout validation rejected reason=no_active_trip');
+    debugPrint(
+      '[LisKo-BG-Diag] Timeout validation rejected reason=no_active_trip',
+    );
     return;
   }
   if (current['isArrived'] == true) {
-    debugPrint('[LisKo-BG-Diag] Timeout validation rejected reason=already_arrived');
+    debugPrint(
+      '[LisKo-BG-Diag] Timeout validation rejected reason=already_arrived',
+    );
     return;
   }
   if (current['isTimeoutWarning'] == true) {
-    debugPrint('[LisKo-BG-Diag] Timeout validation rejected reason=already_in_timeout_warning');
+    debugPrint(
+      '[LisKo-BG-Diag] Timeout validation rejected reason=already_in_timeout_warning',
+    );
     return;
   }
   if (expectedArrivalAtMs != null && current['expectedArrivalAtMs'] != null) {
     final storedExp = current['expectedArrivalAtMs'] as int;
     if (storedExp != expectedArrivalAtMs) {
-      debugPrint('[LisKo-BG-Diag] Timeout validation rejected reason=expectedArrivalAtMs_mismatch (storedExp=$storedExp != expectedArrivalAtMs=$expectedArrivalAtMs)');
+      debugPrint(
+        '[LisKo-BG-Diag] Timeout validation rejected reason=expectedArrivalAtMs_mismatch (storedExp=$storedExp != expectedArrivalAtMs=$expectedArrivalAtMs)',
+      );
       return;
     }
   }
@@ -652,39 +747,57 @@ Future<void> _executeBackgroundEmergencyEscalation({
     // Abort automatic escalation if user selected "I'm Safe" or "+15 MIN"
     // Do NOT erase pendingAction so the SAFE or EXTEND handler can take full ownership.
     if (!isManualSos && pendingAction == kNotifActionSafe) {
-      debugPrint('[LisKo-BG-Diag] Escalation aborted: Pending "I\'m Safe" action detected.');
+      debugPrint(
+        '[LisKo-BG-Diag] Escalation aborted: Pending "I\'m Safe" action detected.',
+      );
       return;
     }
     if (!isManualSos && pendingAction == kNotifActionExtend) {
-      debugPrint('[LisKo-BG-Diag] Escalation aborted: Pending "+15 MIN" action detected.');
+      debugPrint(
+        '[LisKo-BG-Diag] Escalation aborted: Pending "+15 MIN" action detected.',
+      );
       return;
     }
 
-    final bool effectiveIsManualSos = isManualSos || (pendingAction == kNotifActionSos);
+    final bool effectiveIsManualSos =
+        isManualSos || (pendingAction == kNotifActionSos);
     if (pendingAction == kNotifActionSos) {
-      await const LocalStorageService().consumePendingActionIfMatches(kNotifActionSos);
+      await const LocalStorageService().consumePendingActionIfMatches(
+        kNotifActionSos,
+      );
     }
 
     // Immediate pre-SMS fresh state verification
     final freshTrip = await const LocalStorageService().readActiveTrip();
     if (freshTrip == null || freshTrip['isActive'] != true) {
-      debugPrint('[LisKo-BG-Diag] Pre-SMS verification failed: trip is no longer active. Aborting escalation.');
+      debugPrint(
+        '[LisKo-BG-Diag] Pre-SMS verification failed: trip is no longer active. Aborting escalation.',
+      );
       return;
     }
-    if (!effectiveIsManualSos && freshTrip['isArrived'] != true && freshTrip['isTimeoutWarning'] != true) {
-      debugPrint('[LisKo-BG-Diag] Pre-SMS verification failed: safety check is no longer active. Aborting escalation.');
+    if (!effectiveIsManualSos &&
+        freshTrip['isArrived'] != true &&
+        freshTrip['isTimeoutWarning'] != true) {
+      debugPrint(
+        '[LisKo-BG-Diag] Pre-SMS verification failed: safety check is no longer active. Aborting escalation.',
+      );
       return;
     }
 
     if (!effectiveIsManualSos) {
-      final claimed = await const LocalStorageService().claimAutomaticEscalation();
+      final claimed = await const LocalStorageService()
+          .claimAutomaticEscalation();
       if (!claimed) {
-        debugPrint('[LisKo-BG-Diag] BackgroundService: Escalation already claimed by another handler. Skipping duplicate dispatch.');
+        debugPrint(
+          '[LisKo-BG-Diag] BackgroundService: Escalation already claimed by another handler. Skipping duplicate dispatch.',
+        );
         return;
       }
     }
 
-    debugPrint('[LisKo-BG-Diag] BackgroundService executing emergency SMS escalation.');
+    debugPrint(
+      '[LisKo-BG-Diag] BackgroundService executing emergency SMS escalation.',
+    );
 
     double? lat;
     double? lng;
@@ -704,6 +817,7 @@ Future<void> _executeBackgroundEmergencyEscalation({
     }
 
     final bool freshIsArrived = (freshTrip['isArrived'] as bool?) ?? false;
+    final bool wasExt = (freshTrip['wasExtended'] as bool?) ?? false;
 
     final sentList = await SmsAlertService().dispatchEmergencyAlert(
       destination: destination,
@@ -714,12 +828,17 @@ Future<void> _executeBackgroundEmergencyEscalation({
       isArrived: freshIsArrived,
     );
 
-    await NotificationService().showEmergencySentNotification(sentList, permissionDenied: false);
+    await NotificationService().showEmergencySentNotification(
+      sentList,
+      permissionDenied: false,
+    );
 
     // Save trip record locally
     final storage = const LocalStorageService();
     final history = await storage.readTripHistory();
-    final eventId = tripId.isNotEmpty ? tripId : DateTime.now().millisecondsSinceEpoch.toString();
+    final eventId = tripId.isNotEmpty
+        ? tripId
+        : DateTime.now().millisecondsSinceEpoch.toString();
 
     final String historyStatus = effectiveIsManualSos
         ? 'Need Help'
@@ -731,6 +850,7 @@ Future<void> _executeBackgroundEmergencyEscalation({
       durationMinutes: totalDurationSeconds ~/ 60,
       status: historyStatus,
       timestamp: DateTime.now(),
+      wasExtended: wasExt,
     );
     await storage.saveTripHistory([...history, newTrip]);
 
@@ -740,9 +860,12 @@ Future<void> _executeBackgroundEmergencyEscalation({
         destination: destination,
         estimatedTravelMinutes: totalDurationSeconds ~/ 60,
         startedAt: DateTime.fromMillisecondsSinceEpoch(startedAtMs),
-        expectedArrivalAt: expectedArrivalAtMs != null ? DateTime.fromMillisecondsSinceEpoch(expectedArrivalAtMs) : null,
+        expectedArrivalAt: expectedArrivalAtMs != null
+            ? DateTime.fromMillisecondsSinceEpoch(expectedArrivalAtMs)
+            : null,
         completedAt: DateTime.now(),
         status: effectiveIsManualSos ? 'help_requested' : 'expired',
+        wasExtended: wasExt,
       );
     }
 

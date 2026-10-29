@@ -36,7 +36,9 @@ class ExpandablePrivacyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeColor = accentColor ?? AppColors.header;
-    final bgContainerColor = (accentColor ?? AppColors.primary).withValues(alpha: 0.1);
+    final bgContainerColor = (accentColor ?? AppColors.primary).withValues(
+      alpha: 0.1,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -44,7 +46,9 @@ class ExpandablePrivacyCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isExpanded ? themeColor.withValues(alpha: 0.4) : AppColors.border,
+          color: isExpanded
+              ? themeColor.withValues(alpha: 0.4)
+              : AppColors.border,
           width: isExpanded ? 1.5 : 1,
         ),
         boxShadow: const [
@@ -63,7 +67,10 @@ class ExpandablePrivacyCard extends StatelessWidget {
               onTap: () => onExpansionChanged(!isExpanded),
               child: Container(
                 color: backgroundColor,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -99,7 +106,11 @@ class ExpandablePrivacyCard extends StatelessWidget {
               ),
             ),
             if (isExpanded) ...[
-              Divider(height: 1, thickness: 1, color: themeColor.withValues(alpha: 0.1)),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: themeColor.withValues(alpha: 0.1),
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                 child: Text(
@@ -126,10 +137,12 @@ class PrivacyPolicyModalBottomSheet extends StatefulWidget {
   const PrivacyPolicyModalBottomSheet({super.key});
 
   @override
-  State<PrivacyPolicyModalBottomSheet> createState() => _PrivacyPolicyModalBottomSheetState();
+  State<PrivacyPolicyModalBottomSheet> createState() =>
+      _PrivacyPolicyModalBottomSheetState();
 }
 
-class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottomSheet> {
+class _PrivacyPolicyModalBottomSheetState
+    extends State<PrivacyPolicyModalBottomSheet> {
   int? _expandedIndex;
 
   void _handleExpansion(int index, bool expanded) {
@@ -193,7 +206,10 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.body,
+                    ),
                   ),
                 ],
               ),
@@ -203,7 +219,10 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
             Expanded(
               child: ListView(
                 controller: scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 children: [
                   // SECTION 1: PRIVACY POLICY
                   Text(
@@ -225,12 +244,12 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
                         'LisKo uses information necessary for travel safety monitoring:\n'
-                        '• Trusted Contacts: Names, phone numbers, and relationships you provide.\n'
-                        '• Commute Settings: Travel destinations and timer presets you select.\n'
-                        '• Trip Logs: Travel timer status and timestamps.\n'
-                        '• Location Coordinates: Used only when required by geofence arrival or emergency alert features.\n'
-                        '• Anonymous Installation ID: Generated locally (installationId) to isolate trip and emergency event logs per device in Cloud Firestore without requiring personal user accounts.\n\n'
-                        'LisKo does not require user registration or an online account. Trusted contacts and app preferences are stored locally on your device.',
+                        '• Firebase Anonymous Account: Automatically assigned upon first launch without requiring student name, email, or password registration.\n'
+                        '• Trusted Contacts & Settings: Contact names, phone numbers, home location coordinates, and commute duration presets are stored locally on your device using SharedPreferences.\n'
+                        '• Local Trip History: Saved on your phone and automatically pruned after 30 days when reading trip history.\n'
+                        '• Cloud Safety Records: Trip monitoring status, emergency event logs, and time-limited verification reference IDs are stored securely in Cloud Firestore.\n'
+                        '• Location Coordinates: Obtained during geofence arrival checks, Manual SOS, or unanswered safety check timeouts, and processed locally or via Android system geocoding.\n'
+                        '• Device Identifiers: Local Installation ID (installationId) and Anonymous Auth UID isolate your cloud records without personal accounts.',
                   ),
                   ExpandablePrivacyCard(
                     isExpanded: _expandedIndex == 1,
@@ -241,10 +260,10 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
                         'LisKo uses this information solely to:\n'
-                        '• Manage active commute timers and send arrival reminders.\n'
-                        '• Automatically detect arrival at your selected destination geofence.\n'
-                        '• Send safe-arrival SMS notifications to your Primary Emergency Contact.\n'
-                        '• Dispatch emergency alerts with your location to trusted contacts when needed.',
+                        '• Manage active commute timers and detect destination geofence arrival.\n'
+                        '• Automatically send Safe-Arrival SMS notifications to your Primary Emergency Contact when you tap "I\'m Safe".\n'
+                        '• Automatically dispatch emergency SMS alerts with GPS location coordinates to trusted contacts during Manual SOS or unanswered safety check timeouts.\n'
+                        '• Verify authenticated user data deletion requests.',
                   ),
                   ExpandablePrivacyCard(
                     isExpanded: _expandedIndex == 2,
@@ -254,9 +273,10 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                     accentColor: AppColors.successText,
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
-                        '• LisKo dispatches emergency and safe-arrival SMS messages via your device\'s SIM network.\n'
+                        '• Emergency and safe-arrival SMS messages are transmitted directly via your phone\'s cellular SIM network.\n'
+                        '• SIM SMS relies on mobile carrier coverage. GPS location accuracy depends on satellite visibility and hardware state.\n'
                         '• LisKo does not read, access, or receive SMS messages from your inbox (READ_SMS and RECEIVE_SMS permissions are not used).\n'
-                        '• SMS messages are sent only during active safety events or user-initiated emergency actions.',
+                        '• Messages already sent to contacts are stored on recipient phones outside LisKo\'s control.',
                   ),
                   ExpandablePrivacyCard(
                     isExpanded: _expandedIndex == 3,
@@ -268,20 +288,23 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                     description:
                         '• Normal Safe Arrival: Confirming "I\'m Safe" sends an SMS only to your Primary Emergency Contact without GPS coordinates.\n'
                         '• Emergency Alerts: Triggering Manual SOS, tapping "Need Help", or failing to respond to a safety timeout sends emergency alerts to all your trusted contacts.\n'
+                        '• Cloud Encryption: Cloud Firestore communication uses encrypted HTTPS/TLS 1.3 channels. Cellular SMS uses standard mobile network signaling.\n'
                         '• No Live-Tracking Dashboard: LisKo does not broadcast your location to a public or admin web dashboard.',
                   ),
                   ExpandablePrivacyCard(
                     isExpanded: _expandedIndex == 4,
                     onExpansionChanged: (exp) => _handleExpansion(4, exp),
-                    title: 'Storage & User Control',
+                    title: 'Storage & Data Deletion Requests',
                     icon: Icons.phonelink_setup_rounded,
                     accentColor: AppColors.successText,
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
-                        '• No account registration or login is required.\n'
-                        '• Some app information, such as trusted contacts and preferences, is stored locally on your phone.\n'
-                        '• You can add, edit, or remove trusted contacts at any time.\n'
-                        '• You can manage Android location permissions through system settings.',
+                        '• Local trip history is automatically pruned on your phone after 30 days during trip history cleanup.\n'
+                        '• Production Cloud Firestore records are stored securely and are NOT automatically deleted after 30 days.\n'
+                        '• To request cloud record deletion, go to Settings → Request Data Deletion → Verify My Deletion Request to generate a time-limited verification reference valid for up to 24 hours.\n'
+                        '• Submitting a deletion request does not immediately delete cloud records. An authorized LisKo maintainer must first verify the request and manually process the applicable records through the Firebase Console.\n'
+                        '• Email your Reference ID to liskoapp.team@gmail.com. Verification references expire after 24 hours but are not automatically removed upon expiration.\n'
+                        '• Uninstalled App Notice: Reinstalling assigns a new Anonymous UID. If you uninstalled before generating a Reference ID, email liskoapp.team@gmail.com with general travel details (such as approximate travel dates or destination municipality) to help locate unlinked records. Additional verification may be required.',
                   ),
                   ExpandablePrivacyCard(
                     isExpanded: _expandedIndex == 5,
@@ -291,7 +314,7 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                     accentColor: AppColors.successText,
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
-                        'LisKo is designed to minimize location sharing by utilizing location information only when required by its safety and emergency features.',
+                        'LisKo is designed for trip-based safety monitoring rather than continuous, round-the-clock surveillance. Location monitoring is activated during student-initiated trips and may continue in the background while a trip is active. Location may also be obtained when emergency features are triggered. LisKo does not provide a public or administrator live-tracking dashboard.',
                   ),
 
                   const SizedBox(height: 20),
@@ -315,9 +338,9 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                     accentColor: const Color(0xFFD97706),
                     backgroundColor: const Color(0xFFFFFDE7),
                     description:
-                        'LisKo accesses location services only during specific event-driven safety functions:\n'
-                        '• Destination Arrival: Checking geofence boundary arrival during an active trip.\n'
-                        '• Emergency Alerts: Requesting your current location during Manual SOS, "Need Help", or an unhandled safety timeout.',
+                        'LisKo accesses location services during specific event-driven safety functions:\n'
+                        '• Active Travel Monitoring: Monitoring trip progress and checking geofence boundary arrival during student-initiated commutes (including background operation).\n'
+                        '• Emergency Alerts: Requesting your current location during Manual SOS, "Need Help", or an unanswered safety check timeout.',
                   ),
                   ExpandablePrivacyCard(
                     isExpanded: _expandedIndex == 7,
@@ -327,8 +350,8 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                     accentColor: const Color(0xFFD97706),
                     backgroundColor: const Color(0xFFFFFDE7),
                     description:
-                        '• LisKo does not continuously broadcast or track your location throughout your journey.\n'
-                        '• LisKo does not provide 24/7 live-location tracking.\n'
+                        '• LisKo is designed for trip-based safety monitoring rather than continuous, round-the-clock surveillance.\n'
+                        '• LisKo does not provide 24/7 live-location tracking outside active trips.\n'
                         '• Confirming "I\'m Safe" on arrival does not attach GPS coordinates to the normal Safe Arrival SMS.',
                   ),
                   ExpandablePrivacyCard(
@@ -340,7 +363,7 @@ class _PrivacyPolicyModalBottomSheetState extends State<PrivacyPolicyModalBottom
                     backgroundColor: const Color(0xFFFFFDE7),
                     description:
                         '• During an emergency alert, LisKo attempts to obtain your current GPS coordinates.\n'
-                        '• If a valid location fix is obtained, coordinates and a Google Maps link may be included in the emergency SMS.\n'
+                        '• If a valid location fix is obtained, available location information such as readable location descriptions and GPS coordinates are included in the emergency SMS.\n'
                         '• If location services cannot obtain a current fix, the emergency alert is still sent without location coordinates.\n'
                         '• Emergency location is sent only to the trusted contacts involved in the alert.',
                   ),
@@ -373,10 +396,12 @@ class TermsOfUseModalBottomSheet extends StatefulWidget {
   const TermsOfUseModalBottomSheet({super.key});
 
   @override
-  State<TermsOfUseModalBottomSheet> createState() => _TermsOfUseModalBottomSheetState();
+  State<TermsOfUseModalBottomSheet> createState() =>
+      _TermsOfUseModalBottomSheetState();
 }
 
-class _TermsOfUseModalBottomSheetState extends State<TermsOfUseModalBottomSheet> {
+class _TermsOfUseModalBottomSheetState
+    extends State<TermsOfUseModalBottomSheet> {
   int? _expandedIndex;
 
   void _handleExpansion(int index, bool expanded) {
@@ -440,7 +465,10 @@ class _TermsOfUseModalBottomSheetState extends State<TermsOfUseModalBottomSheet>
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.body),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.body,
+                    ),
                   ),
                 ],
               ),
@@ -450,7 +478,10 @@ class _TermsOfUseModalBottomSheetState extends State<TermsOfUseModalBottomSheet>
             Expanded(
               child: ListView(
                 controller: scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 children: [
                   Text(
                     'TERMS OF USE',
@@ -571,7 +602,7 @@ class _TermsOfUseModalBottomSheetState extends State<TermsOfUseModalBottomSheet>
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
                         'For inquiries regarding the LisKo research capstone project, contact:\n'
-                        '[INSERT OFFICIAL LISKO/PUP PROJECT EMAIL BEFORE RELEASE]',
+                        'liskoapp.team@gmail.com',
                   ),
 
                   const SizedBox(height: 16),
@@ -666,4 +697,3 @@ class _Separator extends StatelessWidget {
     );
   }
 }
-

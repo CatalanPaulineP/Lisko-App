@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:math';
 import 'package:flutter/widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'local_storage_service.dart';
 
 /// Service for interacting with Firebase Cloud Firestore.
-/// 
+///
 /// Maintains the trips, emergency_events, and trusted_contacts collections.
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -28,6 +30,51 @@ class FirebaseService {
     }
   }
 
+  FirebaseAuth? get _auth {
+    if (_isTestEnvironment) return null;
+    try {
+      return FirebaseAuth.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?>? _authInFlight;
+
+  /// Ensures Firebase Anonymous Authentication is initialized and returns the authenticated user ID.
+  /// Uses a shared in-flight Future mutex to prevent simultaneous duplicate signInAnonymously requests.
+  Future<String?> ensureAnonymousAuth() async {
+    if (_isTestEnvironment) return 'test_anonymous_uid';
+
+    if (_authInFlight != null) {
+      return _authInFlight;
+    }
+
+    final completer = Completer<String?>();
+    _authInFlight = completer.future;
+
+    try {
+      final auth = _auth;
+      if (auth == null) {
+        completer.complete(null);
+      } else if (auth.currentUser != null) {
+        completer.complete(auth.currentUser!.uid);
+      } else {
+        final credential = await auth.signInAnonymously();
+        final uid = credential.user?.uid;
+        developer.log('FirebaseService: Anonymous auth successful. UID: $uid');
+        completer.complete(uid);
+      }
+    } catch (e) {
+      developer.log('FirebaseService: Anonymous auth error: $e');
+      completer.complete(null);
+    } finally {
+      _authInFlight = null;
+    }
+
+    return completer.future;
+  }
+
   DateTime _parseDateSafely(dynamic rawDate) {
     if (rawDate == null) return DateTime.now();
     if (rawDate is Timestamp) return rawDate.toDate();
@@ -41,12 +88,25 @@ class FirebaseService {
     final firestore = _firestore;
     if (firestore == null) return [];
     try {
+      final uid = await ensureAnonymousAuth();
+      if (uid == null || uid.isEmpty) {
+        developer.log(
+          'FirebaseService: Skipping getTrips because authenticated UID is null or empty.',
+        );
+        return [];
+      }
+
       final cutoff = DateTime.now().subtract(const Duration(days: 30));
-      final snapshot = await firestore.collection('trips')
-          .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(cutoff))
+      final snapshot = await firestore
+          .collection('trips')
+          .where('userId', isEqualTo: uid)
+          .where(
+            'startedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(cutoff),
+          )
           .orderBy('startedAt', descending: true)
           .get();
-      
+
       return snapshot.docs.map((doc) {
         final data = doc.data();
         return TripRecord(
@@ -67,7 +127,7 @@ class FirebaseService {
   StreamController<List<TripRecord>>? _tripsController;
   StreamSubscription? _subTrips;
   StreamSubscription? _subEvents;
-  
+
   List<TripRecord> _localTrips = [];
   List<TripRecord> _currentTrips = [];
   List<TripRecord> _currentEvents = [];
@@ -75,10 +135,34 @@ class FirebaseService {
   void _emitCombinedTrips() {
     if (_tripsController == null || _tripsController!.isClosed) return;
     final map = <String, TripRecord>{};
-    for (final t in _localTrips) { map[t.id] = t; }
-    for (final t in _currentTrips) { map[t.id] = t; }
-    for (final t in _currentEvents) { map[t.id] = t; }
-    
+    for (final t in _localTrips) {
+      map[t.id] = t;
+    }
+    for (final t in _currentTrips) {
+      final existing = map[t.id];
+      final bool isExtended = t.wasExtended || (existing?.wasExtended ?? false);
+      map[t.id] = TripRecord(
+        id: t.id,
+        destination: t.destination,
+        durationMinutes: t.durationMinutes,
+        status: t.status,
+        timestamp: t.timestamp,
+        wasExtended: isExtended,
+      );
+    }
+    for (final t in _currentEvents) {
+      final existing = map[t.id];
+      final bool isExtended = t.wasExtended || (existing?.wasExtended ?? false);
+      map[t.id] = TripRecord(
+        id: t.id,
+        destination: t.destination,
+        durationMinutes: t.durationMinutes,
+        status: t.status,
+        timestamp: t.timestamp,
+        wasExtended: isExtended,
+      );
+    }
+
     final cutoff = DateTime.now().subtract(const Duration(days: 30));
     final combined = map.values
         .where((t) => !t.timestamp.isBefore(cutoff))
@@ -92,16 +176,21 @@ class FirebaseService {
       _localTrips = await const LocalStorageService().readTripHistory();
       final activeData = await const LocalStorageService().readActiveTrip();
       if (activeData != null && activeData['isActive'] == true) {
-         final activeId = activeData['tripId'] as String? ?? '';
-         if (activeId.isNotEmpty && activeData['startedAtMs'] != null) {
-           _localTrips.add(TripRecord(
-             id: activeId,
-             destination: activeData['destination'] as String? ?? 'Unknown',
-             durationMinutes: (activeData['totalDurationSeconds'] as int? ?? 0) ~/ 60,
-             status: 'active',
-             timestamp: DateTime.fromMillisecondsSinceEpoch(activeData['startedAtMs'] as int),
-           ));
-         }
+        final activeId = activeData['tripId'] as String? ?? '';
+        if (activeId.isNotEmpty && activeData['startedAtMs'] != null) {
+          _localTrips.add(
+            TripRecord(
+              id: activeId,
+              destination: activeData['destination'] as String? ?? 'Unknown',
+              durationMinutes:
+                  (activeData['totalDurationSeconds'] as int? ?? 0) ~/ 60,
+              status: 'active',
+              timestamp: DateTime.fromMillisecondsSinceEpoch(
+                activeData['startedAtMs'] as int,
+              ),
+            ),
+          );
+        }
       }
       _emitCombinedTrips();
     } catch (_) {}
@@ -115,56 +204,71 @@ class FirebaseService {
         final firestore = _firestore;
         if (firestore == null) return;
 
-        final installId = await const LocalStorageService().getOrCreateInstallationId();
+        final uid = await ensureAnonymousAuth();
+        if (uid == null || uid.isEmpty) {
+          developer.log(
+            'FirebaseService: No authenticated UID available. Serving local trip history only.',
+          );
+          return;
+        }
+
         final cutoff = DateTime.now().subtract(const Duration(days: 30));
         final cutoffTimestamp = Timestamp.fromDate(cutoff);
 
         _subTrips = firestore
             .collection('trips')
-            .where('installationId', isEqualTo: installId)
+            .where('userId', isEqualTo: uid)
             .where('startedAt', isGreaterThanOrEqualTo: cutoffTimestamp)
             .orderBy('startedAt', descending: true)
             .snapshots()
-            .listen((snapshot) {
-          _currentTrips = snapshot.docs.map((doc) {
-            final data = doc.data();
-            return TripRecord(
-              id: doc.id,
-              destination: data['destination'] ?? 'Unknown',
-              durationMinutes: data['estimatedTravelMinutes'] ?? 0,
-              status: data['status'] ?? 'Unknown',
-              timestamp: _parseDateSafely(data['completedAt'] ?? data['startedAt']),
-              wasExtended: data['wasExtended'] as bool? ?? false,
+            .listen(
+              (snapshot) {
+                _currentTrips = snapshot.docs.map((doc) {
+                  final data = doc.data();
+                  return TripRecord(
+                    id: doc.id,
+                    destination: data['destination'] ?? 'Unknown',
+                    durationMinutes: data['estimatedTravelMinutes'] ?? 0,
+                    status: data['status'] ?? 'Unknown',
+                    timestamp: _parseDateSafely(
+                      data['completedAt'] ?? data['startedAt'],
+                    ),
+                    wasExtended: data['wasExtended'] as bool? ?? false,
+                  );
+                }).toList();
+                _emitCombinedTrips();
+              },
+              onError: (e) {
+                developer.log('FirebaseService trips error: $e');
+              },
             );
-          }).toList();
-          _emitCombinedTrips();
-        }, onError: (e) {
-          developer.log('FirebaseService trips error: $e');
-        });
 
         _subEvents = firestore
             .collection('emergency_events')
-            .where('installationId', isEqualTo: installId)
+            .where('userId', isEqualTo: uid)
             .where('tripId', isEqualTo: '')
             .where('triggeredAt', isGreaterThanOrEqualTo: cutoffTimestamp)
             .orderBy('triggeredAt', descending: true)
             .snapshots()
-            .listen((snapshot) {
-          _currentEvents = snapshot.docs.map((doc) {
-            final data = doc.data();
-            return TripRecord(
-              id: doc.id,
-              destination: 'Manual SOS',
-              durationMinutes: 0,
-              status: 'Alert',
-              timestamp: _parseDateSafely(data['triggeredAt']),
-              wasExtended: false,
+            .listen(
+              (snapshot) {
+                _currentEvents = snapshot.docs.map((doc) {
+                  final data = doc.data();
+                  return TripRecord(
+                    id: doc.id,
+                    destination: 'Manual SOS',
+                    durationMinutes: 0,
+                    status: 'Alert',
+                    timestamp: _parseDateSafely(data['triggeredAt']),
+                    wasExtended: false,
+                  );
+                }).toList();
+                _emitCombinedTrips();
+              },
+              onError: (e) {
+                developer.log('FirebaseService emergency_events error: $e');
+              },
             );
-          }).toList();
-          _emitCombinedTrips();
-        }, onError: (e) {
-          developer.log('FirebaseService emergency_events error: $e');
-        });
       },
       onCancel: () {
         _subTrips?.cancel();
@@ -193,13 +297,27 @@ class FirebaseService {
     if (firestore == null) return;
 
     try {
-      final installId = await const LocalStorageService().getOrCreateInstallationId();
+      final uid = await ensureAnonymousAuth();
+      if (uid == null || uid.isEmpty) {
+        developer.log(
+          'FirebaseService: Skipping saveOrUpdateTrip because authenticated UID is null or empty.',
+        );
+        return;
+      }
+
+      final installId = await const LocalStorageService()
+          .getOrCreateInstallationId();
+      final safeMinutes = estimatedTravelMinutes > 0
+          ? estimatedTravelMinutes
+          : 1;
       final data = {
+        'userId': uid,
         'installationId': installId,
         'destination': destination,
-        'estimatedTravelMinutes': estimatedTravelMinutes,
+        'estimatedTravelMinutes': safeMinutes,
         'startedAt': Timestamp.fromDate(startedAt),
-        if (expectedArrivalAt != null) 'expectedArrivalAt': Timestamp.fromDate(expectedArrivalAt),
+        if (expectedArrivalAt != null)
+          'expectedArrivalAt': Timestamp.fromDate(expectedArrivalAt),
         if (completedAt != null) 'completedAt': Timestamp.fromDate(completedAt),
         'status': status,
         if (startLat != null) 'startLocationLat': startLat,
@@ -207,10 +325,20 @@ class FirebaseService {
         if (wasExtended != null) 'wasExtended': wasExtended,
       };
 
-      await firestore.collection('trips').doc(tripId).set(data, SetOptions(merge: true));
+      await firestore
+          .collection('trips')
+          .doc(tripId)
+          .set(data, SetOptions(merge: true));
       developer.log('FirebaseService: Saved/Updated trip $tripId ($status).');
-    } catch (e) {
-      developer.log('FirebaseService: Failed to save trip. Error: $e');
+    } catch (e, st) {
+      debugPrint(
+        '[LisKo-Firebase-Error] Failed to save trip $tripId ($status): $e',
+      );
+      developer.log(
+        'FirebaseService: Failed to save trip. Error: $e',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -227,8 +355,18 @@ class FirebaseService {
     if (firestore == null) return;
 
     try {
-      final installId = await const LocalStorageService().getOrCreateInstallationId();
+      final uid = await ensureAnonymousAuth();
+      if (uid == null || uid.isEmpty) {
+        developer.log(
+          'FirebaseService: Skipping logEmergencyEvent because authenticated UID is null or empty.',
+        );
+        return;
+      }
+
+      final installId = await const LocalStorageService()
+          .getOrCreateInstallationId();
       await firestore.collection('emergency_events').doc(eventId).set({
+        'userId': uid,
         'installationId': installId,
         'deviceId': deviceId,
         'tripId': tripId,
@@ -238,11 +376,76 @@ class FirebaseService {
         'triggeredAt': Timestamp.fromDate(DateTime.now()),
         'status': 'active',
       });
-      
-      developer.log('FirebaseService: Successfully logged emergency event ($emergencyType) with ID: $eventId.');
-    } catch (e) {
-      developer.log('FirebaseService: Failed to log emergency event to Firestore. Error: $e');
+
+      developer.log(
+        'FirebaseService: Successfully logged emergency event ($emergencyType) with ID: $eventId.',
+      );
+    } catch (e, st) {
+      debugPrint(
+        '[LisKo-Firebase-Error] Failed to log emergency event ($emergencyType): $e',
+      );
+      developer.log(
+        'FirebaseService: Failed to log emergency event to Firestore. Error: $e',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  String _generateSecureRandomHex(int bytes) {
+    final random = Random.secure();
+    final values = List<int>.generate(bytes, (_) => random.nextInt(256));
+    return values
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join()
+        .toUpperCase();
+  }
+
+  /// Creates a single-use authenticated deletion verification reference document in '/deletion_verifications/{refId}'.
+  /// Uses CSPRNG (Random.secure()) with 128 bits of unpredictable entropy.
+  /// Returns the generated reference string (e.g. 'REF-3F05B702050BEC13FC1A73CBC55A3CE0'), or null if creation fails.
+  Future<String?> createDeletionVerificationReference() async {
+    final firestore = _firestore;
+    if (firestore == null) return null;
+
+    try {
+      final uid = await ensureAnonymousAuth();
+      if (uid == null || uid.isEmpty) {
+        developer.log(
+          'FirebaseService: Skipping createDeletionVerificationReference because authenticated UID is null or empty.',
+        );
+        return null;
+      }
+
+      final now = DateTime.now();
+      final randomHex = _generateSecureRandomHex(
+        16,
+      ); // 16 bytes = 128 bits entropy
+      final refId = 'REF-$randomHex';
+      final expiresAt = now.add(const Duration(hours: 24));
+
+      await firestore.collection('deletion_verifications').doc(refId).set({
+        'userId': uid,
+        'referenceId': refId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(expiresAt),
+        'status': 'pending',
+      });
+
+      developer.log(
+        'FirebaseService: Successfully created deletion verification reference: $refId.',
+      );
+      return refId;
+    } catch (e, st) {
+      debugPrint(
+        '[LisKo-Firebase-Error] Failed to create deletion verification reference: $e',
+      );
+      developer.log(
+        'FirebaseService: Failed to create deletion verification reference. Error: $e',
+        error: e,
+        stackTrace: st,
+      );
+      return null;
     }
   }
 }
-

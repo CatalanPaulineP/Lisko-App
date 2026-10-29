@@ -6,21 +6,24 @@ rules_version = '2';
 //
 // Role & Architectural Context:
 // Defines client-side data validation, schema enforcement, immutability guarantees,
-// and deletion prevention for LisKo Cloud Firestore collections (`trips` & `emergency_events`).
+// and ownership enforcement for LisKo Cloud Firestore collections (`trips` & `emergency_events`).
 //
-// CURRENT ARCHITECTURAL PRIVACY LIMITATION:
-// LisKo currently operates without Firebase Authentication (`request.auth == null`)
-// and uses local device storage (`SharedPreferences`) for sensitive student contacts.
-// Because the mobile app is accountless, rules CANNOT enforce per-user authorization
-// or distinguish one student's client from another.
-// Public reads (`allow read: if true;`) are retained for compatibility with the current
-// anonymous architecture. Data protection is achieved via strict field-level schema
-// validation, immutable event logs, numeric bounds checking on GPS coordinates, and
-// prevention of document deletions.
+// FIREBASE ANONYMOUS AUTHENTICATION ARCHITECTURE:
+// LisKo uses Firebase Anonymous Authentication (`request.auth.uid`). Users operate
+// accountlessly without login/registration screens, while Firestore enforces document
+// ownership via `request.auth.uid == resource.data.userId`.
 // ==============================================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
 
     // --------------------------------------------------------------------------
     // Helper Validation Functions for `trips`
@@ -44,6 +47,7 @@ service cloud.firestore {
     function isValidTripSchema(data) {
       // 1. Strict key check: reject unexpected fields
       let allowedKeys = [
+        'userId',
         'installationId',
         'destination',
         'estimatedTravelMinutes',
@@ -58,6 +62,8 @@ service cloud.firestore {
 
       return data.keys().hasOnly(allowedKeys)
         // 2. Required fields
+        && data.userId is string
+        && data.userId == request.auth.uid
         && data.installationId is string
         && data.installationId.size() > 0
         && data.destination is string
@@ -82,6 +88,7 @@ service cloud.firestore {
     /// Enforces field presence, data types, and schema validity for emergency events.
     function isValidEmergencyEventSchema(data) {
       let allowedKeys = [
+        'userId',
         'installationId',
         'deviceId',
         'tripId',
@@ -93,6 +100,8 @@ service cloud.firestore {
       ];
 
       return data.keys().hasOnly(allowedKeys)
+        && data.userId is string
+        && data.userId == request.auth.uid
         && data.installationId is string
         && data.installationId.size() > 0
         && data.deviceId is string
@@ -110,17 +119,19 @@ service cloud.firestore {
     // `trips` Collection Rules
     // --------------------------------------------------------------------------
     match /trips/{tripId} {
-      // Retained for accountless architecture compatibility
-      allow read: if true;
+      // Only document owner can read their own trips
+      allow read: if isOwner(resource.data.userId);
 
-      // Allow creating new trip documents conforming to schema
-      allow create: if isValidTripSchema(request.resource.data);
+      // Allow creating new trip documents conforming to schema with matching userId
+      allow create: if isAuthenticated() && isValidTripSchema(request.resource.data);
 
-      // Allow updates provided immutability holds and merged result conforms to schema
-      allow update: if isValidTripSchema(request.resource.data)
+      // Allow updates provided immutability holds, merged result conforms to schema, and owner matches
+      allow update: if isOwner(resource.data.userId)
+                    && isValidTripSchema(request.resource.data)
                     && request.resource.data.startedAt == resource.data.startedAt
                     && request.resource.data.destination == resource.data.destination
-                    && request.resource.data.installationId == resource.data.installationId;
+                    && request.resource.data.installationId == resource.data.installationId
+                    && request.resource.data.userId == resource.data.userId;
 
       // Prevent trip record deletions
       allow delete: if false;
@@ -130,15 +141,42 @@ service cloud.firestore {
     // `emergency_events` Collection Rules (Immutable Audit Trail)
     // --------------------------------------------------------------------------
     match /emergency_events/{eventId} {
-      // Retained for accountless architecture compatibility
-      allow read: if true;
+      // Only document owner can read their own emergency events
+      allow read: if isOwner(resource.data.userId);
 
-      // Allow creating new emergency event logs conforming to schema
-      allow create: if isValidEmergencyEventSchema(request.resource.data);
+      // Allow creating new emergency event logs conforming to schema with matching userId
+      allow create: if isAuthenticated() && isValidEmergencyEventSchema(request.resource.data);
 
       // Emergency logs are strictly immutable: no updates or deletions allowed
       allow update: if false;
       allow delete: if false;
+    }
+
+    // --------------------------------------------------------------------------
+    // `deletion_verifications` Collection Rules (Authenticated Verification Requests)
+    // --------------------------------------------------------------------------
+    match /deletion_verifications/{refId} {
+      // Only document owner can fetch their own verification reference by ID (no listing allowed)
+      allow get: if isOwner(resource.data.userId);
+
+      // Allow authenticated owner to create a verification reference matching exact schema and valid timestamp bounds
+      allow create: if isAuthenticated()
+                    && request.resource.data.keys().hasAll(['userId', 'referenceId', 'createdAt', 'expiresAt', 'status'])
+                    && request.resource.data.keys().hasOnly(['userId', 'referenceId', 'createdAt', 'expiresAt', 'status'])
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.referenceId == refId
+                    && refId.matches('^REF-[0-9A-F]{32}$')
+                    && refId.size() == 36
+                    && request.resource.data.createdAt is timestamp
+                    && request.resource.data.createdAt <= request.time
+                    && request.resource.data.createdAt >= request.time - duration.value(5, 'm')
+                    && request.resource.data.expiresAt is timestamp
+                    && request.resource.data.expiresAt > request.resource.data.createdAt
+                    && request.resource.data.expiresAt <= request.resource.data.createdAt + duration.value(24, 'h')
+                    && request.resource.data.status == 'pending';
+
+      // Disallow client listing, updates, and deletions (only backend Admin SDK can process/delete)
+      allow list, update, delete: if false;
     }
 
     // --------------------------------------------------------------------------

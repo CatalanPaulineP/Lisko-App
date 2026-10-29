@@ -47,8 +47,16 @@ app.*.map.json
 
 .artifacts/
 
-# LisKo local physical-test / diagnostic logs
+# Android Release Signing Secrets & Private Keystores
+key.properties
+*.jks
+*.keystore
+
+# LisKo local physical-test / diagnostic logs & node dependencies
 lisko_*_test.txt
 lisko_*_diag.txt
+lisko_*_log.txt
+lisko_debug_log.txt
+**/node_modules/
 
 docs/LISKO_COMPLETE_SYSTEM_FLOW_AND_DEFENSE_GUIDE.md

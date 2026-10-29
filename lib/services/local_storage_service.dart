@@ -47,10 +47,16 @@ class LocalStorageService {
       final r2 = random.nextInt(1000000).toString().padLeft(6, '0');
       final newId = 'inst_${nowMs}_${r1}_$r2';
       await preferences.setString(_installationIdKey, newId);
-      developer.log('LocalStorageService: Generated new persistent installation ID: $newId');
+      developer.log(
+        'LocalStorageService: Generated new persistent installation ID: $newId',
+      );
       return newId;
     } catch (e, st) {
-      developer.log('Failed to read or generate installation ID', error: e, stackTrace: st);
+      developer.log(
+        'Failed to read or generate installation ID',
+        error: e,
+        stackTrace: st,
+      );
       rethrow;
     }
   }
@@ -75,7 +81,9 @@ class LocalStorageService {
           .toList();
 
       if (retainedTrips.length < allTrips.length) {
-        final encoded = jsonEncode(retainedTrips.map((t) => t.toJson()).toList());
+        final encoded = jsonEncode(
+          retainedTrips.map((t) => t.toJson()).toList(),
+        );
         await preferences.setString(_tripHistoryKey, encoded);
       }
 
@@ -113,6 +121,7 @@ class LocalStorageService {
     double? cachedLat,
     double? cachedLng,
     bool? isEscalated,
+    bool? wasExtended,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!isActive) {
@@ -123,6 +132,7 @@ class LocalStorageService {
     double? finalLng = cachedLng;
     bool? finalSuppress = suppressArrivalUntilExit;
     bool? finalEscalated = isEscalated;
+    bool? finalExtended = wasExtended;
 
     try {
       final raw = prefs.getString(_activeTripKey);
@@ -130,8 +140,10 @@ class LocalStorageService {
         final existing = jsonDecode(raw) as Map<String, dynamic>;
         finalLat = finalLat ?? (existing['cachedLat'] as num?)?.toDouble();
         finalLng = finalLng ?? (existing['cachedLng'] as num?)?.toDouble();
-        finalSuppress = finalSuppress ?? (existing['suppressArrivalUntilExit'] as bool?);
+        finalSuppress =
+            finalSuppress ?? (existing['suppressArrivalUntilExit'] as bool?);
         finalEscalated = finalEscalated ?? (existing['isEscalated'] as bool?);
+        finalExtended = finalExtended ?? (existing['wasExtended'] as bool?);
       }
     } catch (_) {}
 
@@ -149,6 +161,7 @@ class LocalStorageService {
       'cachedLat': finalLat,
       'cachedLng': finalLng,
       'isEscalated': finalEscalated ?? false,
+      'wasExtended': finalExtended ?? false,
     };
     await prefs.setString(_activeTripKey, jsonEncode(data));
   }
@@ -351,14 +364,16 @@ class LocalStorageService {
   /// Key storing the user's preferred Timer Expiry Alert Mode.
   static const _alertModeKey = 'timer_alert_mode';
   static const _defaultDurationKey = 'default_travel_duration_minutes';
-  
+
   /// Reads the Default Travel Duration (in minutes). Defaults to 45 mins.
   Future<int> readDefaultTravelDuration() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getInt(_defaultDurationKey) ?? 45;
     } catch (e) {
-      developer.log('LocalStorageService: Failed to read default travel duration. Error: $e');
+      developer.log(
+        'LocalStorageService: Failed to read default travel duration. Error: $e',
+      );
       return 45;
     }
   }
@@ -368,9 +383,13 @@ class LocalStorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_defaultDurationKey, minutes);
-      developer.log('LocalStorageService: Saved default travel duration ($minutes mins).');
+      developer.log(
+        'LocalStorageService: Saved default travel duration ($minutes mins).',
+      );
     } catch (e) {
-      developer.log('LocalStorageService: Failed to save default travel duration: $e');
+      developer.log(
+        'LocalStorageService: Failed to save default travel duration: $e',
+      );
     }
   }
 
@@ -384,7 +403,9 @@ class LocalStorageService {
       }
       return 'Vibration Only';
     } catch (e) {
-      developer.log('LocalStorageService: Failed to read alert mode, defaulting to Vibration Only. Error: $e');
+      developer.log(
+        'LocalStorageService: Failed to read alert mode, defaulting to Vibration Only. Error: $e',
+      );
       return 'Vibration Only';
     }
   }
@@ -462,7 +483,11 @@ class LocalStorageService {
       final preferences = await SharedPreferences.getInstance();
       return preferences.getBool(_walkthroughKey) ?? false;
     } catch (e, st) {
-      developer.log('Failed to read walkthrough state', error: e, stackTrace: st);
+      developer.log(
+        'Failed to read walkthrough state',
+        error: e,
+        stackTrace: st,
+      );
       return false;
     }
   }
@@ -472,7 +497,11 @@ class LocalStorageService {
       final preferences = await SharedPreferences.getInstance();
       return await preferences.setBool(_walkthroughKey, completed);
     } catch (e, st) {
-      developer.log('Failed to write walkthrough state', error: e, stackTrace: st);
+      developer.log(
+        'Failed to write walkthrough state',
+        error: e,
+        stackTrace: st,
+      );
       return false;
     }
   }
@@ -485,7 +514,11 @@ class LocalStorageService {
       final list = preferences.getStringList(_readNotificationIdsKey);
       return list?.toSet() ?? {};
     } catch (e, st) {
-      developer.log('Failed to read notification read IDs from SharedPreferences', error: e, stackTrace: st);
+      developer.log(
+        'Failed to read notification read IDs from SharedPreferences',
+        error: e,
+        stackTrace: st,
+      );
       return {};
     }
   }
@@ -493,9 +526,16 @@ class LocalStorageService {
   Future<bool> saveReadNotificationIds(Set<String> readIds) async {
     try {
       final preferences = await SharedPreferences.getInstance();
-      return await preferences.setStringList(_readNotificationIdsKey, readIds.toList());
+      return await preferences.setStringList(
+        _readNotificationIdsKey,
+        readIds.toList(),
+      );
     } catch (e, st) {
-      developer.log('Failed to save notification read IDs to SharedPreferences', error: e, stackTrace: st);
+      developer.log(
+        'Failed to save notification read IDs to SharedPreferences',
+        error: e,
+        stackTrace: st,
+      );
       return false;
     }
   }
@@ -572,7 +612,8 @@ class LocalStorageService {
   Future<bool> hasSavedHomeCoordinates() async {
     try {
       final preferences = await SharedPreferences.getInstance();
-      return preferences.containsKey(_homeLatKey) && preferences.containsKey(_homeLngKey);
+      return preferences.containsKey(_homeLatKey) &&
+          preferences.containsKey(_homeLngKey);
     } catch (e) {
       return false;
     }
@@ -643,21 +684,20 @@ class TripRecord {
   final bool wasExtended;
 
   factory TripRecord.fromJson(Map<String, dynamic> json) => TripRecord(
-        id: json['id'] as String,
-        destination: json['destination'] as String,
-        durationMinutes: json['durationMinutes'] as int,
-        status: json['status'] as String,
-        timestamp: DateTime.parse(json['timestamp'] as String),
-        wasExtended: json['wasExtended'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    destination: json['destination'] as String,
+    durationMinutes: json['durationMinutes'] as int,
+    status: json['status'] as String,
+    timestamp: DateTime.parse(json['timestamp'] as String),
+    wasExtended: json['wasExtended'] as bool? ?? false,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'destination': destination,
-        'durationMinutes': durationMinutes,
-        'status': status,
-        'timestamp': timestamp.toIso8601String(),
-        'wasExtended': wasExtended,
-      };
+    'id': id,
+    'destination': destination,
+    'durationMinutes': durationMinutes,
+    'status': status,
+    'timestamp': timestamp.toIso8601String(),
+    'wasExtended': wasExtended,
+  };
 }
-

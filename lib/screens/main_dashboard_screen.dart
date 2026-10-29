@@ -76,6 +76,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int arrivalCountdown = 90;
   bool isTimeoutWarning = false;
   int timeoutCountdown = 90;
+  bool _wasExtended = false;
 
   Duration remaining = Duration.zero;
   DateTime? expectedArrivalAt;
@@ -362,6 +363,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final tId = data['tripId'] as String? ?? '';
     final startedMs = data['startedAtMs'] as int?;
     final isTimeout = data['isTimeoutWarning'] as bool? ?? false;
+    final wasExt = data['wasExtended'] as bool? ?? false;
 
     debugPrint(
       '[LisKo-BG-Diag] _restoreActiveTrip(): Active trip found: '
@@ -384,6 +386,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tripStartedAt = startedMs != null
           ? DateTime.fromMillisecondsSinceEpoch(startedMs)
           : null;
+      _wasExtended = wasExt;
       selectedTab = 0;
 
       if (isTimeout || isArrived) {
@@ -617,6 +620,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       remaining = duration;
       tripId = newTripId;
       tripStartedAt = now;
+      _wasExtended = false;
       selectedTab = 0;
     });
 
@@ -628,6 +632,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       isArrived: false,
       tripId: tripId,
       startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
+      wasExtended: false,
     );
     debugPrint(
       '[LisKo-BG-Diag] saveActiveTrip() write COMPLETED for tripId: $tripId, destination: $destination, expectedArrivalAtMs: ${expectedArrivalAt?.millisecondsSinceEpoch}',
@@ -648,6 +653,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       startedAt: tripStartedAt ?? now,
       expectedArrivalAt: expectedArrivalAt,
       status: 'active',
+      wasExtended: false,
     );
 
     // 2. Start Travel Countdown Timer using Timestamp Comparison
@@ -716,6 +722,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       safetyCheckDeadlineMs: safetyCheckDeadline?.millisecondsSinceEpoch,
       tripId: tripId,
       startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
+      wasExtended: _wasExtended,
     );
 
     if (tripId.isNotEmpty && tripStartedAt != null) {
@@ -726,6 +733,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         startedAt: tripStartedAt!,
         expectedArrivalAt: expectedArrivalAt,
         status: 'timeout_warning',
+        wasExtended: _wasExtended,
       );
     }
 
@@ -781,6 +789,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       safetyCheckDeadlineMs: safetyCheckDeadline?.millisecondsSinceEpoch,
       tripId: tripId,
       startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
+      wasExtended: _wasExtended,
     );
 
     if (tripId.isNotEmpty && tripStartedAt != null) {
@@ -791,6 +800,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         startedAt: tripStartedAt!,
         expectedArrivalAt: expectedArrivalAt,
         status: 'arrived',
+        wasExtended: _wasExtended,
       );
     }
 
@@ -926,6 +936,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           durationMinutes: totalDuration.inMinutes,
           status: eventType,
           timestamp: DateTime.now(),
+          wasExtended: _wasExtended,
         );
         await storage.saveTripHistory([...history, newTrip]);
         FirebaseService().refreshLocalTrips();
@@ -939,6 +950,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             expectedArrivalAt: expectedArrivalAt,
             completedAt: DateTime.now(),
             status: 'expired',
+            wasExtended: _wasExtended,
           );
         }
 
@@ -1041,6 +1053,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       durationMinutes: totalDuration.inMinutes,
       status: safe ? 'Arrived Safely' : 'Cancelled',
       timestamp: DateTime.now(),
+      wasExtended: _wasExtended,
     );
     await storage.saveTripHistory([...history, newTrip]);
     FirebaseService().refreshLocalTrips();
@@ -1053,9 +1066,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         startedAt: tripStartedAt!,
         expectedArrivalAt: expectedArrivalAt,
         completedAt: DateTime.now(),
-        status: safe
-            ? 'arrived'
-            : 'cancelled', // Changed 'arrived' string to represent successfully completed trip in the DB model based on user requirement
+        status: safe ? 'arrived' : 'cancelled',
+        wasExtended: _wasExtended,
       );
     }
 
@@ -1127,6 +1139,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       arrivalCountdown = 90;
 
       remaining = expectedArrivalAt!.difference(currentTime);
+      _wasExtended = true;
     });
 
     await const LocalStorageService().saveActiveTrip(
@@ -1139,6 +1152,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       suppressArrivalUntilExit: wasArrived,
       tripId: tripId,
       startedAtMs: tripStartedAt?.millisecondsSinceEpoch,
+      wasExtended: true,
     );
 
     if (tripId.isNotEmpty && tripStartedAt != null) {

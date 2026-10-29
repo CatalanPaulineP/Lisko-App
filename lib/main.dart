@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Lisko Mobile Safety Application - Core Entry Point
 // File: lib/main.dart
 //
@@ -25,7 +25,7 @@
 
 import 'dart:async';
 
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart' hide FirebaseService;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -39,6 +39,7 @@ import 'screens/widget_sos_emergency_screen.dart';
 import 'services/local_storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/background_service_setup.dart';
+import 'services/firebase_service.dart';
 
 export 'constants/app_colors.dart';
 export 'constants/app_icons.dart';
@@ -56,7 +57,9 @@ void main() {
   _startupStopwatch.start();
   debugPrint('[LisKo Startup] 0ms: main() entered');
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: WidgetsBinding initialized, calling runApp()');
+  debugPrint(
+    '[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: WidgetsBinding initialized, calling runApp()',
+  );
   runApp(const LiskoApp());
 }
 
@@ -145,7 +148,9 @@ class _LaunchGateState extends State<_LaunchGate> {
   }
 
   Future<void> _bootstrapAndNavigate() async {
-    debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: _bootstrapAndNavigate() started');
+    debugPrint(
+      '[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: _bootstrapAndNavigate() started',
+    );
 
     try {
       _updateStatus('Preparing safety services...');
@@ -153,28 +158,40 @@ class _LaunchGateState extends State<_LaunchGate> {
       // Execute all required initializations concurrently while SplashScreen is visible
       await Future.wait([
         NotificationService().initialize().then((_) {
-          debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: NotificationService initialized');
+          debugPrint(
+            '[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: NotificationService initialized',
+          );
         }),
         initializeBackgroundService().then((_) {
-          debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: BackgroundService initialized');
+          debugPrint(
+            '[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: BackgroundService initialized',
+          );
         }),
         _initFirebaseSafely().then((_) {
-          debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Firebase initialized');
+          debugPrint(
+            '[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Firebase initialized',
+          );
         }),
       ]);
 
       _updateStatus('Loading your preferences...');
       final setupCompleted = _isTestMode
-          ? (forceFreshStartupForTesting ? false : await _storage.readSetupCompleted())
+          ? (forceFreshStartupForTesting
+                ? false
+                : await _storage.readSetupCompleted())
           : await _storage.readSetupCompleted();
-      debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Preferences read (setupCompleted: $setupCompleted)');
+      debugPrint(
+        '[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Preferences read (setupCompleted: $setupCompleted)',
+      );
 
       if (setupCompleted) {
         _updateStatus('Checking trip information...');
         final activeTrip = await _storage.readActiveTrip();
         if (activeTrip != null && activeTrip['isActive'] == true) {
           _updateStatus('Restoring your active trip...');
-          debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Active trip detected for restoration');
+          debugPrint(
+            '[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Active trip detected for restoration',
+          );
         }
       }
 
@@ -184,7 +201,9 @@ class _LaunchGateState extends State<_LaunchGate> {
         await Future.delayed(Duration(milliseconds: minSplashTime - elapsed));
       }
 
-      debugPrint('[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Navigating from SplashScreen');
+      debugPrint(
+        '[LisKo Startup] ${_startupStopwatch.elapsedMilliseconds}ms: Navigating from SplashScreen',
+      );
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -213,6 +232,7 @@ class _LaunchGateState extends State<_LaunchGate> {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      await FirebaseService().ensureAnonymousAuth();
     } catch (error) {
       debugPrint('Firebase initialization notice: $error');
     }
@@ -226,7 +246,9 @@ class _LaunchGateState extends State<_LaunchGate> {
     if (pendingAction != null && pendingAction.isNotEmpty) {
       await prefs.remove('pending_notification_action');
       await Future.delayed(const Duration(milliseconds: 600));
-      debugPrint('[LaunchGate] Dispatching pending notification action: "$pendingAction"');
+      debugPrint(
+        '[LaunchGate] Dispatching pending notification action: "$pendingAction"',
+      );
       NotificationService.onActionReceived?.call(pendingAction);
     }
   }

@@ -19,9 +19,6 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
-    <!-- Full-screen alarm intent — wakes lock screen when safety check fires -->
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
-
     <!-- Foreground service permissions required for Android 14+ (API 34+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
