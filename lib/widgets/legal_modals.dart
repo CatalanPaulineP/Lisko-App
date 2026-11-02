@@ -245,10 +245,13 @@ class _PrivacyPolicyModalBottomSheetState
                     description:
                         'LisKo uses information necessary for travel safety monitoring:\n'
                         '• Firebase Anonymous Account: Automatically assigned upon first launch without requiring student name, email, or password registration.\n'
-                        '• Trusted Contacts & Settings: Contact names, phone numbers, home location coordinates, and commute duration presets are stored locally on your device using SharedPreferences.\n'
-                        '• Local Trip History: Saved on your phone and automatically pruned after 30 days when reading trip history.\n'
-                        '• Cloud Safety Records: Trip monitoring status, emergency event logs, and time-limited verification reference IDs are stored securely in Cloud Firestore.\n'
-                        '• Location Coordinates: Obtained during geofence arrival checks, Manual SOS, or unanswered safety check timeouts, and processed locally or via Android system geocoding.\n'
+                        '• Trusted Contacts & Local Settings: Emergency contact names, phone numbers, relationships, saved Home geofence coordinates, commute duration presets, and active trip states (which may contain cached location coordinates) are stored locally on your device using SharedPreferences. They are NOT uploaded to Cloud Firestore.\n'
+                        '• Local Trip History: Saved on your phone and automatically pruned after 30 days when the application reads and cleans up trip history.\n'
+                        '• Cloud Safety Records: Stored securely in Cloud Firestore across three dedicated collections:\n'
+                        '  - /trips: Anonymous Auth UID, Installation ID, destination, estimated travel duration, trip start timestamp, expected arrival timestamp, completion timestamp (when applicable), trip status, available trip-start GPS coordinates, and trip extension status.\n'
+                        '  - /emergency_events: Anonymous Auth UID, Installation ID, associated trip ID (when applicable), available emergency GPS coordinates, emergency type (SOS or TIMEOUT_ESCALATION), event timestamp, dispatch status, and application identifier (static string local_device).\n'
+                        '  - /deletion_verifications: Anonymous Auth UID, verification reference ID, request status, creation timestamp, and expiration timestamp.\n'
+                        '• Location Coordinates: Obtained during student-initiated active trips, geofence arrival checks, Manual SOS (even if no trip is active), or unanswered safety check timeouts, and processed locally or via Android system geocoding. Available GPS coordinates may be included in emergency SMS messages.\n'
                         '• Device Identifiers: Local Installation ID (installationId) and Anonymous Auth UID isolate your cloud records without personal accounts.',
                   ),
                   ExpandablePrivacyCard(
@@ -273,8 +276,8 @@ class _PrivacyPolicyModalBottomSheetState
                     accentColor: AppColors.successText,
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
-                        '• Emergency and safe-arrival SMS messages are transmitted directly via your phone\'s cellular SIM network.\n'
-                        '• SIM SMS relies on mobile carrier coverage. GPS location accuracy depends on satellite visibility and hardware state.\n'
+                        '• Emergency and safe-arrival SMS messages are transmitted directly via your phone\'s cellular SIM network using your selected contact phone numbers. Emergency SMS alerts may contain available location information, such as readable location descriptions and GPS coordinates.\n'
+                        '• Firebase does NOT send the application\'s emergency SMS messages. Cellular SMS relies on mobile carrier coverage. GPS location accuracy depends on satellite visibility and hardware state.\n'
                         '• LisKo does not read, access, or receive SMS messages from your inbox (READ_SMS and RECEIVE_SMS permissions are not used).\n'
                         '• Messages already sent to contacts are stored on recipient phones outside LisKo\'s control.',
                   ),
@@ -288,7 +291,7 @@ class _PrivacyPolicyModalBottomSheetState
                     description:
                         '• Normal Safe Arrival: Confirming "I\'m Safe" sends an SMS only to your Primary Emergency Contact without GPS coordinates.\n'
                         '• Emergency Alerts: Triggering Manual SOS, tapping "Need Help", or failing to respond to a safety timeout sends emergency alerts to all your trusted contacts.\n'
-                        '• Cloud Encryption: Cloud Firestore communication uses encrypted HTTPS/TLS 1.3 channels. Cellular SMS uses standard mobile network signaling.\n'
+                        '• Cloud Encryption: Firebase Authentication and Cloud Firestore communication use encrypted HTTPS/TLS connections. The application does not specify or guarantee a particular TLS version. Cellular SMS operates over standard mobile network signaling.\n'
                         '• No Live-Tracking Dashboard: LisKo does not broadcast your location to a public or admin web dashboard.',
                   ),
                   ExpandablePrivacyCard(
@@ -299,22 +302,24 @@ class _PrivacyPolicyModalBottomSheetState
                     accentColor: AppColors.successText,
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
-                        '• Local trip history is automatically pruned on your phone after 30 days during trip history cleanup.\n'
-                        '• Production Cloud Firestore records are stored securely and are NOT automatically deleted after 30 days.\n'
+                        '• Local trip history entries older than 30 days are removed when the application reads and cleans up trip history.\n'
+                        '• Production Cloud Firestore records are stored securely and do NOT have an automatic 30-day deletion period. They remain stored until an authorized maintainer manually processes an applicable, verified deletion request.\n'
                         '• To request cloud record deletion, go to Settings → Request Data Deletion → Verify My Deletion Request to generate a time-limited verification reference valid for up to 24 hours.\n'
                         '• Submitting a deletion request does not immediately delete cloud records. An authorized LisKo maintainer must first verify the request and manually process the applicable records through the Firebase Console.\n'
-                        '• Email your Reference ID to liskoapp.team@gmail.com. Verification references expire after 24 hours but are not automatically removed upon expiration.\n'
-                        '• Uninstalled App Notice: Reinstalling assigns a new Anonymous UID. If you uninstalled before generating a Reference ID, email liskoapp.team@gmail.com with general travel details (such as approximate travel dates or destination municipality) to help locate unlinked records. Additional verification may be required.',
+                        '• Email your Reference ID to liskoapp.team@gmail.com. Verification references expire after 24 hours, but expiration does not automatically delete the verification document or associated cloud records. Deletion requests are processed manually by project maintainers upon email receipt and verification.\n'
+                        '• Uninstalled App Notice: LisKo uses Firebase Anonymous Authentication and does not provide email/password or phone-OTP account recovery. Uninstalling the application may make your original anonymous session inaccessible. Reinstalling the application may create a new Anonymous UID. If you have already uninstalled the application, contact the LisKo team for assistance at liskoapp.team@gmail.com. The team may ask for limited, general information (such as approximate travel dates or destination municipality) to assess whether records can be located, but without the original anonymous session we may be unable to reliably identify or verify the records. Please do not send exact GPS coordinates, trusted-contact phone numbers, or sensitive trip records through ordinary email.',
                   ),
                   ExpandablePrivacyCard(
                     isExpanded: _expandedIndex == 5,
                     onExpansionChanged: (exp) => _handleExpansion(5, exp),
-                    title: 'Privacy Commitment',
+                    title: 'Privacy Commitment & Services',
                     icon: Icons.verified_user_outlined,
                     accentColor: AppColors.successText,
                     backgroundColor: const Color(0xFFE8F5E9),
                     description:
-                        'LisKo is designed for trip-based safety monitoring rather than continuous, round-the-clock surveillance. Location monitoring is activated during student-initiated trips and may continue in the background while a trip is active. Location may also be obtained when emergency features are triggered. LisKo does not provide a public or administrator live-tracking dashboard.',
+                        '• LisKo is designed for trip-based safety monitoring rather than continuous, round-the-clock surveillance. Location monitoring is activated during student-initiated trips and may continue in the background while a trip is active. Location may also be obtained when emergency features are triggered. LisKo does not provide a public or administrator live-tracking dashboard.\n'
+                        '• Services Used: Firebase Authentication (Anonymous Auth), Cloud Firestore (cloud safety records), Android system geocoding services for readable location descriptions, and your mobile carrier network for cellular SMS alerts.\n'
+                        '• No Google Analytics, Firebase Analytics, AdMob, or advertising SDKs were identified in the audited project dependencies.',
                   ),
 
                   const SizedBox(height: 20),
