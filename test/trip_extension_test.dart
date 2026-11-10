@@ -7,7 +7,7 @@ import 'package:flutter_app/screens/trips_tab.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Trip History Extension Tracking Bug Fix Tests', () {
+  group('Trip History Extension & Badge Display Tests', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
     });
@@ -28,7 +28,6 @@ void main() {
         expect(activeData, isNotNull);
         expect(activeData!['wasExtended'], isTrue);
 
-        // Verify that calling saveActiveTrip without passing wasExtended retains wasExtended == true
         await storage.saveActiveTrip(
           isActive: true,
           destination: 'Campus',
@@ -75,20 +74,148 @@ void main() {
       expect(legacyTrip.wasExtended, isFalse);
     });
 
+    testWidgets('Scenario 1: Pending timeout renders WARNING badge only', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: TripListItem(
+              title: 'Campus',
+              subtitle: 'Nov 10, 2026 • 10:00 AM',
+              durationOrSos: 'Duration: 45 mins',
+              status: 'WARNING',
+              badgeBgColor: Color(0xFFFEF3C7),
+              badgeTextColor: Color(0xFFD97706),
+              wasExtended: false,
+              hasAlertChip: false,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('WARNING'), findsOneWidget);
+      expect(find.text('ALERT'), findsNothing);
+      expect(find.text('+15 MIN'), findsNothing);
+    });
+
     testWidgets(
-      'TripListItem renders +15 MIN tag when trip was extended alongside ALERT or ARRIVED',
+      'Scenario 2: Final expired trip with escalation renders ALERT chip + EXPIRED badge',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
               body: TripListItem(
                 title: 'Campus',
-                subtitle: 'Mar 30, 2026 • 10:00 AM',
+                subtitle: 'Nov 10, 2026 • 10:00 AM',
                 durationOrSos: 'Duration: 45 mins',
+                status: 'EXPIRED',
+                badgeBgColor: Color(0xFFFFDAD8),
+                badgeTextColor: Color(0xFFDB2B38),
+                wasExtended: false,
+                hasAlertChip: true,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('ALERT'), findsOneWidget);
+        expect(find.text('EXPIRED'), findsOneWidget);
+        expect(find.text('+15 MIN'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Scenario 3: Expired trip without escalation indicator renders EXPIRED badge only',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: TripListItem(
+                title: 'Campus',
+                subtitle: 'Nov 10, 2026 • 10:00 AM',
+                durationOrSos: 'Duration: 45 mins',
+                status: 'EXPIRED',
+                badgeBgColor: Color(0xFFFFDAD8),
+                badgeTextColor: Color(0xFFDB2B38),
+                wasExtended: false,
+                hasAlertChip: false,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('EXPIRED'), findsOneWidget);
+        expect(find.text('ALERT'), findsNothing);
+        expect(find.text('+15 MIN'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Scenario 4 & 5: Need Help and Manual SOS render ALERT badge without duplicate ALERT chip',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: TripListItem(
+                title: 'Emergency Alert',
+                subtitle: 'Nov 10, 2026 • 10:00 AM',
+                durationOrSos: 'Manual SOS',
                 status: 'ALERT',
                 badgeBgColor: Color(0xFFFFDAD8),
                 badgeTextColor: Color(0xFFDB2B38),
+                wasExtended: false,
+                hasAlertChip: true,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('ALERT'), findsOneWidget); // Suppresses duplicate!
+      },
+    );
+
+    testWidgets(
+      'Scenario 6: Extended then arrived renders +15 MIN chip + ARRIVED badge',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: TripListItem(
+                title: 'Campus',
+                subtitle: 'Nov 10, 2026 • 10:00 AM',
+                durationOrSos: 'Duration: 45 mins',
+                status: 'ARRIVED',
+                badgeBgColor: Color(0xFFD1FAE5),
+                badgeTextColor: Color(0xFF10B981),
                 wasExtended: true,
+                hasAlertChip: false,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('+15 MIN'), findsOneWidget);
+        expect(find.text('ARRIVED'), findsOneWidget);
+        expect(find.text('ALERT'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Scenario 7: Extended then expired with escalation renders +15 MIN + ALERT + EXPIRED',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: TripListItem(
+                title: 'Campus',
+                subtitle: 'Nov 10, 2026 • 10:00 AM',
+                durationOrSos: 'Duration: 45 mins',
+                status: 'EXPIRED',
+                badgeBgColor: Color(0xFFFFDAD8),
+                badgeTextColor: Color(0xFFDB2B38),
+                wasExtended: true,
+                hasAlertChip: true,
               ),
             ),
           ),
@@ -96,30 +223,33 @@ void main() {
 
         expect(find.text('+15 MIN'), findsOneWidget);
         expect(find.text('ALERT'), findsOneWidget);
+        expect(find.text('EXPIRED'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'TripListItem does NOT render redundant +15 MIN tag when status is already EXTENDED',
+      'Scenario 8: Arrival Unconfirmed renders ALERT chip + UNCONFIRMED badge without EXPIRED',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           const MaterialApp(
             home: Scaffold(
               body: TripListItem(
                 title: 'Campus',
-                subtitle: 'Mar 30, 2026 • 10:00 AM',
+                subtitle: 'Nov 10, 2026 • 10:00 AM',
                 durationOrSos: 'Duration: 45 mins',
-                status: 'EXTENDED',
-                badgeBgColor: Color(0xFFFEF3C7),
-                badgeTextColor: Color(0xFFD97706),
-                wasExtended: true,
+                status: 'UNCONFIRMED',
+                badgeBgColor: Color(0xFFFFDAD8),
+                badgeTextColor: Color(0xFFDB2B38),
+                wasExtended: false,
+                hasAlertChip: true,
               ),
             ),
           ),
         );
 
-        expect(find.text('+15 MIN'), findsNothing);
-        expect(find.text('EXTENDED'), findsOneWidget);
+        expect(find.text('ALERT'), findsOneWidget);
+        expect(find.text('UNCONFIRMED'), findsOneWidget);
+        expect(find.text('EXPIRED'), findsNothing);
       },
     );
   });

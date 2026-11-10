@@ -918,7 +918,7 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
 
-        const LocalStorageService().saveActiveTrip(isActive: false);
+        await const LocalStorageService().saveActiveTrip(isActive: false);
 
         // Log the trip locally as Alert
         final storage = const LocalStorageService();
@@ -938,8 +938,17 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           timestamp: DateTime.now(),
           wasExtended: _wasExtended,
         );
-        await storage.saveTripHistory([...history, newTrip]);
-        FirebaseService().refreshLocalTrips();
+
+        final existingIndex = history.indexWhere((t) => t.id == eventId);
+        List<TripRecord> updatedHistory;
+        if (existingIndex >= 0) {
+          updatedHistory = List<TripRecord>.from(history);
+          updatedHistory[existingIndex] = newTrip;
+        } else {
+          updatedHistory = [...history, newTrip];
+        }
+        await storage.saveTripHistory(updatedHistory);
+        await FirebaseService().refreshLocalTrips();
 
         if (tripId.isNotEmpty && tripStartedAt != null) {
           FirebaseService().saveOrUpdateTrip(
@@ -1023,6 +1032,8 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         selectedTab = 0;
       });
 
+      FirebaseService().refreshLocalTrips();
+
       try {
         if (Navigator.of(context).canPop()) {
           Navigator.of(context).popUntil((route) => route.isFirst);
@@ -1040,23 +1051,32 @@ class HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Immediate GPS shutdown preserving Zero-Surveillance privacy
     _geofenceService.stopMonitoring();
 
-    const LocalStorageService().saveActiveTrip(isActive: false);
+    await const LocalStorageService().saveActiveTrip(isActive: false);
 
     // Log the trip locally
     final storage = const LocalStorageService();
     final history = await storage.readTripHistory();
+    final String targetId = tripId.isNotEmpty
+        ? tripId
+        : DateTime.now().millisecondsSinceEpoch.toString();
     final newTrip = TripRecord(
-      id: tripId.isNotEmpty
-          ? tripId
-          : DateTime.now().millisecondsSinceEpoch.toString(),
+      id: targetId,
       destination: destination,
       durationMinutes: totalDuration.inMinutes,
       status: safe ? 'Arrived Safely' : 'Cancelled',
       timestamp: DateTime.now(),
       wasExtended: _wasExtended,
     );
-    await storage.saveTripHistory([...history, newTrip]);
-    FirebaseService().refreshLocalTrips();
+    final existingIndex = history.indexWhere((t) => t.id == targetId);
+    List<TripRecord> updatedHistory;
+    if (existingIndex >= 0) {
+      updatedHistory = List<TripRecord>.from(history);
+      updatedHistory[existingIndex] = newTrip;
+    } else {
+      updatedHistory = [...history, newTrip];
+    }
+    await storage.saveTripHistory(updatedHistory);
+    await FirebaseService().refreshLocalTrips();
 
     if (tripId.isNotEmpty && tripStartedAt != null) {
       FirebaseService().saveOrUpdateTrip(

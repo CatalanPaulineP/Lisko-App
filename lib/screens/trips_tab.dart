@@ -169,6 +169,8 @@ class _TripsTabState extends State<TripsTab>
                 'need help',
                 'timer expired',
                 'arrival unconfirmed',
+                'timeout_warning',
+                'warning',
               ].contains(t.status.toLowerCase()),
             )
             .length;
@@ -194,6 +196,8 @@ class _TripsTabState extends State<TripsTab>
               'need help',
               'timer expired',
               'arrival unconfirmed',
+              'timeout_warning',
+              'warning',
             ].contains(t.status.toLowerCase());
           }
           return true;
@@ -885,15 +889,22 @@ class RecentTripsList extends StatelessWidget {
                         'arrived',
                         'arrived safely',
                       ].contains(statusLower);
-                      bool isAlert = [
+                      bool isExplicitHelp = [
                         'alert',
                         'help_requested',
                         'need help',
                       ].contains(statusLower);
+                      bool isWarning =
+                          statusLower == 'timeout_warning' ||
+                          statusLower == 'warning';
                       bool isExtended =
                           trip.wasExtended ||
                           ['extended', 'trip extended'].contains(statusLower);
                       bool isCancelled = statusLower == 'cancelled';
+                      bool isEscalated =
+                          statusLower == 'timer expired' ||
+                          statusLower == 'arrival unconfirmed' ||
+                          statusLower == 'expired';
 
                       if (isArrived) {
                         displayStatus = 'ARRIVED';
@@ -901,8 +912,10 @@ class RecentTripsList extends StatelessWidget {
                         displayStatus = 'EXPIRED';
                       } else if (isUnconfirmed) {
                         displayStatus = 'UNCONFIRMED';
-                      } else if (isStandaloneSos || isAlert) {
+                      } else if (isStandaloneSos || isExplicitHelp) {
                         displayStatus = 'ALERT';
+                      } else if (isWarning) {
+                        displayStatus = 'WARNING';
                       } else if (isExtended) {
                         displayStatus = 'EXTENDED';
                       } else if (isCancelled) {
@@ -960,7 +973,8 @@ class RecentTripsList extends StatelessWidget {
                         bBgColor = const Color(0xFFD1FAE5);
                         bTextColor = const Color(0xFF10B981);
                       } else if (displayStatus == 'EXPIRED' ||
-                          displayStatus == 'ALERT') {
+                          displayStatus == 'ALERT' ||
+                          displayStatus == 'UNCONFIRMED') {
                         bBgColor = const Color(0xFFFFDAD8);
                         bTextColor = const Color(0xFFDB2B38);
                       } else {
@@ -976,6 +990,7 @@ class RecentTripsList extends StatelessWidget {
                         badgeBgColor: bBgColor,
                         badgeTextColor: bTextColor,
                         wasExtended: isExtended,
+                        hasAlertChip: isEscalated,
                       );
                     },
                   ),
@@ -1003,6 +1018,7 @@ class TripListItem extends StatelessWidget {
     required this.badgeTextColor,
     this.durationOrSos,
     this.wasExtended = false,
+    this.hasAlertChip = false,
   });
 
   final String title;
@@ -1012,6 +1028,7 @@ class TripListItem extends StatelessWidget {
   final Color badgeTextColor;
   final String? durationOrSos;
   final bool wasExtended;
+  final bool hasAlertChip;
 
   @override
   Widget build(BuildContext context) {
@@ -1061,50 +1078,82 @@ class TripListItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (wasExtended && status != 'EXTENDED') ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3.5,
-                  ),
-                  margin: const EdgeInsets.only(right: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFF59E0B),
-                      width: 1,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (wasExtended && status != 'EXTENDED') ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFF59E0B),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      '+15 MIN',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFD97706),
+                      ),
                     ),
                   ),
+                ],
+                if (hasAlertChip && status != 'ALERT') ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFDAD8),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFDB2B38),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      'ALERT',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFDB2B38),
+                      ),
+                    ),
+                  ),
+                ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: badgeBgColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Text(
-                    '+15 MIN',
+                    status,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10.5,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFFD97706),
+                      color: badgeTextColor,
                     ),
                   ),
                 ),
               ],
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: badgeBgColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  status,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: badgeTextColor,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),

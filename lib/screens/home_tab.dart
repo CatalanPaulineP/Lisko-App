@@ -110,8 +110,12 @@ class HomeDashboardTab extends StatelessWidget {
                 children: [
                   const SizedBox(height: 12),
                   TripTimerCard(
-                    timeText: (tripStaged && stagedDuration.inSeconds > 0) ? _formatDuration(stagedDuration) : '--:--:--',
-                    statusText: (tripStaged && stagedDestination.isNotEmpty) ? 'HEADING TO ${stagedDestination.toUpperCase()}' : 'NO TRIP SET UP',
+                    timeText: (tripStaged && stagedDuration.inSeconds > 0)
+                        ? _formatDuration(stagedDuration)
+                        : '--:--:--',
+                    statusText: (tripStaged && stagedDestination.isNotEmpty)
+                        ? 'HEADING TO ${stagedDestination.toUpperCase()}'
+                        : 'NO TRIP SET UP',
                     isActive: false,
                     isStaged: tripStaged,
                     onAdjustMinutes: onAdjustMinutes,
@@ -120,7 +124,9 @@ class HomeDashboardTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   HomeStartButton(
-                    buttonKey: tripStaged ? activeTripStartButtonKey : setUpTripKey,
+                    buttonKey: tripStaged
+                        ? activeTripStartButtonKey
+                        : setUpTripKey,
                     onPressed: tripStaged ? onStartTrip : onSetUpTrip,
                     label: tripStaged ? 'START TRIP' : 'SET UP TRIP',
                   ),
@@ -235,7 +241,8 @@ class _HomeHeaderState extends State<HomeHeader> {
         category = 'arrival';
         icon = Icons.check_circle_rounded;
         iconColor = AppColors.success;
-      } else if (trip.destination == 'Manual SOS' || ['manual sos'].contains(statusLower)) {
+      } else if (trip.destination == 'Manual SOS' ||
+          ['manual sos'].contains(statusLower)) {
         title = 'Emergency Alert Sent';
         message = 'Manual SOS triggered. Alert SMS sent to trusted contacts.';
         category = 'emergency';
@@ -243,23 +250,31 @@ class _HomeHeaderState extends State<HomeHeader> {
         iconColor = AppColors.primary;
       } else if (['expired', 'timer expired'].contains(statusLower)) {
         title = 'Emergency Alert Sent';
-        message = 'Safety check timed out for ${trip.destination}. Alert SMS sent to trusted contacts.';
+        message =
+            'Safety check timed out for ${trip.destination}. Alert SMS sent to trusted contacts.';
         category = 'emergency';
         icon = Icons.warning_rounded;
         iconColor = AppColors.primary;
-      } else if (['help_requested', 'need help', 'alert'].contains(statusLower)) {
+      } else if ([
+        'help_requested',
+        'need help',
+        'alert',
+      ].contains(statusLower)) {
         title = 'Emergency Alert Sent';
-        message = 'Help was requested during your trip to ${trip.destination}. Alert SMS sent to trusted contacts.';
+        message =
+            'Help was requested during your trip to ${trip.destination}. Alert SMS sent to trusted contacts.';
         category = 'emergency';
         icon = Icons.warning_rounded;
         iconColor = AppColors.primary;
       } else if (statusLower == 'active') {
         title = 'Trip Timer Active';
-        message = 'Heading to ${trip.destination} (${trip.durationMinutes} mins).';
+        message =
+            'Heading to ${trip.destination} (${trip.durationMinutes} mins).';
         category = 'trip';
         icon = Icons.navigation_rounded;
         iconColor = AppColors.primary;
-      } else if (trip.wasExtended || ['extended', 'trip extended'].contains(statusLower)) {
+      } else if (trip.wasExtended ||
+          ['extended', 'trip extended'].contains(statusLower)) {
         title = 'Trip Extended';
         message = '15 minutes added to trip to ${trip.destination}.';
         category = 'trip';
@@ -303,40 +318,42 @@ class _HomeHeaderState extends State<HomeHeader> {
 
   bool _isYesterday(DateTime ts) {
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    return ts.year == yesterday.year && ts.month == yesterday.month && ts.day == yesterday.day;
+    return ts.year == yesterday.year &&
+        ts.month == yesterday.month &&
+        ts.day == yesterday.day;
   }
 
   List<AppNotificationItem> get _todayNotifications {
     final allItems = _buildNotificationItems();
     if (_rawTrips.isEmpty) return [];
 
-    final todayTripIds =
-        _rawTrips.where((t) => _isToday(t.timestamp)).map((t) => t.id).toSet();
-    return allItems
-        .where((n) => todayTripIds.contains(n.id))
-        .toList();
+    final todayTripIds = _rawTrips
+        .where((t) => _isToday(t.timestamp))
+        .map((t) => t.id)
+        .toSet();
+    return allItems.where((n) => todayTripIds.contains(n.id)).toList();
   }
 
   List<AppNotificationItem> get _yesterdayNotifications {
     final allItems = _buildNotificationItems();
     if (_rawTrips.isEmpty) return [];
 
-    final yesterdayTripIds =
-        _rawTrips.where((t) => _isYesterday(t.timestamp)).map((t) => t.id).toSet();
-    return allItems
-        .where((n) => yesterdayTripIds.contains(n.id))
-        .toList();
+    final yesterdayTripIds = _rawTrips
+        .where((t) => _isYesterday(t.timestamp))
+        .map((t) => t.id)
+        .toSet();
+    return allItems.where((n) => yesterdayTripIds.contains(n.id)).toList();
   }
 
   List<AppNotificationItem> get _earlierNotifications {
     final allItems = _buildNotificationItems();
     if (_rawTrips.isEmpty) return [];
 
-    final recentTripIds =
-        _rawTrips.where((t) => _isToday(t.timestamp) || _isYesterday(t.timestamp)).map((t) => t.id).toSet();
-    return allItems
-        .where((n) => !recentTripIds.contains(n.id))
-        .toList();
+    final recentTripIds = _rawTrips
+        .where((t) => _isToday(t.timestamp) || _isYesterday(t.timestamp))
+        .map((t) => t.id)
+        .toSet();
+    return allItems.where((n) => !recentTripIds.contains(n.id)).toList();
   }
 
   bool get _hasUnread {
@@ -405,7 +422,10 @@ class _HomeHeaderState extends State<HomeHeader> {
                 offset: const Offset(0, 6),
                 child: NotificationsPopover(
                   todayNotifications: _todayNotifications,
-                  earlierNotifications: [..._yesterdayNotifications, ..._earlierNotifications],
+                  earlierNotifications: [
+                    ..._yesterdayNotifications,
+                    ..._earlierNotifications,
+                  ],
                   onClose: _hideNotificationsPopover,
                   onItemTap: _handleItemTap,
                   onViewAll: _handleViewAll,
@@ -483,10 +503,9 @@ class _HomeHeaderState extends State<HomeHeader> {
           top: 0,
           left: 0,
           right: 0,
-          bottom: 40, // Stops 40px above the bottom of the stack to let the card stick out
-          child: CustomPaint(
-            painter: const HomeHeaderPatternPainter(),
-          ),
+          bottom:
+              40, // Stops 40px above the bottom of the stack to let the card stick out
+          child: CustomPaint(painter: const HomeHeaderPatternPainter()),
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -580,7 +599,9 @@ class _HomeHeaderState extends State<HomeHeader> {
                 ],
               ),
             ),
-            const SizedBox(height: 28), // Explicit spacing to perfectly prevent text overlap
+            const SizedBox(
+              height: 28,
+            ), // Explicit spacing to perfectly prevent text overlap
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SystemReadyCard(selectedTab: widget.selectedTab),
@@ -629,7 +650,9 @@ class _HomeStartButtonState extends State<HomeStartButton> {
 
   void _handlePressed() {
     final now = DateTime.now();
-    if (now.difference(_lastPressed) < const Duration(milliseconds: 350)) return;
+    if (now.difference(_lastPressed) < const Duration(milliseconds: 350)) {
+      return;
+    }
     _lastPressed = now;
     widget.onPressed();
   }
@@ -695,11 +718,11 @@ class _TodayActivityState extends State<TodayActivity> {
   void initState() {
     super.initState();
     _tripsStream = FirebaseService().getTripsStream();
-    
+
     // Fix: When returning Home from the Trips tab, this widget is rebuilt with a new StreamBuilder.
-    // Since FirebaseService's stream is a broadcast stream, new listeners won't automatically 
-    // receive the last emitted event if the stream was already active. By explicitly invoking 
-    // refreshLocalTrips(), we force the stream to emit a fresh state immediately, 
+    // Since FirebaseService's stream is a broadcast stream, new listeners won't automatically
+    // receive the last emitted event if the stream was already active. By explicitly invoking
+    // refreshLocalTrips(), we force the stream to emit a fresh state immediately,
     // guaranteeing the loading spinner is dismissed without breaking the Trips tab.
     FirebaseService().refreshLocalTrips();
   }
@@ -722,7 +745,8 @@ class _TodayActivityState extends State<TodayActivity> {
         StreamBuilder<List<TripRecord>>(
           stream: _tripsStream,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
               return const DashboardCard(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
@@ -730,7 +754,10 @@ class _TodayActivityState extends State<TodayActivity> {
                     child: SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                        strokeWidth: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -742,7 +769,15 @@ class _TodayActivityState extends State<TodayActivity> {
             final todayStart = DateTime(now.year, now.month, now.day);
             final tomorrowStart = todayStart.add(const Duration(days: 1));
 
-            final todaysTrips = trips.where((t) => t.timestamp.isAfter(todayStart.subtract(const Duration(milliseconds: 1))) && t.timestamp.isBefore(tomorrowStart)).toList();
+            final todaysTrips = trips
+                .where(
+                  (t) =>
+                      t.timestamp.isAfter(
+                        todayStart.subtract(const Duration(milliseconds: 1)),
+                      ) &&
+                      t.timestamp.isBefore(tomorrowStart),
+                )
+                .toList();
 
             if (todaysTrips.isEmpty) {
               return const DashboardCard(
@@ -777,24 +812,48 @@ class _TodayActivityState extends State<TodayActivity> {
             // If there are trips today, take the most recent one (since the list is already newest-first)
             final trip = todaysTrips.first;
             final statusLower = trip.status.toLowerCase();
-            
+
             String displayStatus;
             String displayTitle;
             String? displayDuration;
 
-            bool isStandaloneSos = (statusLower == 'alert' && trip.destination == 'Manual SOS') || statusLower == 'manual sos';
-            bool isExpired = statusLower == 'expired' || statusLower == 'timer expired';
-            bool isArrived = ['completed', 'arrived', 'arrived safely'].contains(statusLower);
-            bool isAlert = ['alert', 'help_requested', 'need help'].contains(statusLower);
-            bool isExtended = trip.wasExtended || ['extended', 'trip extended'].contains(statusLower);
+            bool isStandaloneSos =
+                (statusLower == 'alert' && trip.destination == 'Manual SOS') ||
+                statusLower == 'manual sos';
+            bool isExpired =
+                statusLower == 'expired' || statusLower == 'timer expired';
+            bool isUnconfirmed = statusLower == 'arrival unconfirmed';
+            bool isArrived = [
+              'completed',
+              'arrived',
+              'arrived safely',
+            ].contains(statusLower);
+            bool isExplicitHelp = [
+              'alert',
+              'help_requested',
+              'need help',
+            ].contains(statusLower);
+            bool isWarning =
+                statusLower == 'timeout_warning' || statusLower == 'warning';
+            bool isExtended =
+                trip.wasExtended ||
+                ['extended', 'trip extended'].contains(statusLower);
             bool isCancelled = statusLower == 'cancelled';
+            bool isEscalated =
+                statusLower == 'timer expired' ||
+                statusLower == 'arrival unconfirmed' ||
+                statusLower == 'expired';
 
             if (isArrived) {
               displayStatus = 'ARRIVED';
             } else if (isExpired) {
               displayStatus = 'EXPIRED';
-            } else if (isStandaloneSos || isAlert) {
+            } else if (isUnconfirmed) {
+              displayStatus = 'UNCONFIRMED';
+            } else if (isStandaloneSos || isExplicitHelp) {
               displayStatus = 'ALERT';
+            } else if (isWarning) {
+              displayStatus = 'WARNING';
             } else if (isExtended) {
               displayStatus = 'EXTENDED';
             } else if (isCancelled) {
@@ -810,29 +869,46 @@ class _TodayActivityState extends State<TodayActivity> {
               displayTitle = trip.destination;
               final mins = trip.durationMinutes;
               if (mins == 0) {
-                 displayDuration = 'Duration: <1 min';
+                displayDuration = 'Duration: <1 min';
               } else if (mins < 60) {
-                 displayDuration = 'Duration: $mins min${mins > 1 ? 's' : ''}';
+                displayDuration = 'Duration: $mins min${mins > 1 ? 's' : ''}';
               } else {
-                 final hr = mins ~/ 60;
-                 final m = mins % 60;
-                 displayDuration = 'Duration: $hr hr${hr > 1 ? 's' : ''}${m > 0 ? ' $m min${m > 1 ? 's' : ''}' : ''}';
+                final hr = mins ~/ 60;
+                final m = mins % 60;
+                displayDuration =
+                    'Duration: $hr hr${hr > 1 ? 's' : ''}${m > 0 ? ' $m min${m > 1 ? 's' : ''}' : ''}';
               }
             }
 
-            final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            final months = [
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'May',
+              'Jun',
+              'Jul',
+              'Aug',
+              'Sep',
+              'Oct',
+              'Nov',
+              'Dec',
+            ];
             final h = trip.timestamp.hour;
             final min = trip.timestamp.minute.toString().padLeft(2, '0');
             final amPm = h >= 12 ? 'PM' : 'AM';
             final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-            final displayDate = '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year} • $hour12:$min $amPm';
+            final displayDate =
+                '${months[trip.timestamp.month - 1]} ${trip.timestamp.day}, ${trip.timestamp.year} • $hour12:$min $amPm';
 
             Color bBgColor;
             Color bTextColor;
             if (displayStatus == 'ARRIVED') {
               bBgColor = const Color(0xFFD1FAE5);
               bTextColor = const Color(0xFF10B981);
-            } else if (displayStatus == 'EXPIRED' || displayStatus == 'ALERT') {
+            } else if (displayStatus == 'EXPIRED' ||
+                displayStatus == 'ALERT' ||
+                displayStatus == 'UNCONFIRMED') {
               bBgColor = const Color(0xFFFFDAD8);
               bTextColor = const Color(0xFFDB2B38);
             } else {
@@ -850,6 +926,8 @@ class _TodayActivityState extends State<TodayActivity> {
                   status: displayStatus,
                   badgeBgColor: bBgColor,
                   badgeTextColor: bTextColor,
+                  wasExtended: isExtended,
+                  hasAlertChip: isEscalated,
                 ),
               ),
             );

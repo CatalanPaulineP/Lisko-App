@@ -132,32 +132,117 @@ class FirebaseService {
   List<TripRecord> _currentTrips = [];
   List<TripRecord> _currentEvents = [];
 
-  void _emitCombinedTrips() {
-    if (_tripsController == null || _tripsController!.isClosed) return;
-    final map = <String, TripRecord>{};
-    for (final t in _localTrips) {
-      map[t.id] = t;
+  int statusPriority(String status) {
+    final s = status.trim().toLowerCase();
+    if ([
+      'arrived',
+      'arrived safely',
+      'completed',
+      'cancelled',
+      'expired',
+      'timer expired',
+      'arrival unconfirmed',
+      'help_requested',
+      'manual sos',
+      'alert',
+      'need help',
+    ].contains(s)) {
+      return 4; // Terminal outcome
     }
-    for (final t in _currentTrips) {
+    if (['extended', 'trip extended'].contains(s)) {
+      return 3; // Extension status
+    }
+    if (['timeout_warning', 'warning'].contains(s)) {
+      return 2; // Warning status
+    }
+    return 1; // Active / Unknown
+  }
+
+  String resolveTripStatus(String statusA, String statusB) {
+    final pA = statusPriority(statusA);
+    final pB = statusPriority(statusB);
+    return pA >= pB ? statusA : statusB;
+  }
+
+  List<TripRecord> combineTripsForTesting({
+    required List<TripRecord> localTrips,
+    required List<TripRecord> currentTrips,
+    List<TripRecord> currentEvents = const [],
+  }) {
+    final map = <String, TripRecord>{};
+    for (final t in localTrips) {
+      final existing = map[t.id];
+      if (existing == null) {
+        map[t.id] = t;
+      } else {
+        final bool isExtended = t.wasExtended || existing.wasExtended;
+        final String resolvedStatus = resolveTripStatus(
+          existing.status,
+          t.status,
+        );
+        final DateTime resolvedTimestamp =
+            statusPriority(existing.status) >= statusPriority(t.status)
+            ? existing.timestamp
+            : t.timestamp;
+        final String resolvedDestination =
+            existing.destination.isNotEmpty && existing.destination != 'Unknown'
+            ? existing.destination
+            : t.destination;
+        map[t.id] = TripRecord(
+          id: t.id,
+          destination: resolvedDestination,
+          durationMinutes: t.durationMinutes > 0
+              ? t.durationMinutes
+              : existing.durationMinutes,
+          status: resolvedStatus,
+          timestamp: resolvedTimestamp,
+          wasExtended: isExtended,
+        );
+      }
+    }
+    for (final t in currentTrips) {
       final existing = map[t.id];
       final bool isExtended = t.wasExtended || (existing?.wasExtended ?? false);
+      final String resolvedStatus = existing != null
+          ? resolveTripStatus(existing.status, t.status)
+          : t.status;
+      final DateTime resolvedTimestamp =
+          (existing != null &&
+              statusPriority(existing.status) > statusPriority(t.status))
+          ? existing.timestamp
+          : t.timestamp;
+      final String resolvedDestination =
+          (existing != null &&
+              existing.destination.isNotEmpty &&
+              existing.destination != 'Unknown')
+          ? existing.destination
+          : t.destination;
       map[t.id] = TripRecord(
         id: t.id,
-        destination: t.destination,
-        durationMinutes: t.durationMinutes,
-        status: t.status,
-        timestamp: t.timestamp,
+        destination: resolvedDestination,
+        durationMinutes: t.durationMinutes > 0
+            ? t.durationMinutes
+            : (existing?.durationMinutes ?? 0),
+        status: resolvedStatus,
+        timestamp: resolvedTimestamp,
         wasExtended: isExtended,
       );
     }
-    for (final t in _currentEvents) {
+    for (final t in currentEvents) {
       final existing = map[t.id];
       final bool isExtended = t.wasExtended || (existing?.wasExtended ?? false);
+      final String resolvedStatus = existing != null
+          ? resolveTripStatus(existing.status, t.status)
+          : t.status;
       map[t.id] = TripRecord(
         id: t.id,
-        destination: t.destination,
-        durationMinutes: t.durationMinutes,
-        status: t.status,
+        destination: (existing != null && existing.destination.isNotEmpty)
+            ? existing.destination
+            : t.destination,
+        durationMinutes: t.durationMinutes > 0
+            ? t.durationMinutes
+            : (existing?.durationMinutes ?? 0),
+        status: resolvedStatus,
         timestamp: t.timestamp,
         wasExtended: isExtended,
       );
@@ -167,7 +252,18 @@ class FirebaseService {
     final combined = map.values
         .where((t) => !t.timestamp.isBefore(cutoff))
         .toList();
+
     combined.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return combined;
+  }
+
+  void _emitCombinedTrips() {
+    if (_tripsController == null || _tripsController!.isClosed) return;
+    final combined = combineTripsForTesting(
+      localTrips: _localTrips,
+      currentTrips: _currentTrips,
+      currentEvents: _currentEvents,
+    );
     _tripsController!.add(combined);
   }
 

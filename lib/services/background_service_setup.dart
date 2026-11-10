@@ -852,7 +852,15 @@ Future<void> _executeBackgroundEmergencyEscalation({
       timestamp: DateTime.now(),
       wasExtended: wasExt,
     );
-    await storage.saveTripHistory([...history, newTrip]);
+    final existingIndex = history.indexWhere((t) => t.id == eventId);
+    List<TripRecord> updatedHistory;
+    if (existingIndex >= 0) {
+      updatedHistory = List<TripRecord>.from(history);
+      updatedHistory[existingIndex] = newTrip;
+    } else {
+      updatedHistory = [...history, newTrip];
+    }
+    await storage.saveTripHistory(updatedHistory);
 
     if (tripId.isNotEmpty && startedAtMs != null) {
       FirebaseService().saveOrUpdateTrip(
